@@ -19,6 +19,7 @@ Phase 1 passes. Phase 5 is written gradually as results come in.
 | 3 IMAGE | done (see "Phase 3 outcome"; `doc/image.md`, `tests/image/`) |
 | 4 RED | done (see "Phase 4 outcome"; `doc/red.md`, `tests/red/`) |
 | 5 Documentation | done (see "Phase 5 outcome"; `doc/README.md`, `tests/lang/`) |
+| 6 Fixes | planned; waiting for the decisions in "Phase 6: Decisions" |
 
 Update this table as work proceeds.
 
@@ -459,6 +460,208 @@ test. `notes/` is either retired or marked as historical.
   past 9 (`:`), whether SS arguments stay on the stack, the bare
   `$SCHDWK`, defect 9, and all of `gm-variant.md` (GM was not built).
 - `notes/` is marked historical.
+
+---
+
+## Phase 6: Fixes
+
+**Goal:** a patched SAO STOIC (kernel, `STOIC.EXE`, `RED.EXE`,
+`REDHIREZ.EXE`) that fixes every defect in `doc/defects.md` that can be
+fixed. Each fix gets a test, and the doc records where the manual, not the
+code, is wrong. The shipped files and the Phase 2 rebuild stay as they are,
+as references.
+
+### Setup
+
+1. **Local tree.** `patched/` is a copy of `saostoic-text/kernel`,
+   `stoic` and `red`. Commit it unchanged first, so that `git diff` of
+   `patched/` against that commit shows every patch. Each fix is its own
+   commit, and the message names the defect number.
+2. **VAX tree.** `[.WORK.PATCHED]` has `KERNEL`, `STOIC` and `RED`
+   subdirectories. `tools/setup-work.com` gets a variant that fills them
+   from `[.SAOSTOIC...]`, plus the `.OBJ` files of the unchanged modules.
+   Patched files go up by ASCII FTP, one session per batch.
+3. **Build.** Build with `@STOBUILD MAC` in `[.WORK.PATCHED]`. ASSIGN.COM
+   points the logical names at the current default, so the build writes
+   only into that tree. Add `tools/patched-assign.com`, a copy of
+   `work-assign.com` that points at `[.WORK.PATCHED...]`. The patched
+   STOIC is then `-x DUA1:[USERS.CLAUDE.WORK.PATCHED.STOIC]STOIC.EXE` to
+   `stoic-run` and `stoic-suite`.
+4. **Expected output.** `tests/*.expected` stays the record of the shipped
+   exe. Add `stoic-suite --expected-dir tests/patched`. Then
+   `tests/patched/*.expected` starts as a copy of the shipped files, and
+   each fix commit changes only the lines that fix is meant to change.
+5. **New tests.** Every defect gets a test in `tests/fix/` named by its
+   number (`F14-SIGN.con`, `F27-FPD.con`, ...). Interactive defects get a
+   `vax-interact` check, and RED defects get a `red-drive` script. Each
+   test runs against both exes. On the shipped exe it shows the defect,
+   and on the patched one it shows the fix.
+6. **Rebuild order.** After any kernel change, rebuild in order: the
+   kernel, HEAD0, STOIC.EXE, RED.EXE and REDHIREZ. IMAGE refuses a
+   mismatched HEAD0 only once 28 is fixed, so until then always run the
+   full `STOBUILD MAC`.
+
+### Batches
+
+Run the batches in this order. After each batch, rebuild, run the whole
+suite, run `tests/image/run` and the RED smoke scripts against the patched
+build, and commit.
+
+**Batch A: small, local fixes.** These are one to three lines each, and no
+other fix depends on them.
+
+| # | Fix | Where |
+|---|---|---|
+| 14 | `movb #^a/-/,-(r5)` instead of `movl` | `rkernel.mar:1684` |
+| 15 | compare the low longwords unsigned (BGEQU) | `rdef:555-563` |
+| 16 | `.FLIP` with MOVQ | `float:46-48` |
+| 37 | `.+ROT`/`.-ROT` move whole values (MOVQ, or MOVD through R0–R1) | `float:32,36,39` |
+| 38 | make `F_STRING` one byte longer | `float:12,115` |
+| 20 | correct GETJPI's comment | `rdef:795` |
+| 29 | install `I_DATE_ERROR` in DEF_INIT, so XLOAD prints rdef's message | `rdef:1497` |
+| 32 | `ASCII 6 RESET_MODE`, not `6 RESET_MODE` | `red/kbd:500` |
+| 40 | `>` refuses to pop the last branch (STOIC<) and gives "Branch stack empty" | `rkernel.mar:1862-1865` |
+| 1 | DIGIT: after the `Z` test, branch to `not_digit` instead of falling into `found_dp`. Also check the status OTS$CVT_T_D returns, and make a bad float a compile error. | `rkernel.mar:643-644`, `crtl.mar:109` |
+
+Lowercase input in a LOAD file then gives "undefined word". That was the
+intent: lowercase never worked as numbers.
+
+**Batch B: the condition handler.** Do this before the bounds checks,
+because their tests depend on recovering cleanly from a fault.
+
+| # | Fix |
+|---|---|
+| 27 | Clear PSL<FPD> in the signal array's PSL slot when the PC is redirected to ABORT (`rkernel.mar:472-484`). |
+| 19 | Have the handler print the message itself with `$PUTMSG` from the unmodified signal array, which has the true PC. Then redirect the PC to ABORT and return SS$_CONTINUE. It no longer resignals. ERROR_TRACE's traceback stays as it is. |
+| 18 | Diagnose first: run `.SQRT` of a negative number with a traceback of the handler's `$UNWIND` path (`rkernel.mar:480-482`). The likely fix is `$UNWIND_S depadr=..., newpc=ABORT`, so that a signal from inside an MTH$ or OTS$ call unwinds straight to ABORT. |
+| 17 | Retest after 18: once the handler deals with a signal from depth, the MTH$ errors (LOG 0, ASIN 2, POWDD overflow) may report themselves. If they still return a reserved operand, add a status or ROPRAND check after each call in `crtl.mar`. |
+| 7 | `.errstop` keeps LIB$STOP only for start-up failures. LOAD and OPEN push the status and go through SYSERR, so a missing file gives a message and the prompt (`rms.mar:40-44`). |
+| 24 | Count console read errors in a row in I_READLINE. After three, `$EXIT` with the last status. |
+
+**Batch C: bounds checks.**
+
+| # | Fix |
+|---|---|
+| 4 | Check the compile-buffer pointer in the words that compile code (`rkernel.mar:1011-1057`) against `comp_buf_0 + comp_buf_length` minus a margin for the RSB. On overflow, report "Line too long", clear CHECK and LOAD_RESET. Optionally raise `comp_buf_length`. |
+| 6 | Range-check the displacement before each `cvtlw` (`rkernel.mar:1016,1047`, header `890-893`) and before data allocation. Report "Code space full" or "Data space full". |
+| 5 | DIGIT accumulates with EMUL into a quadword. If the high longword is ever non-zero, report "Number too large". Values up to FFFFFFFF stay legal, so negative constants written in hex still work. The float-in-hex quirk stays and is documented. |
+| 39 | Find out why the moat above FS doesn't catch the underflow, from FS's base and the `$EXPREG` layout. Then either move the base to the end of its block, so the next block's moat faults, or check depth in the float words. |
+| 3 | Give the terminal IOSB its own quadword cell at the end of the user table, so no existing offset moves, and point every `iosb=ttchan+2(r11)` there (`tyio.mar:136,154,168,177,185,200,207,269`). |
+
+**Batch D: the console and the terminal.**
+
+| # | Fix |
+|---|---|
+| 25 | Open SYS$INPUT with `$OPEN` FAC=GET instead of `_WOPEN_NCR`'s `$CREATE` (`rkernel.mar:415-419`, `rms.mar:297-304`). Prompts still go to the terminal. Test with `DEFINE/USER SYS$INPUT file`. |
+| 8 | `_rmstyo` buffers characters and does a `$PUT` at CR or when the buffer is full. Flush before each read and at exit (`tyio.mar:105-124`). Test under SUBMIT; this is the one place where batch is the test. |
+| 2 | See decision 3. The AST routine changes the interrupted PC in the AST's own argument list (astprm, R0, R1, PC, PSL), not the PC in a call frame. The AST then ends normally through `$ASTEXIT`, and the REI lands in ABORT at normal level. Verify that this list really is the one the REI uses. If it isn't, fall back to a flag: set CTRL_C_FLAG, `$CANCEL` any terminal read, and poll at readline, TYO and DO/LOOP. The interactive `ctrlc` check must pass three ^Cs in a row. |
+| 10 | GETCMD uses LIB$GET_FOREIGN (`ss.mar:291-296`). Check an empty tail, `RED file` and `CALC expr`. |
+| 9 | Fix from the source: push the status before LIB$SIGNAL, recover R11 in `rmast`, and make the descriptors consistent (`tyio.mar:227,243,262-278`). It can be tested only if the user adds a second SIMH terminal line, so without one it is reviewed, not tested. |
+
+**Batch E: absolute data addresses (22, 30, and the same class).** Words
+that freeze a data-region address in a CONSTANT at build time:
+
+- `BRANCH` (`rdef:943`), which makes `IORB<` and `RED<`;
+- `STACK` (`rdef:1128`);
+- `.VARIABLE` (`float:227`);
+- `O.BUFSTRT` and `O.BUFEND` (`obuf:40,42`);
+- `D.START` (`red/dyna:123`).
+
+Each one breaks when the P0 layout differs from the build system's. See
+decision 4 for the two ways to fix them. Whichever is chosen, the test is
+to IMAGE a STOIC and a RED on this system, copy the HEAD0-matched exe into
+a layout that differs, and run IORB<, a STACK, a .VARIABLE and RED. A
+different layout is made with a link against an extra shareable image,
+which is what shifted the rebuild by 4F800.
+
+**Batch F: IMAGE guards.**
+
+| # | Fix |
+|---|---|
+| 23 | IMAGE refuses to run when U_IFI ≠ 0: "IMAGE must be run from the console". |
+| 26 | FIX_DZRO refuses when a region has outgrown its demand-zero section, and names the region (`image:79-84`). |
+| 28 | Before writing, IMAGE compares HEAD0's kernel code section, read from the file, with the running kernel, and refuses if they differ. |
+| 11 | Covered by 26 and 28. Mark it closed. |
+| 21 | No code change. The patched build makes REDHIREZ again, and `doc/image.md` already explains BADISD. |
+
+**Batch G: RED.**
+
+| # | Fix |
+|---|---|
+| 31 | RED chains its own ABORT, which restores the terminal (as on exit) and then calls the old ABORT. Find the cause of the `;F` hang with a red-drive script before fixing it. Testing needs a fault inside RED; with 30 fixed, provoke one with a deliberate bad `@` command. |
+| 34 | After `@K` and `@N`, put the cursor back in the text window, or redraw it. Check with `red-drive` that the screen matches ^R. |
+| 33 | See decision 2. |
+
+**Batch H: documentation only.** The manuals in `saostoic-text/` are not
+edited. A new `doc/errata.md` lists each place where `stoic.mem` or
+`red.mem` disagrees with the code, cross-referenced from `language.md` and
+`red.md`:
+
+- 13: the comparison sense;
+- 35: the `` `C `` replies;
+- 36: TF's clamp, TI missing, `'` being postfix, and the undocumented `,`,
+  `^W`, ENTER and ESC S;
+- 33, if the code is kept;
+- 12, if MOD is kept.
+
+### Phase 6: Decisions
+
+These are for the user to decide before the batch they affect starts.
+
+1. **MOD and `/MOD` with negative numbers (12).** (a) Keep them unsigned
+   and document it. (b) Sign-extend the dividend (CVTLQ-style, then
+   EDIV), which gives a remainder with the sign of the dividend:
+   `-7 3 MOD` = −1. *Recommended: (b).* It is what EDIV and CP/M STOIC
+   do, and nothing in rdef or RED depends on the unsigned result. Batch A
+   will grep for MOD users to confirm that.
+2. **The up arrow in RED (33).** (a) Make the code match the manual:
+   previous line. (b) Keep the code and document it. *Recommended: (a).*
+3. **CTRL/C (2).** The PC-in-the-AST-argument-list design keeps today's
+   behaviour, where ^C interrupts anything, even a loop that does no I/O.
+   The flag design is safer but can't break into a tight loop. *Recommended:
+   try the AST-argument design first, and fall back to the flag only if
+   the test fails.*
+4. **Absolute data addresses (Batch E).**
+   (a) Make the kernel create the data region at a fixed virtual address
+   with `$CRETVA`, as it already does for the code region
+   (`rkernel.mar:405`). That fixes every frozen constant at once, the
+   shipped STOIC.EXE's included once it is re-IMAGEd, and it makes
+   SAVE/XLOAD independent of the P0 layout.
+   (b) Change each defining word to compute its address from USER_DATA at
+   run time. That is five or more words, plus any user code that does the
+   same.
+   *Recommended: (a).* Then do (b) for BRANCH only, because a fixed
+   address can't help when an old exe is run with a new data base.
+5. **Compile-buffer size (4).** Keep 400 hex bytes and only add the check,
+   or double it. *Recommended: keep the size and add the check.*
+6. **Whether to also patch a "shipped-equivalent" exe.** That would be
+   just the fixes needed to run the 1985 STOIC.EXE and RED.EXE unchanged
+   on V5.5-2 (22, 30, 31). *Recommended: no.* The patched build replaces
+   them, and the shipped files stay as evidence.
+
+### Produces
+
+- `patched/`: the sources, each fix a separate commit.
+- On the VAX, `[.WORK.PATCHED...]`: the patched kernel, HEAD0, STOIC.EXE,
+  RED.EXE and REDHIREZ.EXE.
+- `tests/fix/` and `tests/patched/*.expected`.
+- `doc/patches.md`: each patch with its defect, diff summary, test and any
+  change in behaviour.
+- `doc/errata.md`.
+- A "Status" column in `doc/defects.md` (fixed, documented, won't fix),
+  and a "Patched build" section in `doc/build.md`.
+
+### Done when
+
+- Every one of the 40 defects is fixed and tested, documented in
+  `doc/errata.md`, or (only 9, 11 and 21) closed with a stated reason.
+- The full suite, `tests/image/run`, the interactive checks and the RED
+  scripts pass against the patched build. Their only differences from the
+  shipped output are those listed in `doc/patches.md`.
+- `tests/fix/` shows each defect on the shipped exe and its fix on the
+  patched one.
+- AGENTS.md's defect summary says which defects are fixed in the patched
+  build.
 
 ---
 
