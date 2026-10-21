@@ -3,7 +3,13 @@
 # VAX job by tools/stoic-run, each in a STOIC of its own, and compares each
 # one's output with tests/<name>.expected.
 #
-#   tools/stoic-suite [-x <exe>] [-r <exe>] [--update] [<name>...]
+#   tools/stoic-suite [-x <exe>] [-r <exe>] [-d <dir>] [-e <dir>] [--update] [<name>...]
+#
+# -d takes the tests from <dir> instead of tests/ (tests/files/ is still
+# copied), and -e compares with (or --update writes) the .expected files in
+# <dir> instead of the tests' own directory: tests/patched/ holds what the
+# Phase 6 patched build should print. If STOIC_SUITE_SED is set, each
+# test's output is passed through sed with it before it is compared.
 #
 # A <name> is a test's name, such as 01-arith. Every file in tests/files/ is
 # copied there too, for tests that LOAD other files. --update writes each
@@ -14,6 +20,8 @@
 set -e
 here=$(cd "$(dirname "$0")" && pwd)
 tests=$here/../tests
+files=$tests/files
+expdir=
 update=
 xflag=
 while [ $# -gt 0 ]; do
@@ -21,10 +29,13 @@ while [ $# -gt 0 ]; do
     --update) update=yes; shift ;;
     -x) [ $# -ge 2 ] || { echo "stoic-suite: -x needs an exe" >&2; exit 2; }; xflag="$xflag -x $2"; shift 2 ;;
     -r) [ $# -ge 2 ] || { echo "stoic-suite: -r needs an exe" >&2; exit 2; }; xflag="$xflag -r $2"; shift 2 ;;
-    -*) echo "usage: tools/stoic-suite [-x <exe>] [-r <exe>] [--update] [<name>...]" >&2; exit 2 ;;
+    -d) [ $# -ge 2 ] || { echo "stoic-suite: -d needs a directory" >&2; exit 2; }; tests=$2; shift 2 ;;
+    -e) [ $# -ge 2 ] || { echo "stoic-suite: -e needs a directory" >&2; exit 2; }; expdir=$2; shift 2 ;;
+    -*) echo "usage: tools/stoic-suite [-x <exe>] [-r <exe>] [-d <dir>] [-e <dir>] [--update] [<name>...]" >&2; exit 2 ;;
     *) break ;;
   esac
 done
+expdir=${expdir:-$tests}
 if [ $# -eq 0 ]; then
   set -- $(ls "$tests"/*.sto "$tests"/*.con "$tests"/*.dcl 2>/dev/null | sort)
 else
@@ -37,7 +48,7 @@ else
 fi
 for f; do [ -r "$f" ] || { echo "stoic-suite: no test $f" >&2; exit 2; }; done
 extra=
-for f in "$tests"/files/*; do [ -f "$f" ] && extra="$extra -f $f"; done
+for f in "$files"/*; do [ -f "$f" ] && extra="$extra -f $f"; done
 
 # a test that loops forever is given up on sooner than vax-do's 600 s
 VAX_DO_TIMEOUT=${VAX_DO_TIMEOUT:-240}; export VAX_DO_TIMEOUT
@@ -53,16 +64,19 @@ awk -v dir="$out" '
   f { print >>f }
 ' "$out/all"
 
+if [ -n "$STOIC_SUITE_SED" ]; then
+  for g in "$out"/*.out; do [ -f "$g" ] && sed -e "$STOIC_SUITE_SED" "$g" >"$g.s" && mv "$g.s" "$g"; done
+fi
 pass=0; fail=0
 for f; do
   n=$(basename "${f%.*}")
   got=$out/$n.out
   [ -f "$got" ] || : >"$got"
   if [ -n "$update" ]; then
-    cp "$got" "$tests/$n.expected"; echo "UPDATED $n"
-  elif [ ! -f "$tests/$n.expected" ]; then
+    cp "$got" "$expdir/$n.expected"; echo "UPDATED $n"
+  elif [ ! -f "$expdir/$n.expected" ]; then
     echo "FAIL $n (no $n.expected)"; fail=$((fail + 1))
-  elif diff -u "$tests/$n.expected" "$got" >"$out/diff"; then
+  elif diff -u "$expdir/$n.expected" "$got" >"$out/diff"; then
     echo "PASS $n"; pass=$((pass + 1))
   else
     echo "FAIL $n"; sed 's/^/  /' "$out/diff"; fail=$((fail + 1))

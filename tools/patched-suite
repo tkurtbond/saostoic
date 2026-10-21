@@ -1,0 +1,32 @@
+#!/bin/sh
+# Runs a suite against the Phase 6 patched build in [.WORK.PATCHED...]:
+#
+#   tools/patched-suite [--fix] [--shipped] [--update] [<name>...]
+#
+# Without --fix: the regression suite tests/*, compared with
+# tests/patched/*.expected. With --fix: the defect tests tests/fix/*,
+# compared with tests/fix/patched/*.expected, or with --shipped run on the
+# shipped STOIC.EXE and RED.EXE and compared with tests/fix/shipped/. Other
+# arguments go to tools/stoic-suite. REVISION's date is masked.
+here=$(cd "$(dirname "$0")" && pwd)
+t=$here/../tests
+exe=DUA1:[USERS.CLAUDE.WORK.PATCHED.STOIC]STOIC.EXE
+red=DUA1:[USERS.CLAUDE.WORK.PATCHED.RED]RED.EXE
+fix= shipped=
+# the build time changes with every build
+STOIC_SUITE_SED=${STOIC_SUITE_SED:-'s/^REVISION .*/REVISION (build time)/'}
+export STOIC_SUITE_SED
+while :; do
+  case $1 in
+    --fix) fix=yes; shift ;;
+    --shipped) shipped=yes; shift ;;
+    *) break ;;
+  esac
+done
+if [ -n "$fix" ]; then
+  if [ -n "$shipped" ]; then
+    exec "$here/stoic-suite" -d "$t/fix" -e "$t/fix/shipped" "$@"
+  fi
+  exec "$here/stoic-suite" -x "$exe" -r "$red" -d "$t/fix" -e "$t/fix/patched" "$@"
+fi
+exec "$here/stoic-suite" -x "$exe" -r "$red" -e "$t/patched" "$@"

@@ -1,0 +1,27 @@
+IF        TFTFT
+NESTED    TT TF FT FF
+IF ONLY   Y
+BEGIN END  0 1 2 3 4
+BEGIN ONCE 9
+REPEAT     0 1 2 3 4
+REPEAT 0   9
+DO         0 1 2 3 4
+DO 3 7     3 4 5 6
+DO ZERO   .
+DO NEG     -^@^@^@3 -^@^@^@2 -^@^@^@1
++LOOP 3    0 3 6 9
++LOOP 10   0
++LOOP -1  .
+I J        0 1 10 11 20 21
+I J K      0 1 10 11 100 101 110 111
+I'         4 3 2 1 0
+I' 3 7     6 5 4 3
+LAST_I     5
+EXIT       0 1 2 3
+EXIT LAST  3
+PAREN      0 1 2 3 4
+PAREN 0   .
+PAREN NEST 0 1 2 10 11 12
+DO IN DEF  0 1 2 3 0 1
+MULTILINE  0 1 2
+

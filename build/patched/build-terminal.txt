@@ -1,0 +1,42 @@
+
+Welcome to the STOIC kernel.
+Loading RDEF
+Loading IMAGE
+Loading FLOAT
+Loading OBUF
+Loading VT100
+[Creating STOIC.EXE]
+Creating writable image
+If installing in system, use /OPEN/HEAD switches only
+
+Welcome to STOIC
+Loading ERR
+Loading DYNA
+Loading E
+Loading WINDOW
+Loading EDV
+Loading EB
+Loading COMMAND
+Loading IMMED
+Loading CLI
+Loading KBD
+Loading RED
+[Creating RED.EXE]
+Creating writable image
+If installing in system, use /OPEN/HEAD switches only
+
+Welcome to STOIC
+Loading ERR
+Loading DYNA
+Loading E
+Loading WINDOW
+Loading EDV
+Loading EB
+Loading COMMAND
+Loading IMMED
+Loading CLIHIREZ
+Loading KBD
+Loading RED
+[Creating RED.EXE]
+Creating writable image
+If installing in system, use /OPEN/HEAD switches only

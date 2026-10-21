@@ -1,0 +1,21 @@
+LITERAL A B  C|
+QUOTE   ABC
+QUOTES  |"AB|CD"|
+ADJOIN  |EF|
+COUNT    5 2
+TYPE    HEL
+SVAR     0 10
+MOVE    HELLO 5
+STAB    HELLO!
+STRAP   HELLO! WOR 10
+STAB FULL HELLO! WOR
+STREQ    -^@^@^@1 0 0
+SUBSTR   -^@^@^@1DEF
+NOSUB    0 0
+SEARCH   -^@^@^@1XYZ
++SPACES |     | 5
+CONSTS   13 10 32
+|"
+undefined error compiling...  |"  ...in line
+"EMPTY   |" MSG "" MSG "|" MSG CR
+
