@@ -22,7 +22,7 @@
 #   -keep          leave the files on the VAX
 #   -t <file>      write what the procedure writes to the terminal (where
 #                  STOIC's output goes) to <file>, with the closing prompt
-#                  and the carriage returns removed
+#                  the carriage returns removed, and each NUL shown as ^@
 #
 # VAX_DO_TIMEOUT is how long the procedure may run, in seconds (default
 # 600). The script exits 0 if the procedure's $STATUS is success or
@@ -110,11 +110,13 @@ fi
 
 status=0
 expect -f "$here/vax-do.exp" "$host" "${proc%.COM}" "$outdir" "$@" >"$out" || status=$?
-[ "$status" -ne 2 ] || { cat "$out" >&2; exit 2; }
-if [ -n "$terminal" ]; then
-  # carriage returns and NULs gone, and the closing prompt
-  tr -d '\r\000' <"$VAX_DO_TERMINAL" >"$terminal"
+if [ -n "$terminal" ] && [ -s "$VAX_DO_TERMINAL" ]; then
+  # carriage returns gone and NULs shown as ^@ (= writes some)
+  tr -d '\r' <"$VAX_DO_TERMINAL" | sed 's/\x00/^@/g' >"$terminal"
 fi
+# a VAX that could not be used, or a run that timed out (the terminal
+# output so far is in <file>)
+[ "$status" -ne 2 ] || { cat "$out" >&2; exit 2; }
 [ -f "$outdir/VAXDO.LOG" ] && cat "$outdir/VAXDO.LOG"
 hex=$(sed -n 's/^VAXDO-STATUS \([0-9A-F]*\)$/\1/p' "$out")
 if [ -z "$hex" ]; then

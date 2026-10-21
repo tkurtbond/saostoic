@@ -1,7 +1,14 @@
 #!/bin/sh
 # Runs STOIC source files on the VAX and prints what STOIC writes.
 #
-#   tools/stoic-run [-x <exe>] [-f <file>]... [-m] <file.sto>...
+#   tools/stoic-run [-x <exe>] [-f <file>]... [-m] <file.sto|file.con>...
+#
+# A <file.con> is typed at the console instead: its lines are the data lines
+# of a STOIC of its own, then ";F". A compile error there abandons only
+# its line, where in a LOAD file it abandons the rest of the file (and
+# every LOAD under way), so error tests are .con files. A run-time error
+# abandons only its line either way. No line of one may begin with "$". Console lines from a
+# procedure are not uppercased either.
 #
 # Each <file.sto> is copied to [.WORK] and LOADed by a STOIC of its own:
 # the procedure runs @WORK-ASSIGN, then STOIC with the console lines
@@ -17,14 +24,16 @@
 #              if there is more than one file)
 #
 # STOIC's output goes to the terminal, so it is taken from the telnet
-# session (tools/vax-do -t), without the blank line and "Welcome to STOIC"
-# with which each STOIC begins. Exits as tools/vax-do does.
+# session (tools/vax-do -t), even after a timeout, without the blank line
+# and "Welcome to STOIC" with which each STOIC begins, or the NUL that ends
+# the session's output. NULs are shown as ^@ (= writes some). Exits as
+# tools/vax-do does.
 set -e
 here=$(cd "$(dirname "$0")" && pwd)
 exe=${STOIC_EXE:-DUA1:[USERS.CLAUDE.SAOSTOIC.STOIC]STOIC.EXE}
 extra=
 marks=
-usage() { echo "usage: tools/stoic-run [-x <exe>] [-f <file>]... [-m] <file.sto>..." >&2; exit 2; }
+usage() { echo "usage: tools/stoic-run [-x <exe>] [-f <file>]... [-m] <file.sto|file.con>..." >&2; exit 2; }
 while [ $# -gt 0 ]; do
   case $1 in
     -x) [ $# -ge 2 ] || usage; exe=$2; shift 2 ;;
@@ -44,37 +53,51 @@ trap 'rm -rf "$stage"' EXIT
 vms() { basename "$1" | tr a-z- A-Z_; }
 for f in "$@" $extra; do
   [ -r "$f" ] || { echo "stoic-run: cannot read $f" >&2; exit 2; }
+  case $f in *.con) continue ;; esac
   cp "$f" "$stage/$(vms "$f")"
+done
+for f; do
+  case $f in *.con) ! grep -q '^\$' "$f" || { echo "stoic-run: a line of $f begins with \$" >&2; exit 2; } ;; esac
 done
 cp "$here/work-assign.com" "$stage/WORK-ASSIGN.COM"
 
 proc=$stage/STOICRUN.COM
 {
+  # a STOIC that exits with an error (LIB$STOP) must not end the procedure
+  echo "\$ SET NOON"
   echo "\$ @WORK-ASSIGN"
   echo "\$ RUN_STOIC :== \$$exe"
   for f; do
     n=$(vms "$f")
-    [ -z "$marks" ] || echo "\$ WRITE SYS\$COMMAND \"=== $(basename "$f" .sto) ===\""
+    [ -z "$marks" ] || echo "\$ WRITE SYS\$COMMAND \"=== $(basename "${f%.*}") ===\""
     echo "\$ RUN_STOIC"
-    echo "'$n LOAD"
+    case $f in
+      *.con) cat "$f" ;;
+      *) echo "'$n LOAD" ;;
+    esac
     echo ";F"
   done
   echo "\$ EXIT 1"
 } >"$proc"
 
 files="$stage/WORK-ASSIGN.COM"
-for f in "$@" $extra; do files="$files $stage/$(vms "$f")"; done
+for f in "$@" $extra; do
+  case $f in *.con) ;; *) files="$files $stage/$(vms "$f")" ;; esac
+done
 status=0
 # shellcheck disable=SC2086
 "$here/vax-do" -o "$stage" -t "$stage/tt" "$proc" $files >"$stage/do.out" || status=$?
-if [ "$status" -eq 2 ] || [ ! -f "$stage/tt" ]; then cat "$stage/do.out" >&2; exit 2; fi
-# each STOIC's opening blank line and banner gone
+[ -f "$stage/tt" ] || { cat "$stage/do.out" >&2; exit 2; }
+# each STOIC's opening blank line and banner gone, and the lone NUL the
+# session sends after the last one
 awk '
+  /^\^@$/ { next }
   /^Welcome to STOIC$/ { if (held) held = 0; next }
   held { print ""; held = 0 }
   /^$/ { held = 1; next }
   { print }
   END { if (held) print "" }
 ' "$stage/tt"
+# after a timeout, the output so far, then why
 [ "$status" -eq 0 ] || tail -n 1 "$stage/do.out" >&2
 exit $status

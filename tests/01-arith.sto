@@ -1,0 +1,23 @@
+% 01-ARITH: ARITHMETIC (RDEF:247-330).  A IS THE TOP OF STACK, B UNDER IT.
+DECIMAL
+"ADD    " MSG 3 4 + = -3 4 + = CR
+"SUB    " MSG 7 3 - = 3 7 - = CR
+"MUL    " MSG 6 7 * = -6 7 * = CR
+"DIV    " MSG 6 2 / = 7 2 / = -7 2 / = 7 -2 / = CR
+"MOD    " MSG 7 3 MOD = 7 2 MOD = -7 2 MOD = -7 3 MOD = 7 -3 MOD = CR
+"/MOD   " MSG 7 3 /MOD = = 17 5 /MOD = = CR
+"1+ ETC " MSG 5 1+ = 5 2+ = 5 4+ = 5 1- = 5 2- = 5 4- = CR
+"2* ETC " MSG 5 2* = 5 4* = 9 2/ = 9 4/ = -9 2/ = CR
+"MINUS  " MSG 5 MINUS = -5 MINUS = 0 MINUS = CR
+"ABS    " MSG 5 ABS = -5 ABS = 0 ABS = CR
+"MAX    " MSG 3 8 MAX = 8 3 MAX = -3 -8 MAX = CR
+"MIN    " MSG 3 8 MIN = 8 3 MIN = -3 -8 MIN = CR
+"NOT    " MSG 0 NOT = -1 NOT = 5 NOT = CR
+"AND    " MSG 12 10 AND = CR
+"OR     " MSG 12 10 OR = CR
+"XOR    " MSG 12 10 XOR = CR
+"W->L   " MSG 65535 W->L = 32767 W->L = CR
+"OVFL   " MSG 2147483647 1 + = 65536 65536 * = CR
+"MINNEG " MSG -2147483648 MINUS = -2147483648 ABS = CR
+HEX
+"HEX    " MSG 0A 0B + = FF 1+ = 10 10 * = CR

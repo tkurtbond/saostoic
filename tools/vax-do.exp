@@ -61,10 +61,21 @@ set parameter ""
 if {[info exists ::env(VAX_DO_PARAMETER)] && $::env(VAX_DO_PARAMETER) ne ""} { set parameter " $::env(VAX_DO_PARAMETER)" }
 set terminal ""
 if {[info exists ::env(VAX_DO_TERMINAL)] && $::env(VAX_DO_TERMINAL) ne ""} { set terminal $::env(VAX_DO_TERMINAL) }
+# keep NULs: = writes some (expect drops them by default)
+remove_nulls 0
 send "@$name/OUTPUT=VAXDO.LOG$parameter\r"
 # the echo of the command, before what the procedure writes
 expect -re {VAXDO\.LOG[^\n]*\n}
 set captured ""
+# what the procedure wrote to the terminal, into $terminal; also on a
+# timeout, so that a test that hangs still shows how far it got
+proc save_terminal {} {
+  if {$::terminal eq ""} return
+  set f [open $::terminal w]
+  fconfigure $f -translation binary
+  puts -nonewline $f [regsub $::prompt $::captured ""]
+  close $f
+}
 # a minute at a time, the FTP session kept alive in between
 set deadline [expr {[clock seconds] + $timeout}]
 set done 0
@@ -74,18 +85,14 @@ while {!$done} {
     -re $prompt { append captured $expect_out(buffer); set done 1 }
     -re {[^\n]*\n} { append captured $expect_out(buffer); exp_continue }
     timeout {}
-    eof { fail "the telnet session ended while $name ran" }
+    eof { save_terminal; fail "the telnet session ended while $name ran" }
   }
   if {!$done} {
-    if {[clock seconds] >= $deadline} { fail "$name did not finish within $timeout seconds" }
+    if {[clock seconds] >= $deadline} { save_terminal; fail "$name did not finish within $timeout seconds" }
     catch ftp_noop
   }
 }
-if {$terminal ne ""} {
-  set f [open $terminal w]
-  puts -nonewline $f [regsub $prompt $captured ""]
-  close $f
-}
+save_terminal
 # $STATUS is a string, "%X10000001"
 send "WRITE SYS\$OUTPUT \"VAXDO-STATUS \", \$STATUS\r"
 expect {
