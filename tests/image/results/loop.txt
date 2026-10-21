@@ -1,0 +1,40 @@
+vax-do: STOICRUN did not finish within 60 seconds (still printing)
+=== b3-code ===
+CODE_PNTR 25800
+W2		 D=14A00, C=2FBF0(8)
+W2  77
+CODE_PNTR 2FBF8
+
+%SYSTEM-W-ACCVIO, access violation, reason mask=04, virtual address=0002FC00, PC
+=00023998, PSL=0BC00000
+%SYSTEM-W-OPCDEC, opcode reserved to DIGITAL fault at PC=00023998, PSL=0BC00000
+%SYSTEM-W-OPCDEC, opcode reserved to DIGITAL fault at PC=00023998, PSL=0BC00000
+%SYSTEM-W-OPCDEC, opcode reserved to DIGITAL fault at PC=00023998, PSL=0BC00000
+%SYSTEM-W-OPCDEC, opcode reserved to DIGITAL fault at PC=00023998, PSL=0BC00000
+%SYSTEM-W-OPCDEC, opcode reserved to DIGITAL fault at PC=00023998, PSL=0BC00000
+%SYSTEM-W-OPCDEC, opcode reserved to DIGITAL fault at PC=00023998, PSL=0BC00000
+%SYSTEM-W-OPCDEC, opcode reserved to DIGITAL fault at PC=00023998, PSL=0BC00000
+%SYSTEM-W-OPCDEC, opcode reserved to DIGITAL fault at PC=00023998, PSL=0BC00000
+%SYSTEM-W-OPCDEC, opcode reserved to DIGITAL fault at PC=00023998, PSL=0BC00000
+%SYSTEM-W-OPCDEC, opcode reserved to DIGITAL fault at PC=00023998, PSL=0BC00000
+%SYSTEM-W-OPCDEC, opcode reserved to DIGITAL fault at PC=00023998, PSL=0BC00000
+%SYSTEM-W-OPCDEC, opcode reserved to DIGITAL fault at PC=00023998, PSL=0BC00000
+%SYSTEM-W-OPCDEC, opcode reserved to DIGITAL fault at PC=00023998, PSL=0BC00000
+%SYSTEM-W-OPCDEC, opcode reserved to DIGITAL fault at PC=00023998, PSL=0BC00000
+%SYSTEM-W-OPCDEC, opcode reserved to DIGITAL fault at PC=00023998, PSL=0BC00000
+%SYSTEM-W-OPCDEC, opcode reserved to DIGITAL fault at PC=00023998, PSL=0BC00000
+%SYSTEM-W-OPCDEC, opcode reserved to DIGITAL fault at PC=00023998, PSL=0BC00000
+%SYSTEM-W-OPCDEC, opcode reserved to DIGITAL fault at PC=00023998, PSL=0BC00000
+%SYSTEM-W-OPCDEC, opcode reserved to DIGITAL fault at PC=00023998, PSL=0BC00000
+%SYSTEM-W-OPCDEC, opcode reserved to DIGITAL fault at PC=00023998, PSL=0BC00000
+%SYSTEM-W-OPCDEC, opcode reserved to DIGITAL fault at PC=00023998, PSL=0BC00000
+%SYSTEM-W-OPCDEC, opcode reserved to DIGITAL fault at PC=00023998, PSL=0BC00000
+%SYSTEM-W-OPCDEC, opcode reserved to DIGITAL fault at PC=00023998, PSL=0BC00000
+%SYSTEM-W-OPCDEC, opcode reserved to DIGITAL fault at PC=00023998, PSL=0BC00000
+%SYSTEM-W-OPCDEC, opcode reserved to DIGITAL fault at PC=00023998, PSL=0BC00000
+%SYSTEM-W-OPCDEC, opcode reserved to DIGITAL fault at PC=00023998, PSL=0BC00000
+%SYSTEM-W-OPCDEC, opcode reserved to DIGITAL fault at PC=00023998, PSL=0BC00000
+%SYSTEM-W-OPCDEC, opcode reserved to DIGITAL fault at PC=00023998, PSL=0BC00000
+%SYSTEM-W-OPCDEC, opcode reserved to DIGITAL fault at PC=00023998, PSL=0BC00000
+%SYSTEM-W-OPCDEC, opcode reserved to DIGITAL fault at PC=00023998, PSL=0BC00000
+%SYSTEM-W-OPCDEC, opcode reserved to DIGITAL fault at PC=00023998, PSL=0BC00000

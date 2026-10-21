@@ -1,0 +1,75 @@
+SET DEFAULT DUA1:[USERS.CLAUDE.WORK]
+STOICVAX> DEFINE SAO$KERNEL DUA1:[USERS.CLAUDE.WORK.IMG.SHIP]
+STOICVAX> ISTOIC
+
+Welcome to STOIC
+ 
+0> 'SQ : DUP * ;
+ 
+0> 'T9.TMP IMAGE
+Creating writable image
+If installing in system, use /OPEN/HEAD switches only
+ 
+0> ;F
+STOICVAX> T9 :== $DUA1:[USERS.CLAUDE.WORK]T9.TMP
+STOICVAX> T9
+
+Welcome to STOIC
+ 
+0> DECIMAL
+ 
+0> 7 SQ = CR
+ 49
+ 
+0> ;F
+STOICVAX> CREATE T9IN.TMP
+DECIMAL
+8 SQ = CR
+;F
+7[7m Exit [m8
+STOICVAX> DIRECTORY/NOHEAD/NOTRAIL T9IN.TMP
+DUA1:[USERS.CLAUDE.WORK]T9IN.TMP;1
+STOICVAX> DEFINE/USER SYS$INPUT T9IN.TMP
+STOICVAX> T9
+
+Welcome to STOIC
+%RMS-W-FAC, record operation not permitted by specified file access (FAC)
+
+IMAGE
+SYSERR		 D=10524, C=211C8(E)
+GET_STRING	 D=10B5F, C=2189D(1F)
+I_READLINE	 D=10BC6, C=218D9(2A)
+No word found at 21047
+
+%RMS-W-FAC, record operation not permitted by specified file access (FAC)
+7[7m Interrupt [m8
+
+^@STOICVAX> STOP
+STOICVAX> DEFINE/USER SYS$INPUT T9IN.TMP
+STOICVAX> ISTOIC
+
+Welcome to STOIC
+%RMS-W-FAC, record operation not permitted by specified file access (FAC)
+
+IMAGE
+SYSERR		 D=10524, C=211C8(E)
+GET_STRING	 D=10B5F, C=2189D(1F)
+I_READLINE	 D=10BC6, C=218D9(2A)
+No word found at 21047
+
+%RMS-W-FAC, record operation not permitted by specified file access (FAC)
+7[7m Interrupt [m8
+
+^@STOICVAX> STOP
+STOICVAX> DIRECTORY/NOHEAD/NOTRAIL/SIZE T9IN.TMP
+DUA1:[USERS.CLAUDE.WORK]T9IN.TMP;3
+                          0
+DUA1:[USERS.CLAUDE.WORK]T9IN.TMP;2
+                          0
+DUA1:[USERS.CLAUDE.WORK]T9IN.TMP;1
+                          1
+STOICVAX> DELETE/NOLOG T9.TMP;*,T9IN.TMP;*
+STOICVAX> DEASSIGN SAO$KERNEL
+STOICVAX> SET DEFAULT DUA1:[USERS.CLAUDE]
+STOICVAX> 
+STOICVAX> 

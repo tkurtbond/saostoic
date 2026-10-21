@@ -16,7 +16,7 @@ Phase 1 passes. Phase 5 is written gradually as results come in.
 | 0 Tooling | done (see "Phase 0 outcome"); `tests/00-*` pass |
 | 1 Characterize shipped binaries | suite `tests/00`–`15` (18 files) passes; interactive checks in `tests/interactive/`; INVENTORY in `doc/data/`; `tests/README.md`. Left: `doc/defects.md` |
 | 2 Rebuild from source | done (see "Phase 2 outcome"; `doc/build.md`) |
-| 3 IMAGE | not started |
+| 3 IMAGE | done (see "Phase 3 outcome"; `doc/image.md`, `tests/image/`) |
 | 4 RED | not started |
 | 5 Documentation | design drafts in `notes/` |
 
@@ -287,6 +287,24 @@ break on V5.5-2.
 The round trip works at two layers, or the reason it can't is
 understood, and the limits are documented.
 
+### Phase 3 outcome (2026-10-21)
+
+- IMAGE works on V5.5-2 with the shipped and the rebuilt STOIC: two layers
+  (T1, T2) keep their words, variables and strings and get new revision
+  dates. `0 .IMAGE` gives BADISD. `tests/image/run` reruns everything;
+  `doc/image.md` has the details.
+- XLOAD refuses a save file from another exe ("Invalid save file date in
+  XLOAD") and ends only that line.
+- Defect 6 is confirmed for all three windows, 11 is characterized, and
+  defects 22–29 are new. 22 matters most: `IORB<` is unusable in the
+  shipped STOIC.EXE on V5.5-2, so the tests push the branch with
+  `USER_DATA @ 491 + V_PUSH` (`tests/image/imgutil.sto`).
+- Not done: ANALYZE/IMAGE and `DIR/FULL` of the outputs (the header was
+  read with IMAGE's own words), a different IOSEGMENT, a run under
+  `/DEBUG`. `install.com` is written up in V5 syntax but not run.
+- `tools/vax-do.exp` now keeps the head and tail of runaway output and
+  stops at its deadline even while the output keeps coming.
+
 ---
 
 ## Phase 4: RED
@@ -360,14 +378,14 @@ that settle them:
 | 1 | DIGIT: a character above `Z` is taken as a decimal point | 06-numio | **confirmed**: lowercase `x`, `1x5`, `2_5`, `7[` in a LOAD file compile silently as 0.0 (OTS$CVT_T_D's status is not checked) |
 | 2 | CTRL/C skips `$ASTEXIT` | interactive `ctrlc` | **confirmed**: I_CTRL_C_HNDLR makes the AST routine return into I_ABORT; a second ^C is echoed but never delivered, a third interrupts like ^Y. DELAY ($SETIMR, $WAITFR) still works |
 | 3 | IOSB overwrites the next user-table cell | interactive `tty` | **confirmed**: NLEN (TTCHAN+8, 3F as assembled) is already changed at startup and changes after every terminal QIO |
-| 4 | No check on compile-buffer overflow | interactive `compbuf` | **confirmed**: the 17th 90-character line of a definition writes into the moat at CF000; STOIC then loops on OPCDEC faults until stopped |
+| 4 | No check on compile-buffer overflow | interactive `compbuf` | **confirmed**: the 17th 90-character line of a definition writes into the moat at CF000; STOIC then loops on OPCDEC faults until stopped (the loop is defect 27: PSL<FPD> is left set) |
 | 5 | Integer overflow is not checked; a float in hex is read as decimal | 06-numio, 12-float | **confirmed**: literals wrap mod 2³²; `1.E30` needs HEX (E must be a digit) and is read as decimal |
-| 6 | Nothing checks the 16-bit windows | Phase 3, large dictionary | open |
+| 6 | Nothing checks the 16-bit windows | image b1, b3, b4 | **confirmed**: a VARIABLE more than 7FFF above R11 gets an address 10000 too low, silently; a header past 1FBFF ACCVIOs into the kernel code; code past 2FBFF ACCVIOs into the fixup page and loops (27) |
 | 7 | LIB$STOP from `.errstop` exits | 10-files, 11-errors | **confirmed**: LOAD or OPEN of a missing file exits STOIC with %RMS-F-FNF |
 | 8 | One record per TYO in batch | Phase 0 (SUBMIT log) | **confirmed** |
 | 9 | Remote-line code bugs | source review only, unless a test can be built | open |
 | 10 | GETCMD uses the CLI callback | 13-calc | works on V5.5-2H4, including an empty tail |
-| 11 | IMAGE header and layout assumptions | Phase 3 | open; SAVE/XLOAD round-trip (14-save, 14-xload). Phase 2: the P0 layout of the `$EXPREG`'d regions depends on the shareable images the kernel was linked against (4F800 lower in a V5 link) |
+| 11 | IMAGE header and layout assumptions | Phase 3 | **characterized**: both HEAD0s have a one-block header and the resident/DZRO ISD pairs IMAGE expects, and two-layer IMAGE works with each. Unchecked: that HEAD0 matches the running kernel (28) and that a DZRO is big enough (26). The P0 layout is the same in every generation on one system, but depends on the shareable images linked (4F800 lower in a V5 link), which is what breaks absolute addresses (22) |
 | 12 | MOD and /MOD with a negative dividend | 00, 01-arith | **confirmed**: unsigned; `-7 3 MOD` gives 0 |
 | 13 | Comparison sense differs from the manual | 02-compare | **confirmed**: `GT` is true when the top of stack is greater; CP/M STOIC has the manual's sense, so the VAX reversed it (`doc/cpm-compare.md`) |
 | 14 | `=` writes a negative number as `-`, three NULs, digits | 01, 02 and others | **new**, confirmed: `EQ_SGN` builds the sign with `movl #^a/-/` (a longword) |
@@ -377,7 +395,15 @@ that settle them:
 | 18 | `.SQRT` of a negative number ends STOIC | 12-math | **new**, confirmed: ACCVIO at PC 80000010, "Improperly handled condition"; the condition handler's $UNWIND path for a signal from deeper than one frame is the suspect |
 | 19 | Error messages show ABORT's PC | every error | **new**, confirmed: the handler writes `ABORT @` into the signal PC before the message is printed, and rdef sets ABORT to ERROR_TRACE (`rdef:1426-1440`, code at 23998 in the shipped exe), so every message says PC=00023998. The real PC is in ERROR_PC; ERROR_TRACE's traceback (WHAT of ERROR_PC, then of each return-stack entry) gives it as the first line |
 | 20 | GETJPI's comment promises a completion code it does not leave | 15-sys | **new**, confirmed: SYSERR takes the code; only the value is left |
-| 21 | IMAGE output from before the V4 fix no longer runs | Phase 2 | **new**, confirmed: the shipped `REDHIREZ.EXE` (1983, demand-zero ISDs no-write) fails with SYSTEM-F-BADISD on V5.5-2 |
+| 21 | IMAGE output from before the V4 fix no longer runs | Phase 2, image a4 | **new**, confirmed: the shipped `REDHIREZ.EXE` (1983, demand-zero ISDs no-write) fails with SYSTEM-F-BADISD on V5.5-2, and so does `0 .IMAGE` output today |
+| 22 | rdef's BRANCH compiles an absolute data address | image d1 | **new**, confirmed: `IORB<` in the shipped exe pushes 7A891 (1985's layout); the cell is at CFE91. The lookup faults, the branch stays pushed, and every later line faults. Right in the rebuilt exe. `RED<` is made the same way, untested |
+| 23 | IMAGE inside a LOAD saves `U_IFI` | image c1 | **new**, confirmed: the child starts at LOAD level 1; its first `;F` reads unopened channel 0 and loops on RMS-W-ISI (24) |
+| 24 | A console read error that persists loops forever | image c1, interactive `image-console` | **new**, confirmed: I_READLINE → SYSERR → ABORT → `top_loop` reads again |
+| 25 | The console is opened by `$CREATE` with PUT only | interactive `image-console` | **new**, confirmed: with `DEFINE/USER SYS$INPUT file`, STOIC (shipped or IMAGE) creates an empty new version and loops on RMS-W-FAC. Terminals and DCL data lines work |
+| 26 | FIX_DZRO does not check for underflow | image b2 | **new**, confirmed: data over 7B pages makes the DZRO count FFF1; `RUN` gives VA_IN_USE |
+| 27 | A fault in the middle of MOVC3 leaves FPD set | image loop (b3), interactive `compbuf` | **new**, confirmed: the handler sends the PC to ABORT but keeps PSL<FPD>, so ABORT's first instruction faults with OPCDEC forever |
+| 28 | IMAGE does not check that HEAD0 matches the running kernel | image b6 | **new**, confirmed: shipped STOIC with the rebuilt HEAD0 writes an exe that fails at START with OPCDEC |
+| 29 | rdef's `I_DATE_ERROR` is never installed | source (`rdef:1497`), image a7 | **new**, confirmed: XLOAD prints the kernel's message; rdef's is dead code |
 
 ### Done when
 

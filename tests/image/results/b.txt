@@ -1,0 +1,122 @@
+=== a1-ship ===
+%DCL-I-SUPERSEDE, previous value of SAO$KERNEL has been superseded
+=== b1-datawin ===
+D1D95  D1D95   -^@^@^@1
+D2D99  D2D99   -^@^@^@1
+D3D9D  D3D9D   -^@^@^@1
+D4DA1  D4DA1   -^@^@^@1
+D5DA5  D5DA5   -^@^@^@1
+D6DA9  D6DA9   -^@^@^@1
+D7DAD  D7DAD   -^@^@^@1
+D8DB1  D8DB1   -^@^@^@1
+D9DB5  D9DB5   -^@^@^@1
+DADB9  DADB9   -^@^@^@1
+DBDBD  DBDBD   -^@^@^@1
+DCDC1  DCDC1   -^@^@^@1
+DDDC5  DDDC5   -^@^@^@1
+DEDC9  DEDC9   -^@^@^@1
+DFDCD  CFDCD   0
+E0DD1  D0DD1   0
+E1DD5  D1DD5   0
+E2DD9  D2DD9   0
+
+=== b2-bigdata ===
+BIG LAST=12345678
+DATA_0=200 USER_DATA=CFA00 LEN=11395
+DICT_0=F800 USER_DICTIONARY=14A00 DICT_PNTR=14A6E
+CODE_0=1FC00 USER_CODE=25800 CODE_PNTR=25A4B
+Creating writable image
+If installing in system, use /OPEN/HEAD switches only
+HDRBLKCNT=1 ISDOFF=84 TRANSFER=20DD2
+D0232: SIZE=10; PAGCNT=8A; VPN=1; FLAGS=80; VBN=2
+D0242: SIZE=C; PAGCNT=FFF1; VPN=8B; FLAGS=8C
+D024E: SIZE=10; PAGCNT=2A; VPN=7C; FLAGS=80; VBN=8C
+D025E: SIZE=C; PAGCNT=58; VPN=A6; FLAGS=8C
+D026A: SIZE=10; PAGCNT=30; VPN=FE; FLAGS=80; VBN=B6
+D027A: SIZE=C; PAGCNT=50; VPN=12E; FLAGS=8C
+D0286: SIZE=10; PAGCNT=1; VPN=17E; FLAGS=40A; VBN=E6
+D0296: SIZE=C; PAGCNT=14; VPN=3FFFEC; FLAGS=C
+D02A2: SIZE=24; PAGCNT=C; VPN=1000000; FLAGS=21
+D02C6: SIZE=24; PAGCNT=A; VPN=0; FLAGS=21
+
+=== b2-run ===
+RUN B2
+%DCL-W-ACTIMAGE, error activating image DUA1:[USERS.CLAUDE.WORK]B2.TMP
+-CLI-E-IMGNAME, image file DUA1:[USERS.CLAUDE.WORK]B2.TMP;1
+-SYSTEM-F-VA_IN_USE, virtual address already in use
+%SYSTEM-F-VA_IN_USE, virtual address already in use
+=== b4-dict ===
+DICT_PNTR 14A00
+D1  1
+
+%SYSTEM-W-ACCVIO, access violation, reason mask=04, virtual address=0001FC00, PC
+=00023998, PSL=03C00000
+'D2 : 2 ;
+;
+I_ENTER		 D=10665, C=214A1(4C)
+:		 D=10625, C=21425(40)
+No word found at CEC0C
+No word found at 21062
+DICT_PNTR 1FC00
+
+=== c1-nested ===
+INCH  1
+Creating writable image
+If installing in system, use /OPEN/HEAD switches only
+
+=== c1-run ===
+RUN L1 5 1
+
+%SYSTEM-S-NORMAL, normal successful completion
+=== b5-empty ===
+%DCL-I-SUPERSEDE, previous value of SAO$KERNEL has been superseded
+=== b5-image ===
+Creating writable image
+If installing in system, use /OPEN/HEAD switches only
+
+%RMS-W-FNF, file not found
+'E1.TMP IMAGE
+IMAGE
+SYSERR		 D=10524, C=211C8(E)
+.IMAGE		 D=13AD0, C=24311(DD)
+IMAGE_WRT	 D=13AF7, C=243FA(8)
+IMAGE		 D=13B0E, C=24402(6D)
+No word found at CEC10
+No word found at 21062
+AFTER IMAGE
+
+=== a1-new ===
+%DCL-I-SUPERSEDE, previous value of SAO$KERNEL has been superseded
+=== b6-mix ===
+Creating writable image
+If installing in system, use /OPEN/HEAD switches only
+AFTER IMAGE
+
+=== b6-run ===
+RUN M1
+%SYSTEM-F-OPCDEC, opcode reserved to DIGITAL fault at PC=00020DDC, PSL=03C00000
+
+  Improperly handled condition, image exit forced.
+
+	Signal arguments	      Stack contents
+
+	Number = 00000003		 00000000
+	Name   = 0000043C		 200D0000
+		 00020DDC		 7FE45BFC
+		 03C00000		 7FE45BE8
+					 7FEB3DF2
+					 7FFE5E40
+					 0000000F
+					 7FEB3A89
+					 00000006
+					 7FFE5E3C
+
+	Register dump
+
+	R0 = 7FFE5E40  R1 = 0002FC00  R2 = 0000000F  R3 = 7FEB3A89
+	R4 = 7FFE5E0C  R5 = 7FFE5EBC  R6 = 00000000  R7 = 00000001
+	R8 = 7FFECA4C  R9 = 7FFECC54  R10= 7FFED7D4  R11= 7FFE2BDC
+	AP = 7FE45B78  FP = 7FE45B38  SP = 7FE45BAC  PC = 00020DDC
+	PSL= 03C00000
+
+%SYSTEM-F-OPCDEC, opcode reserved to DIGITAL fault at PC=!XL, PSL=!XL

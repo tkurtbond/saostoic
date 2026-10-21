@@ -67,6 +67,7 @@ send "@$name/OUTPUT=VAXDO.LOG$parameter\r"
 # the echo of the command, before what the procedure writes
 expect -re {VAXDO\.LOG[^\n]*\n}
 set captured ""
+set head ""
 # what the procedure wrote to the terminal, into $terminal; also on a
 # timeout, so that a test that hangs still shows how far it got
 proc save_terminal {} {
@@ -83,7 +84,17 @@ while {!$done} {
   expect {
     -timeout 60
     -re $prompt { append captured $expect_out(buffer); set done 1 }
-    -re {[^\n]*\n} { append captured $expect_out(buffer); exp_continue }
+    -re {[^\n]*\n} {
+      append captured $expect_out(buffer)
+      # a STOIC looping on a fault prints without pause: keep the tail,
+      # and check the deadline here too, or the timeout never comes
+      if {[string length $captured] > 400000} {
+        if {$head eq ""} { set head [string range $captured 0 99999] }
+        set captured "$head\n\[... vax-do: output cut here ...\]\n[string range $captured end-99999 end]"
+      }
+      if {[clock seconds] >= $deadline} { save_terminal; fail "$name did not finish within $timeout seconds (still printing)" }
+      exp_continue
+    }
     timeout {}
     eof { save_terminal; fail "the telnet session ended while $name ran" }
   }

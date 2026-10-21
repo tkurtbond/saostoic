@@ -246,14 +246,28 @@ Details and `file:line` citations are in `notes/`.
   `STOIC`, `RED` and `CALC` of `work-assign.com`. `tools/stoic-run` sets
   those symbols from `-x` and `-r`, which default to the shipped
   `[.SAOSTOIC...]` binaries.
+- **IMAGE works on V5.5-2** (`doc/image.md`, `tests/image/run`), with the
+  shipped and the rebuilt STOIC, two layers deep. `0 .IMAGE` gives BADISD.
+  A child exe inherits its parent's data region as it is: radix,
+  LINE_BUFFER and the LOAD level (so run IMAGE from the console, not from
+  a LOAD file). XLOAD refuses a save file made by another exe.
+- **`IORB<` is unusable in the shipped STOIC.EXE** (defect 22): it pushes
+  the 1985 address of its cell, and after that every line faults. Use
+  `USER_DATA @ 491 + V_PUSH` instead (`tests/image/imgutil.sto`).
+- STOIC can't read its console from a disk file: with `DEFINE/USER
+  SYS$INPUT file` it loops on RMS-W-FAC (defect 25). Use DCL data lines or
+  the tools.
 
 ## Known or suspected defects
 
 Suspected from reading the code. Results are in `PLAN.md`'s defect
 checklist, which also lists defects 12–20, found in Phase 1 (`=` NULs, DGE,
 `.FLIP`, unreported MTH$ errors, `.SQRT` of a negative ending STOIC, and
-others). Confirmed: 1, 2, 3, 4, 5, 7, 8. Open: 6, 9, 11. Phase 2 added 21 (the
-shipped REDHIREZ's BADISD).
+others). Confirmed: 1, 2, 3, 4, 5, 6, 7, 8; 11 is characterized. Open: 9.
+Phase 2 added 21 (the shipped REDHIREZ's BADISD), and Phase 3 added 22–29:
+BRANCH's absolute address, IMAGE in a LOAD, endless console-error and FPD
+fault loops, the PUT-only console, FIX_DZRO underflow, an unchecked HEAD0,
+and rdef's unused I_DATE_ERROR.
 
 1. DIGIT treats any character above `Z` as a decimal point, so lowercase
    undefined words in LOAD files (which are not uppercased) compile silently
@@ -274,7 +288,8 @@ shipped REDHIREZ's BADISD).
 10. `GETCMD` uses the obsolete CLI callback. It works on 5.5-2 (the command
     tail is executed), but it is fragile.
 11. IMAGE's single-block-header and ISD-layout assumptions. SAVE/XLOAD
-    depend on a deterministic P0 layout.
+    depend on a deterministic P0 layout. Both hold on one system; IMAGE
+    does not check HEAD0 or the size of the demand-zero sections.
 
 ## Plan
 

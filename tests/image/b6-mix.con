@@ -1,0 +1,3 @@
+'SQ : DUP * ;
+'M1.TMP IMAGE
+"AFTER IMAGE" MSG CR

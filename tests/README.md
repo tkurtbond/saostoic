@@ -22,6 +22,14 @@ Their transcripts, `tests/interactive/*.log`, are committed as evidence.
 They are not diffed, because terminal QIO values (NLEN in `tty`) differ
 between runs.
 
+The IMAGE tests of Phase 3 are separate too, because they make exes and
+one group never ends by itself:
+
+    tools/vax-do tests/image/SETUP.COM   # once: HEAD0 copies in [.WORK.IMG]
+    tests/image/run [group...]           # writes tests/image/results/
+
+Their results are committed and described in `doc/image.md`.
+
 ## Kinds of test
 
 | Kind | How it runs | Use it for |
