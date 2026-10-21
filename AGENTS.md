@@ -52,6 +52,8 @@ fetch any file that is missing here from the VAX.
    (bugcheck SSRVEXCEPT). Batch transfers into one session, avoid running
    sessions in parallel, and keep deletes in one session under about 100.
    If FTP stops answering, tell the user; don't retry in a loop.
+   Each FTP login writes a `UCX$FTPSERVER.LOG` in SYS$LOGIN; the user has
+   limited it to three versions, so these files no longer pile up.
 
 ### FTP
 
