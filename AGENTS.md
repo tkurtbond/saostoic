@@ -103,6 +103,9 @@ For unattended runs, use `tools/` (see `tools/README.md`):
   `tests/interactive/`.
 - `tools/vax-do [-t file] proc.com [file...]` runs any DCL procedure in
   `[.WORK]`.
+- `tools/red-drive [-o dir] script.tcl...` drives RED from a key script
+  over a fresh telnet session and writes `.raw` and `.scr` (the screens,
+  via pyte) to `tests/red/`. Set `STOIC_RED` to the rebuilt RED.EXE.
 
 STOIC writes to SYS$COMMAND, the terminal, not SYS$OUTPUT. Under `/OUTPUT`
 its output therefore lands in the telnet session, not in the log, and the
@@ -257,6 +260,15 @@ Details and `file:line` citations are in `notes/`.
 - STOIC can't read its console from a disk file: with `DEFINE/USER
   SYS$INPUT file` it loops on RMS-W-FAC (defect 25). Use DCL data lines or
   the tools.
+- **The shipped `RED.EXE` doesn't run on V5.5-2** (defect 30). It ACCVIOs
+  at 7B173 before drawing, because obuf's `O.BUFSTRT` is a constant frozen
+  at the 1985 data address. It leaves the terminal as Device_Type Unknown;
+  fix that with `SET TERMINAL/DEVICE=VT100`. **Use the rebuilt
+  `[.WORK.SAOSTOIC.RED]RED.EXE`.** With it every command in `red.mem`
+  works, apart from the differences in `doc/red.md`, and SHOW TERMINAL is
+  unchanged after a normal exit.
+- In RED, an error message locks the keyboard until RETURN, and a command
+  line runs only after two LFs.
 
 ## Known or suspected defects
 
@@ -267,7 +279,10 @@ others). Confirmed: 1, 2, 3, 4, 5, 6, 7, 8; 11 is characterized. Open: 9.
 Phase 2 added 21 (the shipped REDHIREZ's BADISD), and Phase 3 added 22–29:
 BRANCH's absolute address, IMAGE in a LOAD, endless console-error and FPD
 fault loops, the PUT-only console, FIX_DZRO underflow, an unchecked HEAD0,
-and rdef's unused I_DATE_ERROR.
+and rdef's unused I_DATE_ERROR. Phase 4 added 30–36 for RED: the shipped
+exe's ACCVIO and the terminal it leaves, a malformed escape, the up arrow,
+`@K`/`@N` drawing on the divider, the `` `C `` replies, and smaller
+differences from the manual (`doc/red.md`).
 
 1. DIGIT treats any character above `Z` as a decimal point, so lowercase
    undefined words in LOAD files (which are not uppercased) compile silently

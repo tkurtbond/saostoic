@@ -17,7 +17,7 @@ Phase 1 passes. Phase 5 is written gradually as results come in.
 | 1 Characterize shipped binaries | suite `tests/00`–`15` (18 files) passes; interactive checks in `tests/interactive/`; INVENTORY in `doc/data/`; `tests/README.md`. Left: `doc/defects.md` |
 | 2 Rebuild from source | done (see "Phase 2 outcome"; `doc/build.md`) |
 | 3 IMAGE | done (see "Phase 3 outcome"; `doc/image.md`, `tests/image/`) |
-| 4 RED | not started |
+| 4 RED | done (see "Phase 4 outcome"; `doc/red.md`, `tests/red/`) |
 | 5 Documentation | design drafts in `notes/` |
 
 Update this table as work proceeds.
@@ -346,6 +346,27 @@ from how it behaves.
 Every documented RED command has been run at least once and its result
 recorded.
 
+### Phase 4 outcome (2026-10-21)
+
+- The shipped `RED.EXE` faults with ACCVIO at startup on V5.5-2 (30). obuf
+  froze `O.BUFSTRT` as an absolute 1985 data address. The fault leaves the
+  terminal changed (31). The rebuilt `RED.EXE` works.
+- `tools/red-drive` runs key scripts over telnet in a raw pty, and
+  `tools/red-screens` renders the screens with pyte. `tests/red/r0`–`r8`
+  have run every command in the manual and every entry in CLI.DISP1.
+  `doc/red.md` has a table for each one, with its status and the snapshot
+  that shows it.
+- SHOW TERMINAL is the same before and after every session that ends
+  normally (r0–r5, r7, r8).
+- Differences from the manual: the up arrow (33), the replies to `` `C ``
+  (35), TF clamping, TI not implemented, and `'` being postfix (36).
+  `,` (INPUT MODE), `^W`, keypad ENTER and ESC S are undocumented. `@K`
+  and `@N` leave the next insertion drawn on the divider (34). KBD sends
+  a malformed `ESC[?^Fl` (32).
+- Not done: RED_NOSP, REDCPU, going back into RED after ESC S, files with
+  fixed-length records or too big to map, and the INFOTON version
+  (`ORANGE.CRE` is missing).
+
 ---
 
 ## Phase 5: Documentation
@@ -404,6 +425,13 @@ that settle them:
 | 27 | A fault in the middle of MOVC3 leaves FPD set | image loop (b3), interactive `compbuf` | **new**, confirmed: the handler sends the PC to ABORT but keeps PSL<FPD>, so ABORT's first instruction faults with OPCDEC forever |
 | 28 | IMAGE does not check that HEAD0 matches the running kernel | image b6 | **new**, confirmed: shipped STOIC with the rebuilt HEAD0 writes an exe that fails at START with OPCDEC |
 | 29 | rdef's `I_DATE_ERROR` is never installed | source (`rdef:1497`), image a7 | **new**, confirmed: XLOAD prints the kernel's message; rdef's is dead code |
+| 30 | The shipped `RED.EXE` faults at startup | red r6 | **new**, confirmed: ACCVIO at 7B173, the `O.BUFSTRT` constant obuf froze in 1985 (`.D@ 'O.BUFSTRT CONSTANT`); the data region is now at CFA00. Same class as 22 |
+| 31 | After that fault the terminal stays changed and `;F` hangs | red r6 | **new**, confirmed: Device_Type Unknown, No ANSI_CRT, No Wrap; CTRL/Y and STOP were needed. The `;F` hang is unexplained (O.FLAG left on is a guess) |
+| 32 | KBD's `6 RESET_MODE` sends `ESC[?^Fl` | red raw logs, `kbd:500` | **new**, confirmed: RESET_MODE wants a character. Harmless on a VT100 |
+| 33 | The up arrow from mid-line goes to the start of the same line | red r4 | **new**, confirmed: the manual says the previous line (`eb:65-72`) |
+| 34 | After `@K` or `@N`, inserted text is drawn on the divider | red r8 | **new**, confirmed: the buffer is right, as ^R shows |
+| 35 | `` `C `` replies differ from the manual | red r7 | **new**, confirmed: RETURN replaces like ESC, SPACE exits, other keys beep and wait |
+| 36 | Smaller manual/code differences | red r2, r3, r4, r7 | **new**, confirmed: TF clamps to 1–10, TI is not implemented, `'` is postfix; `,` `^W` ENTER and ESC S are undocumented |
 
 ### Done when
 

@@ -1,0 +1,81 @@
+=== start  cursor 24,4
++--------------------------------------------------------------------------------+
+|   No Commsync        Line Editing       Overstrike editing No Fallback         |
+|   No Dialup          No Secure server   No Disconnect      No Pasthru          |
+|   No Syspassword     No SIXEL Graphics  No Soft Characters No Printer Port     |
+|   Numeric Keypad     ANSI_CRT           No Regis           No Block_mode       |
+|   Advanced_video     No Edit_mode       DEC_CRT            No DEC_CRT2         |
+|   No DEC_CRT3        No DEC_CRT4        VMS Style Input                        |
+|STOICVAX> IRED [.RED]R6.TXT                                                     |
+|%SYSTEM-W-ACCVIO, access violation, reason mask=04, virtual address=0007B173, PC|
+|=00023998, PSL=03C00000                                                         |
+|RED [.RED]R6.TXT                                                                |
+|[.RED]R6.TXT                                                                    |
+|B!               D=11FBE, C=21E74(7)                                            |
+|TYO              D=140CA, C=24CCA(4C)                                           |
+|ESC              D=14183, C=24EC8(C)                                            |
+|ANSI_VT100       D=144E0, C=2520A(10)                                           |
+|INIT_VT100       D=14714, C=254B1(8F)                                           |
+|.RED             D=1737B, C=2BC77(A9)                                           |
+|RED              D=173A1, C=2BD32(12)                                           |
+|I_COMPILE        D=10552, C=21260(4C)                                           |
+|EXEC             D=136E5, C=23A77(3)                                            |
+|DEF_INIT         D=13780, C=23BF7(102)                                          |
+|No word found at 20FE7                                                          |
+|                                                                                |
+|0>                                                                              |
++--------------------------------------------------------------------------------+
+=== dcl  cursor 24,1
++--------------------------------------------------------------------------------+
+|   Numeric Keypad     ANSI_CRT           No Regis           No Block_mode       |
+|   Advanced_video     No Edit_mode       DEC_CRT            No DEC_CRT2         |
+|   No DEC_CRT3        No DEC_CRT4        VMS Style Input                        |
+|STOICVAX> IRED [.RED]R6.TXT                                                     |
+|%SYSTEM-W-ACCVIO, access violation, reason mask=04, virtual address=0007B173, PC|
+|=00023998, PSL=03C00000                                                         |
+|RED [.RED]R6.TXT                                                                |
+|[.RED]R6.TXT                                                                    |
+|B!               D=11FBE, C=21E74(7)                                            |
+|TYO              D=140CA, C=24CCA(4C)                                           |
+|ESC              D=14183, C=24EC8(C)                                            |
+|ANSI_VT100       D=144E0, C=2520A(10)                                           |
+|INIT_VT100       D=14714, C=254B1(8F)                                           |
+|.RED             D=1737B, C=2BC77(A9)                                           |
+|RED              D=173A1, C=2BD32(12)                                           |
+|I_COMPILE        D=10552, C=21260(4C)                                           |
+|EXEC             D=136E5, C=23A77(3)                                            |
+|DEF_INIT         D=13780, C=23BF7(102)                                          |
+|No word found at 20FE7                                                          |
+|                                                                                |
+|0>                                                                              |
+|                                                                                |
+|0> ;F                                                                           |
+|                                                                                |
++--------------------------------------------------------------------------------+
+=== dcl-2  cursor 24,1
++--------------------------------------------------------------------------------+
+|   Numeric Keypad     ANSI_CRT           No Regis           No Block_mode       |
+|   Advanced_video     No Edit_mode       DEC_CRT            No DEC_CRT2         |
+|   No DEC_CRT3        No DEC_CRT4        VMS Style Input                        |
+|STOICVAX> IRED [.RED]R6.TXT                                                     |
+|%SYSTEM-W-ACCVIO, access violation, reason mask=04, virtual address=0007B173, PC|
+|=00023998, PSL=03C00000                                                         |
+|RED [.RED]R6.TXT                                                                |
+|[.RED]R6.TXT                                                                    |
+|B!               D=11FBE, C=21E74(7)                                            |
+|TYO              D=140CA, C=24CCA(4C)                                           |
+|ESC              D=14183, C=24EC8(C)                                            |
+|ANSI_VT100       D=144E0, C=2520A(10)                                           |
+|INIT_VT100       D=14714, C=254B1(8F)                                           |
+|.RED             D=1737B, C=2BC77(A9)                                           |
+|RED              D=173A1, C=2BD32(12)                                           |
+|I_COMPILE        D=10552, C=21260(4C)                                           |
+|EXEC             D=136E5, C=23A77(3)                                            |
+|DEF_INIT         D=13780, C=23BF7(102)                                          |
+|No word found at 20FE7                                                          |
+|                                                                                |
+|0>                                                                              |
+|                                                                                |
+|0> ;F                                                                           |
+|                                                                                |
++--------------------------------------------------------------------------------+

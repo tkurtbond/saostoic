@@ -30,6 +30,16 @@ one group never ends by itself:
 
 Their results are committed and described in `doc/image.md`.
 
+The RED tests of Phase 4 are key scripts for `tools/red-drive`. r6 runs
+the shipped RED, which fails (defect 30); the others need the rebuilt one:
+
+    STOIC_RED='DUA1:[USERS.CLAUDE.WORK.SAOSTOIC.RED]RED.EXE' \
+        tools/red-drive tests/red/r[0-578]-*.tcl
+    tools/red-drive tests/red/r6-ship.tcl
+
+Each writes `tests/red/*.raw` (the session) and `*.scr` (the screens).
+They are compared by eye, not diffed, and described in `doc/red.md`.
+
 ## Kinds of test
 
 | Kind | How it runs | Use it for |
