@@ -1,0 +1,9 @@
+$ macro'p1' dtinit
+$ macro'p1' crtl
+$ macro'p1' controlc
+$ macro'p1' ss
+$ macro'p1' rms
+$ macro'p1' tyio
+$ macro'p1' ttio
+$ macro'p1' rkernel
+$ macro'p1' extend

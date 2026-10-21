@@ -1,0 +1,171 @@
+	.TITLE	TERMINAL interface for SAO VAX/VMS STOIC
+;	*****************************************************************
+;	*								*
+;	*	This is a module of SAO VAX/VMS STOIC			*
+;	*								*
+;	*	It was created by					*
+;	*	Roger Hauck						*
+;	*	Smithsonian Institution					*
+;	*	Astrophysical Observatory				*
+;	*	Cambridge, Massachusetts  02138				*
+;	*	(617)495-7151  (FTS 830-7151)				*
+;	*								*
+;	*	This module may be reproduced				*
+;	*	provided that this title page is retained.		*
+;	*								*
+;	*****************************************************************
+
+	.enabl dbg,tbk
+
+.extrn	dict_start,ssglob
+
+.macro	newpage	title
+	.page
+	.sbttl	title
+.endm
+
+	$SSDEF
+	$IODEF
+;	$JPIDEF
+;	$CLIDEF
+;	$SECDEF
+
+
+;make a header for a stoic word
+;stores link,name,lookup atribute
+	.macro header name,lookup_atr=jump_to_me,-
+			branch=kernel
+	kplace=.		;remember current location
+	.save
+	.psect	dictionary	;go to dictionary psect
+	.long branch-dict_start-^x8000	;link onto last word of branch
+	branch=.-4		;set branch to point to here
+	.long globlink-dict_start-^x8000	;link onto global pointer
+	globlink=.-4		;and set it
+	.ascic /name/		;store the name and count
+	.byte lookup_atr
+	.blkw	1		;space for the code length word
+	clplace=.-2		;note location to put it later
+	.word	kplace-k_start-^x8000	;r8 displacement to code address
+	.restore
+	.endm
+
+;terminate a word: this or RSBX should be used at the ends of all
+;routines begun with HEADER
+.macro	wterm
+	kend=.
+	.save
+	.psect dictionary
+	.=clplace		;code length place
+	.word	kend-kplace	;store code length
+	.restore
+	.endm
+
+.macro	rsbx		;used to end normal code words
+	rsb		;add a rsb
+	wterm		;and terminate
+	.endm
+
+;macro to connect to link symbols defined in another module
+
+.macro	nullhead gglobal,glocal,lglobal,llocal
+	kplace=.
+	.save
+	.psect	dictionary
+	.long	glocal-dict_start-^x8000	;put in local symbol reference
+	llocal=.-4			;and update the new one
+	.long	gglobal-dict_start-^x8000	;global reference
+	lglobal=.-4			;update it
+	.ascic	/NULL/			;name
+	.byte	jump_to_me		;lookup attribute
+	.word	1			;one byte long (rsb)
+	.word	kplace-k_start-^x8000	;word address
+	.restore
+	rsb				;load on the rsb
+	.endm
+
+.psect	kernel
+.list me
+nullhead	ssglob,dict_start+^x80007fff,globlink,ttio ;7fffffff+8000
+.nlist me
+
+kernel=0
+jump_to_me=0
+
+.macro	ss	name
+	header	name,jump_to_me,ttio
+	name'_g	(r10)
+	movl	r0,(r10)
+	rsbx
+.endm
+
+.macro	io$	item
+	header	IO$'item,jump_to_me,ttio
+	movl	#IO$'item,-(R10)  ;push item code
+	rsbx
+.endm
+
+.macro	ss$	item
+	header $'item,jump_to_me,ttio
+	movl	#SS$'item,-(R10)  ;push System Service code
+	rsbx
+.endm
+
+	newpage	<SYSTEM SERVICES DEFINITIONS>
+	.psect	kernel
+
+;	I/O Operation Codes Applicable to Terminal I/O
+  IO$ _READVBLK		;Read Virtual Block
+  IO$ _READLBLK		;Read Logical Block
+  IO$ _READPROMPT	;Read with Prompt
+  IO$ _READPBLK		;Read Physical Block
+  IO$ _TTYREADALL	;Read Passall (Virtual or Logical Block)
+  IO$ _TTYREADPALL	;Read Passall with Prompt (Virtual or Logical Block)
+
+  IO$ _WRITEVBLK	;Write Virtual Block
+  IO$ _WRITELBLK	;Write Logical Block
+  IO$ _WRITEPBLK	;Write Physical Block
+
+  IO$ _SETMODE		;Affects the Mode and Temporary Characteristics
+  IO$ _SETCHAR		;Affects the Permanent Characteristics
+
+;	Read QIO Function Modifiers
+  IO$ M_CVTLOW		;Lowercase Characters Are Converted to Uppercase
+  IO$ M_DSABLMBX	;The Mailbox is Disabled for Unsolicited Data
+  IO$ M_NOECHO		;Characters Are Not Echoed
+  IO$ M_NOFILTR		;Do Not process ^U, ^R, or DEL for This Read
+  IO$ M_PURGE		;The Typeahead Buffer is Purged Before Reading
+  IO$ M_TIMED		;P3 Specifies Timeout in Seconds
+  IO$ M_TRMNOECHO	;The Terminating Character (if any) Is Not Echoed
+
+;	Write QIO Function Modifiers
+  IO$ M_CANCTRLO	;Turns Off CTRL/O Before Write
+  IO$ M_ENABLMBX	;Enables the Terminal's Mailbox
+  IO$ M_NOFORMAT	;PASSALL Mode Is Used for This Write
+  IO$ M_REFRESH		;Refresh Interrupted Read (if any)
+
+;	Setmode & Setchar QIO Function Modifiers
+  IO$ M_HANGUP		;Disconnects a Modem
+  IO$ M_CTRLCAST	;Enables CTRL/C AST
+  IO$ M_CTRLYAST	;Enables CTRL/Y AST (requires privilege)
+
+;	System Service Status Codes Applicable to Terminal I/O
+  SS$ _ABORT		;Operation Terminated by $CANCEL
+  SS$ _BADESCAPE	;Invalid Escape Sequence Terminator
+  SS$ _CONTROLC		;Operation Terminated by reception of CTRL/C
+  SS$ _CONTROLO		;Write Operation Terminated by CTRL/O
+  SS$ _CONTROLY		;Operation Terminated by CTRL/Y
+  SS$ _NORMAL		;Successful Completion
+  SS$ _PARITY		;Read Terminated by Parity Error
+  SS$ _PARTESCAPE	;Read Count Exhausted with Escape Sequence Incomplete
+  SS$ _TIMEOUT		;Operation Timeout
+
+.save
+.psect dictionary
+.=ttio
+ttio_ttio::		;set up a vocabulary link
+.=.+4
+ttioglob::		;and a global dictionary link
+.restore
+
+	.end

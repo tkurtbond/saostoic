@@ -1,0 +1,157 @@
+%	*****************************************************************
+%	*								*
+%	*	This module is a part of the SAO VAX/VMS		*
+%	*	RED full-screen text editor				*
+%	*								*
+%	*	It was created by					*
+%	*	Roger Hauck						*
+%	*	Smithsonian Institution					*
+%	*	Astrophysical Observatory				*
+%	*	Cambridge, Massachusetts  02138				*
+%	*	(617)495-7151  (FTS 830-7151)				*
+%	*								*
+%	*	Modifications by Jonathan Mark				*
+%	*	Summer 1981						*
+%	*								*
+%	*	This module may be reproduced				*
+%	*	provided that this header is retained.			*
+%	*								*
+%	*****************************************************************
+
+%  The Editor
+%  Roger Hauck
+% First successful edit run: June 7,1979
+
+%  Constants and Variables
+
+  800 'GAPSIZE CONSTANT
+   100 'MAXLINE CONSTANT  % max. input record length
+  1D 'USEP CONSTANT  % unit separator character
+
+% Variables
+-1 'IMODE VARIABLE  % true indicates IMMEDIATE mode
+-1 'BACKGROUND VARIABLE  % true indicates light background
+00 'TERMINATORS VARIABLE  % # of consecutive terminators in com. line
+00 'OLD_TERM VARIABLE  % holding area for TERMINATORS during a cut
+-1 'DISP_FLAG VARIABLE  % -1 => window needs full refresh
+                        % -3 => full screen needs refresh
+-1 'TAB_MODE VARIABLE  % true indicates hard tabs
+00 'CUT_FLAG VARIABLE  % true indicates cut mode in use
+-1 'PASTE_FLAG VARIABLE  % true indicates cut characters restored
+00 'APPEND_FLAG VARIABLE  % true indicates current cut is an append
+00 'BLINK_OK VARIABLE  % true indicates the cut is on the screen
+00 'BLINK_POS VARIABLE  % contains the number of the cut character
+00 'SEARCH_DIR VARIABLE  % direction for cut searches
+00 'TEXT_BUF VARIABLE  % save text buffer for command editing
+00 'REC_SEP VARIABLE  % record separator character
+00 'SPACE_FLAG VARIABLE  % whether to treat space/tab as insert
+
+%  Stuff from command line; moved here to be usable in EDV
+
+0 'C.ARG VARIABLE  % value of argument
+0 'C.ARG_EXISTS VARIABLE  % flag for whether to read an argument
+0 'C.ARG_WRITTEN VARIABLE  % whether argument is on screen
+
+%  Arrays
+
+1A 4 * 'NUM_REGS ARRAY  % 26 number registers: A-Z
+
+0C 'OLD_T_ARRAY ARRAY  % array to hold terminal characteristics
+0C 'NEW_T_ARRAY ARRAY  % array to contain changes
+
+%  String Variables
+
+77 'C.STRINGSIZE CONSTANT
+  C.STRINGSIZE 'C.STRING SVARIABLE
+
+77 'C.COMMANDSIZE CONSTANT
+  C.COMMANDSIZE 'C.COMMAND SVARIABLE
+
+61 'MACRO_STACKSIZE CONSTANT  % stack size must be 6n+1
+  MACRO_STACKSIZE 'MSTACK SVARIABLE
+
+50 'USER_STACKSIZE CONSTANT
+  USER_STACKSIZE 'USER_STACK SVARIABLE
+
+100 'C.HOLDSIZE CONSTANT
+  C.HOLDSIZE 'C.OLDSTR SVARIABLE
+  C.HOLDSIZE 'C.NEWSTR SVARIABLE
+
+%  screen-related variables
+0 'ROW VARIABLE  % current row #; 2 <= ROW <= WINDOW_SIZE+1
+0 'COLUMN VARIABLE  % current column #
+0 'SROW VARIABLE     % screen-cursor row
+0 'SCOL VARIABLE  % screen-cursor column
+0 'CURSOR_CHAR VARIABLE  % character at cursor position
+
+%  Runtime initialization of variables
+
+'E.INIT :  % done when RED starts up
+  D.INIT X0 4+ 800 D.EXPAND  % initialize dynamic string facility
+  TEXT_BUF 0<-
+  TF @ 2+ SROW ! SCOL 0<-
+  MSTACK 0W<-
+  77 MSTACK STAB  % append a code to the macro stack
+  0 BUFFER# ! X0 CURBUF !  % set up the text buffer
+  0 KBUF# ! K0 CURKBUF !  % set up the keyboard buffer
+  O.BUFSTRT O.BUFCUR !  % set up the output buffer
+  CRET REC_SEP !  % default record separator of CR
+  0 TERMINATORS !  % no command terminators
+  0 CUT_FLAG !  % turn off cut mode
+  -1 PASTE_FLAG !  % allow the next cut
+  ;
+
+'B.INIT :  % B.INIT  (initializes text buffer prior to reading a file)
+  TOPOTOP @ DUP BOTOTOP !  % initialize top buffer
+  GAPSIZE + BOTOBOT 4+ @ MIN DUP TOPOBOT ! BOTOBOT !  % initialize bottom
+  BEGIN BOTOTOP D@ - GAPSIZE - LEZ_IF  % is gap big enough?
+  BOTOTOP D.EXPAND REPEAT  % no, expand
+  ;
+
+%  Miscellaneous
+
+'[[ : DUP = DUP ?  CR 4 + ;
+'LOOK : BUF [[ [[ [[ [[ [[ DROP ;
+
+'IDLE : 0 TYO ;
+'IDLES : ( IDLE ) ;
+
+%  Search for byte, and other utilities
+
+ASSEMBLER<
+
+'(SBB) :  % byte, string pointer, length, SBB,-
+%	match position (or -1), string pointer, byte
+%	(searches backwards through string for specified byte)
+  INLINE< MOVQ (P)+ R0  % r0,1<descriptor
+  TSTL R0  BLSS >INLINE TARGET  % to end, i.e. do nothing if count is neg.
+  INLINE< DECL R0  % initial decrement to count
+  BLSS >INLINE TARGET  % to end if count was zero
+  INLINE< CVTLB (P) R2 >INLINE  % r2<match byte
+  CMARK  % beginning of loop
+  INLINE< CMPB [R0] (R1) R2 BEQL >INLINE
+  TARGET SWAP  % to exit
+  INLINE< DECL R0  BGEQ  >INLINE  % decrement index and loop?
+  TARGET SWAP ARCHER  % to beginning of loop
+  CMARK ARCHER  % this is exit from loop
+  CMARK ARCHER  % this is exit for zero count
+  CMARK ARCHER  % from initialization, if count was neg.
+  INLINE< MOVQ R0 -(P) >INLINE  % restore descriptor
+  ;  IMMEDIATE
+
+'SBB :  % (subroutine version of (SBB))
+  (SBB)
+  ;
+
+>
+
+'SBF :  % new version using SEARCH_STRING
+  DUP GEZ_IF
+    NOTE NOTE  % save string descriptor
+    MARK RECALL 1  % string descriptor for the byte
+    RECALL RECALL  % restore string descriptor
+    SEARCH_STRING NOT IF  % search, success?
+      1- SWAP 1+ SWAP THEN  % no, signal failure with count of -1
+    NOTE NOTE 2DROP  % save descriptor of remainder, drop match string
+    RECALL RECALL THEN  % restore descriptor of remainder
+  ;

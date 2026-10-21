@@ -1,0 +1,208 @@
+.TITLE	CRTL (common run-time library) interface for VAX STOIC
+;	Created by Jonathan Mark, 1981-1982
+
+.enabl	dbg,tbk
+
+.extrn	syserr
+
+;make a header for a stoic word
+;stores link,name,lookup atribute
+	.macro header name,lookup_atr=jump_to_me,-
+			branch=kernel
+	kplace=.		;remember current location
+	.save
+	.psect	dictionary	;go to dictionary psect
+	.long branch-dict_start-^x8000	;link onto last word of branch
+	branch=.-4		;set branch to point to here
+	.long globlink-dict_start-^x8000	;link onto global pointer
+	globlink=.-4		;and set it
+	.ascic /name/		;store the name and count
+	.byte lookup_atr
+	.blkw	1		;space for the code length word
+	clplace=.-2		;note location to put it later
+	.word	kplace-k_start-^x8000	;r8 displacement to code address
+	.restore
+	.endm
+
+;terminate a word: this or RSBX should be used at the ends of all
+;routines begun with HEADER
+.macro	wterm
+	kend=.
+	.save
+	.psect dictionary
+	.=clplace		;code length place
+	.word	kend-kplace	;store code length
+	.restore
+	.endm
+
+.macro	rsbx		;used to end normal code words
+	rsb		;add a rsb
+	wterm		;and terminate
+	.endm
+
+;macro to connect to link symbols defined in another module
+
+.macro	nullhead gglobal,glocal,lglobal,llocal
+	kplace=.
+	.save
+	.psect	dictionary
+	.long	glocal-dict_start-^x8000	;put in local symbol reference
+	llocal=.-4			;and update the new one
+	.long	gglobal-dict_start-^x8000	;global reference
+	lglobal=.-4			;update it
+	.ascic	/NULL/			;name
+	.byte	jump_to_me		;lookup attribute
+	.word	1			;one byte long (rsb)
+	.word	kplace-k_start-^x8000	;word address
+	.restore
+	rsb				;load on the rsb
+	.endm
+
+.macro	newpage	title
+	.page
+	.sbttl	title
+.endm
+
+.psect	kernel
+.list me
+nullhead	dict_start+^x80007fff,dict_start+^x80007fff,globlink,crtl
+.nlist me
+
+kernel=0
+jump_to_me=0
+
+;	set up a call to a math library function (one argument)
+	.macro math1 fname
+	header .'fname,jump_to_me,crtl
+	pushad	(r7)+		;set up the argument
+	calls	#1,G^mth$d'fname	;call the library procedure
+	movd	r0,-(r7)	;and push the result on f-stack
+	rsbx
+	.endm
+
+;	same for functions with two arguments (is exponentiation
+;	the only one?)
+	.macro math2 fname
+	header .'fname,jump_to_me,crtl
+	movd	(r7)+,-(sp)	;set up first argument
+	movd	(r7)+,-(sp)	;order of these arguments may be debatable
+	calls	#4,g^ots$'fname	;call the procedure
+	movd	r0,-(r7)
+	rsbx
+	.endm
+
+newpage <COMMON RUN-TIME LIBRARY DEFINITIONS>
+.psect kernel
+
+header FLOAT_TO_STRING,jump_to_me,crtl
+float_to_string::		;provide name for this word
+	pushl	#^x10		;16 fractional digits
+	pushaq	(r10)+		;descriptor address on p-stack
+	pushaq	(r7)+		;address on floating point stack
+	calls	#3,g^for$cvt_d_tg	;call library function
+	rsbx			;and return
+
+header STRING_TO_FLOAT,jump_to_me,crtl
+string_to_float::
+	pushaq	-(r7)		;push result on f-stack
+	pushaq	(r10)+		;push descriptor address
+	calls	#2,g^ots$cvt_t_d	;call library function
+	rsbx
+
+;	Set up calls to single-argument math functions
+
+math1	ACOS
+math1	ASIN
+math1	ATAN
+math1	LOG10
+math1	COS
+math1	EXP
+math1	COSH
+math1	SINH
+math1	TANH
+math1	LOG
+math1	SIN
+math1	SQRT
+math1	TAN
+
+;	same for two-argument function(s) (beginning with OTS$)
+
+math2	POWDD
+
+;	Terminal-independent screen handling functions
+
+header	SCR.DOWN_SCROLL, jump_to_me, crtl
+	calls	#0, g^lib$down_scroll
+	movl	r0,-(r10)
+	rsbx
+
+header	SCR.UP_SCROLL, jump_to_me, crtl
+	calls	#0, g^lib$up_scroll
+	movl	r0,-(r10)
+	rsbx
+
+header	SCR.ERASE_PAGE, jump_to_me, crtl
+	calls	#0, g^lib$erase_page
+	movl	r0,-(r10)
+	rsbx
+
+header	SCR.ERASE_LINE, jump_to_me, crtl
+	calls	#0, g^lib$erase_line
+	movl	r0,-(r10)
+	rsbx
+
+header	SCR.PUT_SCREEN, jump_to_me, crtl
+	pushaq	(r10)+			; push descriptor
+	calls	#1, g^lib$put_screen
+	movl	r0,-(r10)
+	rsbx
+
+header	SCR.SET_BUFFER, jump_to_me, crtl
+	pushaq	(r10)+			; push address of descriptor
+;	pushal	old_buf(r11)		; push address to get last buffer
+	calls	#1, g^lib$set_buffer
+	movl	r0,-(r10)
+	rsbx
+
+header	SCR.PUT_BUFFER, jump_to_me, crtl
+;	pushl	old_buf(r11)		; push old buffer descriptor address
+	pushl	#0			; make an explicit 0 argument
+	calls	#1, g^lib$put_buffer
+	movl	r0,-(r10)
+	rsbx
+
+header	SCR.SET_CURSOR, jump_to_me, crtl
+	pushal	(r10)+			; push line number
+	pushal	(r10)+			; push column number
+	calls	#2, g^lib$set_cursor
+	movl	r0,-(r10)
+	rsbx
+
+header	SCR.SET_SCROLL, jump_to_me, crtl
+	pushal	(r10)+			; push 1st line argument
+	pushal	(r10)+			; push 2nd line argument
+	calls	#2, g^lib$set_scroll
+	movl	r0,-(r10)
+	rsbx
+
+;	Data for terminal routines
+
+.psect	datinit
+cur_buf:
+	.blkl	2
+old_buf:
+	.blkl	1
+.psect	kernel
+
+header DUMMY_WORD,jump_to_me,crtl	;does the last word in a vocabulary
+	rsbx				; get looked at?
+
+.save
+.psect dictionary
+.=crtl
+crtl_crtl::		;set up a vocabulary link
+.=.+4
+crtlglob::		;and a global dictionary link
+.restore
+
+	.end

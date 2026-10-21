@@ -1,0 +1,72 @@
+%	*****************************************************************
+%	*								*
+%	*	This module is a part of the SAO VAX/VMS		*
+%	*	RED full-screen text editor				*
+%	*								*
+%	*	It was created by					*
+%	*	Roger Hauck						*
+%	*	Smithsonian Institution					*
+%	*	Astrophysical Observatory				*
+%	*	Cambridge, Massachusetts  02138				*
+%	*	(617)495-7151  (FTS 830-7151)				*
+%	*								*
+%	*	This module may be reproduced				*
+%	*	provided that this header is retained.			*
+%	*								*
+%	*****************************************************************
+
+'LOAD_ERROR :  % take proper action if initial file open fails
+  DUP 18292 EQ_IF  % is it the file-not-found error?
+    DROP ERR.NEWFIL ERR.MSG  % yes, let user know
+  ELSE  % if not, it's something worse
+    SYSMSG TYPE  % display it in the text area
+    0 FILE_NAME W!  % don't set the file name if open failed
+    ERR.OPFAIL ERR.MSG SETSCREEN  % display open-failure message
+  THEN
+  ;
+
+'.RED :  % [file name descriptor, -1] or [0], RED
+  RED<  % push the RED vocatulary at run-time
+  E.SET_CHARS
+BUFFER_ON  % reset origin mode, activate buffer
+INIT_VT100 ESC[ "?6l" MSG APPLICATION_KEYPAD WRAP_OFF SMOOTH_SCROLL
+ FLUSH E.INIT
+
+%  open file if specified in command line
+  IF  % is there a filename?
+    FILE_NAME .MOVE_STRING  % yes, save it
+  THEN
+  SETSCREEN DISP_FLUSH FILE_NAME W@ NEZ_IF  % is there a file name?
+    FILE_NAME COUNT F.OPEN_FILE DUP IF DROP ELSE  % yes, load file, successful?
+      LOAD_ERROR  % show "new file" if file not found, else error
+    REC_SEP CRET <- MAIN_SEP CRET <- THEN THEN
+  DISP BUFFER_OFF LOAD_RESET KBD  % close files and go
+  ;
+
+'REDCPU :
+  TIME_FLAG 1+! WORD .RED
+  ; IMMEDIATE
+
+> DEFINITIONS  % reset definitions to normal KERNEL branch
+RED<  % push RED vocabulary again
+
+'RED :
+  SPACE_FLAG -1<-  % allow <SPACE> and <TAB> as commands
+  WORD .RED  % get the file name from the line buffer
+  ; IMMEDIATE
+
+'RED_NOSP :
+ SPACE_FLAG 0<-  % don't allow <SPACE> and <TAB> as commands
+  WORD .RED  % and do normal RED
+  ; IMMEDIATE
+
+'REDOUT :  % called from STOIC to terminate RED
+  D.START @ .D !  % reset data pointer to first dynast pointer
+  0 FILE_NAME W!  % reset file name string
+  E.RESET_CHARS  % reset to user's DCL terminal characteristics
+  RESET_TERMINAL WAIT_FOR_RESET  % and reset the VT100
+  ;
+
+>  % pop the RED vocabulary
+
+;F

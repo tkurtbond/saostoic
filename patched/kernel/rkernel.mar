@@ -1,0 +1,2085 @@
+	.title	KERNEL for SAO VAX/VMS STOIC
+;	*****************************************************************
+;	*								*
+;	*	This is a module of SAO VAX/VMS STOIC			*
+;	*								*
+;	*	It was created by					*
+;	*	Roger Hauck						*
+;	*	Smithsonian Institution					*
+;	*	Astrophysical Observatory				*
+;	*	Cambridge, Massachusetts  02138				*
+;	*	(617)495-7151  (FTS 830-7151)				*
+;	*								*
+;	*	Modifications by Jonathan Mark				*
+;	*	1981-1982						*
+;	*								*
+;	*	This module may be reproduced				*
+;	*	provided that this title page is retained.		*
+;	*								*
+;	*****************************************************************
+
+ROGER=1
+	.enabl dbg,tbk
+	.dsabl gbl
+	.extrn	lib$signal,lib$stop,lib$sig_to_ret,ss$_resignal
+	.extrn	sssize,ssbyte,tyiosize
+	.extrn	rmsdata,ssdata,tyiodata,tyiodata
+	.extrn	fablen,rablen,xablen
+	.extrn	proto_fab,proto_rab,proto_xab,channel_prot
+	.extrn	ttname0,ttchan0,_name
+	.extrn	console,consize
+	$rabdef
+	$fabdef
+	$rmsdef
+
+;	Symbols for export to UTINIT module
+
+	.extrn	ttio_ttio,ttioglob,ss_kernel	;points to other vocabularies
+	.extrn	crtl_crtl
+	.extrn	dict_start,k_start		;beginning of dictionary
+	.extrn	k_end,dict_end,dat_fin
+	.extrn	string_to_float		;floating point conversion routine
+	.mcall	$rab
+
+	.global	syserr			;make error checker available
+
+.extrn	dat_start
+
+.macro	jsbext	parm
+	.extrn	parm
+	jsb	parm
+.endm
+
+
+	.macro newpage title
+	.page
+	.sbttl title
+	.endm
+
+;random conventions
+;true is represented by any odd word
+;and false by any even word,
+;so blbs is branch true
+
+; global register assigments
+; r11 - users table pointer
+; r10 - paramater stack pointer
+; r9 - loop stack pointer
+; r8 - dictionary pointer
+; r7 - floating point stack pointer
+
+
+	.psect kernel
+
+; assembly parameters
+p_stack_size=2				;number of pages in p-stack
+l_stack_size=1				;number of pages in loop stack
+v_stack_size=1				;number of pages in vocab stack
+fp_stack_size=1
+pmtlen=6				;length of prompt
+line_buf_size=132.
+comp_buf_length=^x400
+
+	newpage <Roger's macros>
+	.macro	.errstop	?p1
+	blbs	r0,p1
+	pushl	r0
+	calls	#1,g^lib$stop
+p1:
+	.endm
+
+;----..if
+	.macro	..if
+	blbc	(r10)+,.		;branch on .FALSE.
+	.=.-1				;pointer to target
+	.save
+.=.+1
+	.endm
+
+;----notif:  i.e. NOT IF
+	.macro	..notif
+	blbs	(r10)+,.		;branch on .TRUE.
+	.=.-1
+	.save
+.=.+1
+	.endm
+
+;----..else
+	.macro	..else	?p1
+	brb	.			;displacement to be supplied
+p1=.
+	.restore
+	.byte	p1-.-1			;insert previous diplacement
+.=p1-1
+	.save
+.=.+1
+	.endm
+
+;----then:  THEN
+	.macro	..then	?p1
+p1=.
+	.restore
+	.byte	p1-.-1
+.=p1
+	.endm
+
+;----begin:  BEGIN
+	.macro	..begin
+	.save
+	.endm
+
+;----end:  logical value, END
+;    transfers to matched BEGIN if value is .FALSE.
+	.macro	..end
+	blbs	-(r10),.
+p1:
+	.restore
+p2=.-p1-1
+.=p1-1
+	.byte	p2
+	.endm
+
+;----succeed:  SUCCEED
+;    pushes .TRUE. onto the parameter stack
+	.macro	..succeed
+	movl	#1,-(r10)
+	.endm
+
+;----fail:  FAIL, 0
+;    pushes .FALSE. onto parameter stack
+	.macro	..fail
+	clrl	-(r10)
+	.endm
+
+	newpage <Macros>
+
+.macro	string	strng
+loc=.
+	.blkw	1
+	.ascii	strng
+len=.-loc-2
+.=loc
+	.word	len
+	.blkb	len
+.endm
+
+
+;----HEADER:  (this macro makes a STOIC word header and links it)
+;stores link,name,lookup atribute
+	.macro header macname, name=<>,lookup_atr=jump_to_me,-
+			branch=kernel
+	kplace=.		;remember current location
+	.save
+	.psect	dictionary	;go to dictionary psect
+	.long branch-dict_start-^x8000	;link onto last word of branch
+	branch=.-4		;set branch to point to here
+	.long globlink-dict_start-^x8000	;link onto global pointer
+	globlink=.-4		;and set it
+	.nchr nchr,^!name!
+.if	le,nchr
+	.ascic	/macname/
+.endc
+.if	gt,nchr
+	.ascic	/name/			;store the name and count
+.endc
+	.byte lookup_atr
+	.blkw	1		;space for the code length word
+	clplace=.-2		;note location to put it later
+	.word	kplace-k_start-^x8000	;r8 displacement to code address
+	.restore
+macname:
+	.endm
+
+;terminate a word: this or RSBX should be used at the ends of all
+;routines begun with HEADER
+.macro	wterm
+	kend=.
+	.save
+	.psect dictionary
+	.=clplace		;code length place
+	.word	kend-kplace	;store code length
+	.restore
+	.endm
+
+.macro	rsbx		;used to end normal code words
+	rsb		;add a rsb
+	wterm		;and terminate
+	.endm
+
+;macro to connect to link symbols defined in another module
+
+.macro	nullhead gglobal,glocal,lglobal,llocal
+	kplace=.
+	.save
+	.psect	dictionary
+	.long	glocal-dict_start-^x8000	;put in local symbol reference
+	llocal=.-4			;and update the new one
+	.long	gglobal-dict_start-^x8000	;global reference
+	lglobal=.-4			;update it
+	.ascic	/NULL/			;name
+	.byte	jump_to_me		;lookup attribute
+	.word	1			;one byte long (rsb)
+	.word	kplace-k_start-^x8000	;word address
+	.restore
+	rsb				;load on the rsb
+	.endm
+
+nullhead	ttioglob,ss_kernel,globlink,kernel	;set up links
+
+	.macro newtab			;start a new table
+	table_offset=0
+	.endm
+
+.macro	pages	count			;reserve count pages
+	.rept	count
+	.align	page
+	.byte	-1
+	.endr
+.endm
+
+.macro	svariable	sname,length,str=<>
+	.word	length
+	.nchr	len,^"str"
+sname:	.word	len
+	.ascii	"str"
+. = sname
+	.blkw	1
+	.blkb	length
+.endm
+
+;macro to assemble code to initialize a user table location with
+;an address
+
+.macro	addr_to_ut addr,dest
+	.save			;save current location
+	.psect setup		;go to setup psect
+	moval	l^<addr-dat_end-^x8000>(r11),w^dest(r11)	;do move
+	.restore		;return to where we were
+.endm
+
+;macro to give one block in the data area the address of another
+
+.macro	addr_to_addr addr,dest
+	.save
+	.psect setup
+	moval	l^<addr-dat_end-^x8000>(r11),l^<dest-dat_end-^x8000>(r11)
+	.restore
+.endm
+
+;	Macros A_TO_UT and A_TO_A obsolete previous two; they do the same
+;	thing but compile the code at the current place in the PSECT
+
+.macro	a_to_ut addr,dest
+	moval	l^<addr-ut_start-^x8000>(r11),w^dest(r11)
+.endm
+
+.macro	a_to_a addr,dest
+	moval	l^<addr-ut_start-^x8000>(r11),l^<dest-ut_start-^x8000>(r11)
+.endm
+
+	newpage <Kernel Code>
+	.psect	kernel
+
+	.entry	start,^m<r2,r3,r4,r5,r6,r7,r8,r9,r10,r11>
+
+;	Allocate stacks and buffers, leave pointers on control stack
+
+	movl	#p_stack_size,r0	;get space for p-stack
+	jsb	isolate_block		;assign it
+	pushl	r2			;remember where it starts
+	movl	#l_stack_size,r0	;same for l-stack
+	jsb	isolate_block
+	pushl	r2
+	movl	#fp_stack_size,r0
+	jsb	isolate_block
+	pushl	r2
+	movl	#v_stack_size,r0	;same for v-stack
+	jsb	isolate_block
+	pushl	r2
+	movl	#2,r0			;make space for compile buffer
+	jsb	isolate_block
+	pushl	r1			;push beginning this time
+
+;	Make space for FABS and RABS.
+
+	movl	#<<<<8*fablen>+<8*rablen>+<2*xablen>-1>/^x200>+1>,r0
+	jsb	isolate_block		;create the space; get address in r1
+
+;	Set register 11 to be the base register for the data region.
+
+	addl3	#<<ut_start-dat_start>+^x8000+^x200>,r2,r11
+						;set up r11 to be 8000 past end
+						;of non-user data (add 200 to
+						;allow for the moat)
+;	Initialize FABS/RABS.
+
+	cvtbl	#7,r6			;make a loop index
+	movl	r1,r3			;put the current address in r3
+10$:	pushl	r3			;push current address
+	movc3	#<rablen+fablen>,proto_rab,(r3)	;move the initial values
+	addl3	#rab$l_fab,(sp),r0	;get address of FAB field in RAB
+	addl3	#rablen,(sp),(r0)	;store FAB address there
+	decl	r6			;decrement the loop counter
+	cmpl	#2,r6			;is the counter less than 2?
+	bleq	10$			;if greater than 1, go do the next one
+	pushl	r3			;save the current address temporarily
+	movc3	#xablen,proto_xab,(r3)	;move one XAB
+	movl	(sp)+,r0		;pop the XAB address into r0
+	addl3	#<rablen+fab$l_xab>,(sp),r1	;get the XAB field address
+	movl	r0,(r1)			;install it
+	tstl	r6			;look at the loop counter
+	bgeq	10$			;if non-negative, continue
+
+;	Make space for the data region.
+
+	clrl	r0
+	subw3	#1,dat_start,r0		;get number of bytes, less 1
+	divl2	#^x200,r0		;compute number of pages
+	incl	r0			;add 1
+	jsb	isolate_block
+	pushl	r2			;store the next unavailable address
+	pushl	r1			;remember address of data
+
+;	Move the initial data values into the data region.
+
+	movc3	dat_start,dat_start,(r1)	;load the initial data values
+	pushl	r3				;beginning of normal data region
+
+;	Initialize by doing a JSB to the code prepared by the macros
+;	A_TO_A and A_TO_UT.
+
+	jsb	data_init
+
+;	Move data pointers to user table.
+
+	movl	(sp)+,.d(r11)			;data pointer
+	movl	(sp)+,user_data(r11)		;data start
+	movl	(sp)+,.m(r11)			;memory pointer
+
+;	Connect RABs to the channel list.
+
+	cvtbl	#7,r6			;set up a loop index
+20$:	movl	(sp)+,@channel_list(r11)[r6]	;move the RAB address
+	decl	r6			;advance the pointer
+	bgeq	20$			;if non-negative, loop back
+	jsb	setup_fabs		;specialize the FABS
+
+;	Install the buffer and stack pointers.
+
+	movl	(sp)+,comp_buf_0(r11)		;compile buffer
+	movl	(sp)+,v_stack_0(r11)		;initial v_stack
+	movl	(sp)+,f_stack_0(r11)
+	movl	(sp)+,l_stack_0(r11)		;l-stack
+	movl	(sp)+,p_stack_0(r11)		;p-stack
+
+;	Save stack pointer, data address; reset registers.
+
+	movl	sp,r_stack_0(r11)	;save so abort can restore
+	movl	fp,frame_0(r11)		;save frame pointer
+	jsb	reset_registers		;setup registers
+
+;	Initialize the vocabulary stack with the kernel vocabulary.
+
+	movl	v_stack_0(r11),vocab_sp(r11)	;init stack pointer
+	moval	b_kernel(r11),-(r10)		;get kernel address
+	jsb	v_push				;push on v-stack
+	moval	b_kernel(r11),current(r11)	;set up for definitions
+	moval	b_global(r11),global(r11)	;also global pointer
+
+;	Replace the write-only expansion areas at the ends of the
+;	dictionary and code psects with writable space.
+
+	subl2	#8,r10				;push 8 bytes for return address
+	moval	dict_end-1,-(r10)		;save address in last page
+	addl3	#^x1ff,user_dictionary(r11),-(r10)	;save start address
+	$deltva_s inadr=(r10)			;perform the call
+	.errstop
+	$cretva_s inadr=(r10),retadr=8(r10)	;create the space
+	.errstop
+	movl	8(r10),dict_pntr(r11)		;make a pointer to the start
+	addl2	#8,r10				;pop 2 entries from stack
+	moval	k_end-1,-(r10)			;push end address for kernel
+	addl3	#^x1ff,user_code(r11),-(r10)	;push start address
+	$deltva_s inadr=(r10)			;delete the space
+	.errstop
+	$cretva_s inadr=(r10),retadr=8(r10)	;create it again
+	.errstop
+	movl	8(r10),code_pntr(r11)		;set up pointer
+	addl2	#^x10,r10			;and pop the stack 4 times
+
+;	Crank up the console.
+ 
+	movl	prompt(r11),-(r10)	;->prompt string
+	bsbw	newprompt		;install prompt in rab
+
+	moval	tyiname,-(r10)		;->"SYS$INPUT"
+	bsbw	count
+	movl	u_ifi(r11),-(r10)	;channel # (0)
+	jsbext	_wopen_ncr		;don't get CR attribute for it
+	movl	(r10)+,r0		;fail if error
+	.errstop
+;	Open console for QIO, i.e. TYI;
+;	check to see if interactive or batch; initialize TYPE and TYO
+;	addresses accordingly (if batch, use RMS, else QIO)
+	jsbext	outinit
+
+;enable ctrl-c interrupt
+	bsbw	enab_ctrl_c
+
+;open message channel
+	moval	tyoname,-(r10)
+	movl	msg_channel(r11),-(r10)
+	jsb	open
+
+;user initialization
+	jsb	@user_init(r11)
+	jmp	top_loop		;take off
+.list ME
+header	I_USER_INIT
+	moval welcome,-(r10)
+	bsbw cr
+	bsbw msg
+	rsbx
+.nlist ME
+	.list	me
+tyiname:: string	/SYS$INPUT/
+tyoname:: string	/SYS$OUTPUT/
+welcome:  string	</Welcome to the STOIC kernel./>
+	.nlist	me
+
+top_loop:
+;	jsb	@errchk(r11)		;check the stacks
+	movl comp_buf_0(r11),comp_buf_pntr(r11)	;init compile buf pntr
+	clrl check(r11)
+	clrl end_of_cmnd(r11)
+1$:	clrl end_of_line(r11)		;set up some flags
+	jsb @readline(r11)		;read a line
+;eof check
+	blbs	(r10)+,20$		;if not end of file
+	bsbw	semif			;down a level on file stack
+	brb	1$
+20$:
+	jsb @compile(r11)		;compile it
+	blbs end_of_cmnd(r11),1$	;not end of cmnd,read somore
+	tstl check(r11)			;pending ; or then?
+	bneq 1$				;yes read more
+	jsb @execute(r11)		;execute the line
+	brb top_loop			;and go again
+
+
+done:	ret
+
+i_cond_handler:				;default condition handler
+	.word	0			;entry mask
+	movl	4(ap),r0		;0->signal array
+	movl	(r0),r1			;1<# args
+	movl	-4(r0)[r1],error_pc(r11)  ;save user pc
+	movl	4(r0),cond_code(r11)	;save condition code
+	movl	abort(r11),-4(r0)[r1]	;set restart address to abort
+	bicl2	#7,4(r0)		;clear severity code
+	cmpl	^x0c(fp),frame_0(r11)	;just one level away?
+	beql	10$
+	$unwind_s depadr=oneadr		;if more, do an unwind
+10$:	movzwl	#ss$_resignal,r0	;signal resignal
+	ret
+
+header I_ABORT
+	bsbw	reset_registers
+	movl	r_stack_0(r11),sp	;re-initialize return stack
+	brw	top_loop		;take off
+	wterm				;macro to terminate header
+
+header DATA_INIT			;data initialization stuff
+		;Values from SS module
+	a_to_ut ssdata,cmddesc
+		;Values from RKERNEL
+	a_to_ut	i_line_buffer,line_buffer
+	a_to_ut	i_line_buffer,line_buffer+8	;make rest-of-line
+	a_to_ut	i_word_buffer,word_buffer
+	a_to_ut	prompt0,prompt
+	a_to_a	oc_prot+^x0c,oc_prot
+	a_to_a	oc_prot+^x0c+40,oc_prot+4
+	a_to_a	oc_prot+^x0c+40,oc_prot+8
+	a_to_ut	oc_prot,out_conv_stack
+	a_to_ut	i_time_string,time_string
+	a_to_a	i_time_string+8,i_time_string+4
+		;Values from RMS
+	a_to_ut	channel_prot,channel_list
+		;Values from TYIO
+	a_to_ut	ttname0,ttname
+	a_to_ut	ttchan0,ttchan
+	a_to_ut	_name,naddr
+	a_to_ut	_name,nstore
+	rsbx
+
+header RESET_REGISTERS
+	movl	cond_handler(r11),(fp)		;condition handler,
+	movl	p_stack_0(r11),r10		;and stack pointers
+	movl	l_stack_0(r11),r9
+	moval	k_start+^x8000,r8		;set up code pointer
+	movl	f_stack_0(r11),r7
+	rsbx
+
+;----COMPILE_ERROR:  message pointer, COMPILE_ERROR
+;	types message, returns to console level, aborts
+header I_COMPILE_ERROR
+	bsbw	cr
+	bsbw	msg			;error message
+	moval	comp_err_msg,-(r10)
+	bsbw	msg
+	movl	word_buffer(r11),-(r10)	;word where compilation failed
+	bsbw	msg
+	moval	comp_err_msg1,-(r10)
+	bsbw	msg
+	bsbw	cr
+	movl	line_buffer(r11),-(r10)	;line where compilation failed
+	bsbw	msg
+	bsbw	cr
+	bsbw	load_reset
+	bsbw	i_abort
+	wterm			;terminate header
+
+comp_err_msg:	string	</ error compiling...  />
+comp_err_msg1:	string	</  ...in line/>
+
+;----FATAL:  FATAL
+;	expects message pointer on return stack,
+;	types message and does abort.
+header FATAL
+	movl	(sp)+,-(r10)
+	bsbw	msg
+	jmp	@abort(r11)
+	wterm			;macro to terminate header
+
+;----SYSERR:  condition code, SYSERR
+;	signals condition & aborts if condition code is even
+.LIST	ME
+header SYSERR
+.NLIST	ME
+	blbc	(r10)+,20$		;if error
+	rsb
+20$:	pushl	-(r10)
+	calls	#1,g^lib$signal
+	halt				;should never get here
+wterm					;end the word definition
+
+;----I_DATE_ERROR: date on save file, I_DATE_ERROR
+;    types date and current date, resets registers
+header I_DATE_ERROR
+	moval	date_err_msg,-(r10)
+	bsbw	msg			;type message
+	bsbw	cr
+	moval	cur_date_msg,-(r10)
+	bsbw	msg
+	movq	date(r11),-(r10)
+	bsbw	show_time
+	bsbw	cr
+	moval	save_date_msg,-(r10)
+	bsbw	msg
+	bsbw	show_time
+	bsbw	cr
+	newpage <Compile>
+	jmp	i_abort
+	wterm				;macro to end header
+
+date_err_msg:	string	</Invalid save file date in XLOAD/>
+cur_date_msg:	string	</Current image date:	/>
+save_date_msg:	string	</Save file date:		/>
+time_kernel:	string	</(Kernel)/>
+
+;compile:
+;compile a word from the line buffer
+;by looking it up and if found dispatching
+;through its lookup attribute or calling
+;the literal handler
+header I_COMPILE
+	blbs end_of_line(r11),comp_pop	;check eol flag
+	bsbw word			;get a word from linbuf
+	blbc (r10)+,comp_pop		;no more words so return
+	jsb @lookup(r11)		;lookup the word
+	blbc (r10)+,comp_lit		;not found maybe its a literal
+	addl2 #8,(r10)			;get string address
+	movb @(r10),r0			;get count in r0
+	addl2 r0,(r10)			;advance to end of string
+	incl (r10)			;get attribute address
+	movl (r10),r0			;save attribute address
+	addl2 #3,(r10)			;get address of code displacement
+	cvtwl @(r10),(r10)		;get the displacement itself
+	addl2 r8,(r10)			;get the actual address
+	movzbl (r0),r0			;convert attribute to longword
+	jsb @l^lookup_dispatch(r0)	;and dispatch off it
+	brb i_compile
+comp_pop:
+	rsb
+
+comp_lit:
+	jsb @literal(r11)		;see if the word is a literal
+	blbs (r10)+,i_compile		;yes,on to next word
+	bsbw type			;no, type word
+	moval undef_msg,-(r10)		;this should be changed when
+	jsb	@compile_error(r11)	;compile_error out
+	wterm				;macro to terminate header
+undef_msg:
+	string	/undefined/
+
+	newpage <Literal Handlers>
+;----digit:  DIGIT, success
+;    looks at present character in present word,
+;    checks that it represents a valid digit under current radix,
+;    if so, converts it and adds it to (radix times current magnitude).
+header DIGIT
+	tstl	r0
+	bleq	not_digit
+	movb	(r1),r2			;2<current character
+	cmpb	r2,#<^a/./>		;have we got a decimal point?
+	beql	found_dp
+	subl2	#^a/0/,r2		;bias is "0"
+	blss	not_digit
+	subl2	#10,r2			;bias is "9" + 1
+	blss	nume
+	subl2	#<^a/A/-^a/0/-10>,r2	;bias is "A"
+	blss	not_digit
+	subl2	#<^a/Z/-^a/A/+1>,r2	;bias is "Z" + 1
+	blss	alph
+found_dp:
+	tstl	u_float(r11)		;is this not the first "."?
+	bneq	not_digit		;if it isn't, fail
+	movl	#1,u_float(r11)		;otherwise put a 1 in exponent
+	decl	r0			;and skip the byte
+	incl	r1
+	mnegl	#1,-(r10)		;succeed
+	rsb
+not_digit:
+	clrl	-(r10)			;fail
+	rsb
+
+alph:	addl2	#<^a/Z/-^a/A/+1>,r2	;bias is "A"
+nume:	addl2	#10,r2			;bias is "0" for numeral
+					;        "A"+10 for alph.
+					;0 .le. n .le. 35
+	cmpl	r2,u_rad(r11)		;compare to radix
+	bgeq	not_digit
+	mull2	u_rad(r11),u_mag(r11)	;shift left one position
+	addl2	r2,u_mag(r11)		;add current digit
+	decl	r0			;chop current character from word
+	incl	r1
+	movl	#1,-(r10)		;succeed
+	rsbx
+
+;----ceq:  ASCII character, CEQ, success
+;    compares character to first byte in current string
+header CEQ
+	cmpb	(r10),(r1)
+	beql	20$			;if equal
+	clrl	(r10)
+	brb	30$
+
+20$:	movl	#1,(r10)
+30$:	rsbx
+	
+;----icompile:  ICOMPILE
+;    compiles converted integer or floating point literal
+header ICOMPILE
+	tstl	u_float(r11)		;is there a decimal point?
+	bneq	20$			;if so, do floating point
+	movl	u_cbp(r11),r2		;r2->nenext loc. in compile buf.
+	movw	#^x8fd0,(r2)+		;compile "MOVL #"
+	movl	(r10)+,(r2)+		;push number onto compile buffer
+	movb	#^x7a,(r2)+		;compile "-(r10)"
+	movl	r2,u_cbp(r11)		;restore pointer
+	rsb
+20$:
+	tstl	(r10)+			;get rid of the number
+	movl	word_buffer(r11),-(r10)	;push word descriptor address
+	jsb	count			;make str. descriptor on stack
+	jsb	string_to_float		;convert to D_floating
+	movl	u_cbp(r11),r2		;get compile loc. in r2
+	movw	#^x8f70,(r2)+		;compile "MOVD #"
+	movq	(r7)+,(r2)+		;move number from f-stack
+	movb	#^x77,(r2)+		;compile "-(r7)"
+	movl	r2,u_cbp(r11)		;restore pointer
+	rsbx
+
+;----scompile:  SCOMPILE
+;    compiles string literal
+header SCOMPILE
+	moval	run_sliteral,-(r10)	;run-time literal handler
+	pushr	#^m<r0,r1>		;save r0 and r1 through call
+	bsbw	i_jump_to_me
+	popr	#^m<r0,r1>		;restore r0 and r1
+	movl	u_cbp(r11),r3		;3->next loc. in compile buf.
+	movw	r0,(r3)+		;length of string
+	movc	r0,(r1),(r3)		;string
+	movl	r3,u_cbp(r11)		;updated compile buffer pointer
+	rsbx
+
+;----run_sliteral
+;    run-time string-literal processor
+run_sliteral:
+	movl	(sp)+,r0		;string pointer
+	movl	r0,-(r10)
+	movzwl	(r0)+,r1		;1<length
+	addl2	r0,r1			;skip string
+	jmp	(r1)
+
+;----sign:  SIGN
+;    Stores 0 as current magnitude.
+;    Examines first character in present string:
+;    if "-", stores -1 as current sign;
+;    otherwise, stores +1 as current sign.
+header SIGN
+	clrl	u_mag(r11)		;clear magnitude
+	movl	#^a/-/,-(r10)		;push ASCII -
+	bsbw	ceq			;character equal?
+	..if
+	movl	#-1,u_sgn(r11)
+	decl	r0			;drop "-" from word
+	incl	r1
+	..else
+	movl	#1,u_sgn(r11)
+	..then
+	rsbx
+
+;----iliteral:  ILITERAL, success
+;    attempts to compile current word as integer or floating point
+header ILITERAL
+	movq	(r10),r0		;descriptor
+	bsbw	sign
+	clrl	u_float(r11)		;not floating until decimal point found
+20$:
+	bsbw	digit			;interpret next digit
+	blbs	(r10)+,20$
+	tstl	r0
+	bleq	30$			;if no invalid digit
+	..fail
+	rsb
+30$:
+	addl2	#8,r10			;drop original descriptor
+	mull3	u_sgn(r11),-
+		u_mag(r11),-(r10)	;put longword literal
+	..succeed
+	rsbx
+
+;----sliteral:  SLITERAL, success
+;    attempts to compile current word as a string
+header SLITERAL
+	movq	(r10),r0		;0,1<word descriptor
+					;1->word
+	movl	#^a/"/,-(r10)		;push double quote
+	bsbw	ceq			;compare to first character
+	..if
+	decl	r0			;lop off trailing double quote
+	..succeed
+	..else
+	movl	#^a/'/,-(r10)		;push single quote
+	bsbw	ceq			;compare to first character
+	..then
+	..if
+	decl	r0			;remove leading quote
+	incl	r1
+	bsbw	scompile		;compile string literal
+	addl2	#8,r10			;drop string pointer
+	..succeed
+	..else
+	..fail
+	..then
+	rsbx
+
+;----literal:  LITERAL, success
+;    attempts to compile current word as an integer or string
+header I_LITERAL
+	bsbw	iliteral
+	..if
+	bsbw	icompile		;compile integer or floating literal
+	..succeed
+	..else
+	bsbw	sliteral
+	..then
+	rsbx
+	newpage <Execute>
+	op_rsb=^x05
+;execute the compile buffer
+header I_EXECUTE
+	movb #op_rsb,@comp_buf_pntr(r11);put in a return
+	incl comp_buf_pntr(r11)		;push the compile pntr
+	jmp @comp_buf_0(r11)		;and jump into the buffer
+	wterm				;macro to terminate header
+
+	newpage <Colon Definition>
+
+;colon
+;at read time compile a call to int_colon
+;and save a space in the compile buffer for
+;the count of bytes in the definition, that
+;will be filled in by ;
+header COLON,<:>,immediate
+	tstl check(r11)			;check has to be 0
+	bneq syntax_error		;or its a syntax error
+	incl check(r11)			;flag define mode
+	moval int_colon,-(r10)		;compile a call to
+	bsbw i_jump_to_me		;int_colon
+	movl comp_buf_pntr(r11),-(r10)	;save the compile pntr
+	addl2 #2,comp_buf_pntr(r11)	;space for the count
+	rsbx
+
+;int_colon
+;called when s colon was found on input
+;copies the compile buffer to the end of the
+;dictionary making a new word
+int_colon:
+	movzwl @(sp),-(r10)		;push length for ENTER
+	movzbl #jump_to_me,-(r10)	;push attribute byte
+	jsb @enter(r11)			;set up the header
+	movl (sp),r0			;get a pntr to the code
+	tstw (r0)+			;step past count
+	movc3 @(sp),(r0),@code_pntr(r11);copy the code
+	movl r1,(sp)			;return to after word
+	movl r3,code_pntr(r11)		;update end of dict
+	rsbx
+
+; ;
+; terminate a colon definition
+; at read time put an rsb in the buffer
+; and set up the count for int_colon
+header SEMI_COLON,<;>,immediate
+	decl check (r11)
+	bneq syntax_error		;check was not 1 so err
+	movb #op_rsb,@comp_buf_pntr(r11);stick in a rsb
+	incl comp_buf_pntr(r11)
+	movl (r10),-(r10)		;dup pointer to count
+	addl2 #2,(r10)			;move to actual code
+	subl2 comp_buf_pntr(r11),(r10)	;compute count
+	mnegl (r10),(r10)
+	cvtlw (r10)+,@(r10)+		;and store it
+	rsbx
+
+;give a syntax error message
+syntax_error:
+	moval syntax_msg,-(r10)		;print the msg
+	jmp @compile_error(r11)		;and error out
+
+; (:)
+; deferred colon (do a colon at execute time.)
+header defer_colon,<(:)>,immediate
+	decl	check(r11)
+	bsbw	colon
+	rsbx
+
+; (;)
+; deferred semicolon (do a semicolon at execute time)
+header defer_semi,<(;)>,immediate
+	bsbw	semi_colon
+	incl	check(r11)
+	rsbx
+
+; enter: string, code length, attribute byte, ENTER
+; create a new stoic word setting up the name and the
+; link
+header I_ENTER
+	movl	dict_pntr(r11),r0	;remember where we are in dictionary
+	movl	@current(r11),(r0)+	;store dictionary link
+	movl	@global(r11),(r0)+	;store global link
+	subl3	dict_base(r11),dict_pntr(r11),@current(r11);splice in link
+	subl3	dict_base(r11),dict_pntr(r11),r1  ;get global link
+	addl3	r1,#4,@global(r11)	;and store it
+	movl	8(r10),r1		;r1->name string
+	cvtwb	(r1),(r0)+		;copy count
+	movc3	(r1)+,(r1),(r0)		;copy name
+	movl	r3,r0			;put end pointer back in r0
+	cvtlb	(r10)+,(r0)+		;load on attribute byte
+	cvtlw	(r10)+,(r0)+		;load code length
+	tstl	(r10)+			;remove string pointer
+	subl3	r8,code_pntr(r11),r1	;code displacement in r1
+	cvtlw	r1,(r0)+		;install it in the dictionary
+	movl	r0,dict_pntr(r11)	;fix pointer
+	rsbx
+
+syntax_msg:
+	string	</Syntax Error/>
+	newpage <assembler>
+
+;----cpush:  byte, CPUSH  (pushes a byte into the compile buffer)
+header CPUSH
+	cvtlb	(r10)+,@u_cbp(r11)
+	incl	u_cbp(r11)
+	rsbx
+
+;----cpop:  CPOP, byte  
+;	pops last byte from copile buffer onto parameter stack
+header CPOP
+	decl	u_cbp(r11)
+	movzbl	@u_cbp(r11),-(r10)
+	rsbx
+
+;word to create new assembly constants
+;given a name on the top and a number at top-1
+;makes the name into a word that will compile
+;the number (as a byte) into the compile
+;buffer at read time
+;
+;example
+;	d0 'movl ac
+;will make movl be a word that compiles a d0
+header AC
+	movzbl #1,-(r10)		;code length is 1
+	movzbl #compile_byte,-(r10)	;push attribute byte
+	jsb @enter(r11)			;enter the new name
+	cvtlb (r10)+,@code_pntr(r11)	;write the byte on the
+	incl code_pntr(r11)		;stack into the def
+	rsbx
+
+;----LOOKUP_ATTRIBUTE:  LOOKUP_ATTRIBUTE, address
+header LKP_ATTR,<LOOKUP_ATTRIBUTE>
+	addl3	@current(r11),dict_base(r11),r0	;0->address of local backlink
+	addl2	#8,r0			;0->address of string
+	movzbl	(r0)+,r1		;put length in r1
+	addl3	r0,r1,-(r10)		;push address of attribute byte
+	rsbx
+
+	newpage <Lookup>
+
+;given a string descriptor on the top of
+;the stack, lookup searches the branches of the vocabulary
+;stack and returns either true on top and the address
+;of the definition at top-1 or false at top and
+;the original string descriptor at top-1
+
+header I_LOOKUP
+	movq	(r10)+,r4		;descriptor of word to be found
+	pushl r6			;get a free register
+	movl vocab_sp(r11),r6		;get the vocabulary stack pointer
+1$:	cmpl r6,v_stack_0(r11)		;is the vstack empty
+	beql lookup_lose		;if so weve lost
+	movl (r6)+,-(r10)		;otherwise check the branch
+	bsbb try_branch
+	blbc (r10)+,1$			;not found try again
+push_true:
+	movl #1,-(r10)			;push a true
+	popl r6
+	rsb				;found it,pass it back
+lookup_lose:
+	movq	r4,-(r10)		;push original string descriptor
+	clrl -(r10)			;push a false
+	popl r6
+	rsbx
+
+;given a pointer to a dictionary branch at top and a string descriptor
+;in r4-r5, search the branch for the string and return
+;either true and the address of the word found
+;or false
+try_branch:
+	movl @(r10),(r10)		;move down the link
+	cmpl (r10),#^x7fffffff		;highest value is the end
+	beql branch_empty		;if end, go away
+	addl2 dict_base(r11),(r10)	;find the address
+	bsbb match			;match the two strings
+	blbc (r10)+,try_branch		;no match so try again
+	mnegl #1,-(r10)			;and push a true
+	rsb
+branch_empty:
+	clrl (r10)			;clobber top of stack to false
+	rsbx
+
+;match
+;given address of entry at top
+;and a pattern descriptor in r4-r5
+;and an entry-name descriptor in r0-r1,
+;returns address of vocabulary entry and true on match
+;otherwise address of entry and false
+header MATCH
+	addl3	#8,(r10),r1		;r1->entry name; skip both links
+	cvtbl	(r1)+,r0		;ro-r1>entry-name descriptor
+	cmpl	r0,r4			;are strings of equal length?
+	bneq	nomatch			;if not equal
+	cmpc3	r0,(r1),(r5)		;compare the words
+	bneq	nomatch
+	mnegl	#1,-(r10)		;succeed
+	rsb
+
+nomatch:	clrl	-(r10)
+	rsbx
+	newpage <Lookup Attribute Handlers>
+
+	op_jsb=^x16
+	op_movl=^xd0
+	op_moval=^xde
+	op_absolute=^x9f
+	op_auto_dec=^x7a
+	word_disp=^xc8
+;compile a jump to the address
+;and the top of the stack
+header I_JUMP_TO_ME
+	movl comp_buf_pntr(r11),r0	;get pointer to compile buffer
+	movb #op_jsb,(r0)+		;put in a jsb
+	movb #word_disp,(r0)+		;adr mode of word displacement
+	subl r8,(r10)			;get offset from dictionary
+	cvtlw (r10)+,(r0)+		;push in word displacement
+	movl r0,comp_buf_pntr(r11)	;restore pointer
+	rsbx
+
+;execute at compile time
+i_immediate:
+	jmp @(r10)+			;jump through the p stack
+
+;directly compile the byte in the definition
+;into the compile buffer
+header I_COMPILE_BYTE
+	movzbl @(r10)+,@comp_buf_pntr(r11)  ;move the byte into
+	incl comp_buf_pntr(r11)		;the buffer and inc the pntr
+	rsbx
+
+;push the longword following the lookup atr
+header I_PUSH_THIS_WD
+	movl comp_buf_pntr(r11),r0
+	movb #op_movl,(r0)+		;compile a movl #foo,-(r10)
+	movb #op_absolute,(r0)+		;@# mode
+	movl (r10)+,(r0)+		;the address of the word
+	movb #op_auto_dec,(r0)+		;and a destination of -(r10)
+	movl r0,comp_buf_pntr(r11)	;restore pointer
+	rsbx
+
+;use the word following the lookup atr as a displacement with respect
+;to r11 and push the resulting address
+header I_DISP_TO_R11
+	movl	comp_buf_pntr(r11),r0	;get pointer
+	movb	#op_moval,(r0)+		;inst. is "moval w^foo(r11),-(r10)"
+	movb	#^xCB,(r0)+		;hex CB is word disp. w/r r11
+	cvtlw	@(r10)+,(r0)+		;push the value
+	movb	#^x7a,(r0)+		;autodecrement r11
+	movl	r0,comp_buf_pntr(r11)	;restore the pointer
+	rsbx
+
+;----<INLINE>  (used in support of inline code facility)
+header	INT_INLINE,^/<INLINE>/
+	movl	(sp)+,r1		;r1->count of command string
+	movl	comp_buf_pntr(r11),r3	;r3 is compile buffer pointer
+	movc3	(r1)+,(r1),(r3)		;move command string
+	movl	r3,comp_buf_pntr(r11)	;restore pointer
+	jmp	(r1)			;rsb
+wterm					;end the word
+	newpage <Error Stuff>
+
+;error check routine
+i_errchk:
+	rsb				;to be written
+
+	newpage <File input, RMS interface>
+.save
+.psect datinit				;move to data prototype
+;buffers & control blocks
+
+	svariable	i_line_buffer,line_buf_size
+	svariable	i_word_buffer,line_buf_size
+	.long	0	;make a longword for prompt length
+prompt0:: string	^$<^x20><^x0D><^x0A><^x30><^x3E><^x20>$
+
+oc_prot:		;prototype output conversion stack
+	.blkl 3		;start, end, pointer
+	.blkb 40	;stack space
+oneadr:	.long	1	;for condition handler's unwind
+
+.restore
+
+;----PREOPEN:  filename, channel, PREOPEN, strptr., len., channel
+;	(does an XCOUNT on the file name)
+header PREOPEN
+	movl	(r10)+,r0		;save channel number
+	movzbl	@(r10),-(r10)		;push count
+	incl	4(r10)			;bump pointer
+	tstb	@4(r10)			;first byte zero?
+	bneq	20$			;no
+	incl	4(r10)			;yes, bump pointer again
+20$:
+	movl	r0,-(r10)		;restore channel #
+	rsbx
+
+;----SETUP_FABS: initializes FABS with special characteristics
+header SETUP_FABS
+	movl	@channel_list(r11),r0	;get RAB 0
+	bisl2	#<rab$m_pmt+rab$m_cvt>,rab$l_rop(r0)
+	movl	rab$l_fab(r0),r0
+	moval	console,fab$l_fna(r0)
+	movb	#consize,fab$b_fns(r0)
+	movl	#4,r0
+	movl	@channel_list(r11)[r0],r0	;get RAB 4
+	movl	rab$l_fab(r0),r0
+	moval	console,fab$l_fna(r0)
+	movb	#consize,fab$b_fns(r0)
+	movl	#5,r0			;channel 5 is random-access
+	movl	@channel_list(r11)[r0],r1	;get random rab address
+	movb	#4,rab$b_ksz(r1)	;key size for RAB is 4
+	bisb2	#rab$c_key,rab$b_rac(r1)	;set up key record access
+	movl	rab$l_fab(r1),r1	;get FAB address
+	bisb2	#<fab$m_get+fab$m_upd>,fab$b_fac(r1)
+	movl	#6,r0
+	movl	@channel_list(r11)[r0],r1
+	movl	rab$l_fab(r1),r1	;get FAB address
+	bisb2	#<fab$m_bio+fab$m_get+fab$m_put>,fab$b_fac(r1)
+	movl	#7,r0
+	movl	@channel_list(r11)[r0],r1
+	movl	rab$l_fab(r1),r1	;get FAB
+	bisl2	#fab$m_ufo,fab$l_fop(r1)
+	rsbx
+
+;----ERASE: filename, channel, ERASE
+header ERASE
+	jsbext	_erase
+	rsbx
+
+;----OPEN:  filename, channel, OPEN
+header OPEN
+	bsbw	preopen
+	jsbext	_open
+	movl	(r10)+,r0
+	.errstop
+	rsbx
+
+;----MAPOPEN: filename descriptor, MAPOPEN, RMS channel, completion code
+header MAPOPEN
+	jsbext	_mapopen
+	rsbx
+
+;----MAPCLOSE: MAPCLOSE, completion code
+header MAPCLOSE
+	jsbext	_mapclose
+	rsbx
+
+;----.OPEN: filename descriptor, channel, .OPEN, condition code
+header .OPEN
+	jsbext	_open
+	rsbx
+
+;----.WOPEN: filename ptr., filename len., channel, WOPEN, cond. code
+header .WOPEN
+	jsbext	_wopen
+	rsbx
+
+;----.RWOPEN: filename ptr., filename len., channel, RWOPEN, cond. code
+header .RWOPEN
+	jsbext	_rwopen
+	rsbx
+
+;----.WOPEN_NCR: filename ptr., filename len., channel, WOPEN_NCR, cond. code
+;	(opens for writing without CR record attribute)
+header .WOPEN_NCR
+	jsbext	_wopen_ncr
+	rsbx
+
+;----.WOPEN_FTN: ... opens for writing with Fortran rec. attribute
+header .WOPEN_FTN
+	jsbext	_wopen_ftn
+	rsbx
+
+;----WOPEN:  filename, channel, WOPEN
+header WOPEN
+	bsbw	preopen
+	bsb	.wopen
+	movl	(r10)+,r0
+	.errstop
+	rsbx
+
+;----RWOPEN:  filename, channel, RWOPEN
+header RWOPEN
+	bsbw	preopen
+	bsb	.rwopen
+	movl	(r10)+,r0
+	.errstop
+	rsbx
+
+;----.XLOAD: file name, count, channel, .XLOAD
+header .XLOAD
+	jsbext	_xload
+	rsbx
+
+;----XLOAD: file name, XLOAD
+header XLOAD
+	bsbw	count
+	movl	blk_chan(r11),-(r10)	;push channel
+	jsbext	_xload
+	rsbx
+
+;----.SAVE: file name, count, channel, .SAVE
+header .SAVE
+	jsbext	_save
+	rsbx
+
+;----SAVE: file name, SAVE
+header SAVE
+	bsbw	count
+	movl	blk_chan(r11),-(r10)
+	jsbext	_save
+	rsbx
+
+;----FAB_COUNT: FAB_COUNT, prototype FAB address, FAB length
+header FAB_COUNT
+	moval	proto_fab,-(r10)
+	movzbl	#fablen,-(r10)
+	rsbx
+
+;----RAB_COUNT: RAB_COUNT, prototype RAB address, RAB length
+header RAB_COUNT
+	moval	proto_rab,-(r10)
+	movzbl	#rablen,-(r10)
+	rsbx
+
+;----XAB_COUNT: XAB_COUNT, prototype XAB address, XAB length
+header XAB_COUNT
+	moval	proto_xab,-(r10)
+	movzbl	#xablen,-(r10)
+	rsbx
+
+;----channel, FIL_RAT, record attribute byte
+header FIL_RAT
+	jsbext	_fil_rat
+	rsbx
+
+;----channel, FIL_EBK, number of EOF block
+header FIL_EBK
+	jsbext	_fil_ebk
+	rsbx
+
+;----channel, FIL_FFB, number of first free byte in last block
+header FIL_FFB
+	jsbext	_fil_ffb
+	rsbx
+
+;----channel, FIL_FSZ, size of fixed control area for the file
+header FIL_FSZ
+	jsbext	_fil_fsz
+	rsbx
+
+;----channel, FIL_MRS
+header FIL_MRS
+	jsbext	_fil_mrs
+	rsbx
+
+;----channel, FIL_RFM
+header FIL_RFM
+	jsbext	_fil_rfm
+	rsbx
+
+;----buffer, length, channel, READ, cond. code
+header READ
+	jsbext	_read
+	rsbx
+
+;----buffer, length, channel, WRITE, cond. code
+header WRITE
+	jsbext	_write
+	rsbx
+
+;----.APPEND: filename ptr., filename len., channel, APPEND, cond. code
+header .APPEND
+	jsbext	_append
+	rsbx
+
+;----APPEND:  filename, channel, APPEND
+header APPEND
+	bsbw	preopen
+	bsb	.append
+	movl	(r10)+,r0
+	.errstop
+	rsbx
+
+;----ROPEN:  filename, channel, ROPEN
+header ROPEN
+	bsbw	preopen
+	jsbext	_ropen
+	movl	(r10)+,r0
+	.errstop
+	rsbx
+
+;----.ROPEN:  filename, channel, .ROPEN, completion code
+header .ROPEN
+	bsbw	preopen
+	jsbext	_ropen
+	rsbx
+
+;----.RCREATE:
+header .RCREATE
+	bsbw	preopen
+	jsbext	_rcreate
+	rsbx
+
+;----inch:  inch, pointer to current input channel
+header INCH
+	movl	u_ifi(r11),-(r10)
+	rsbx
+
+;----NEXTINCH:  NEXTINCH
+;	increments input channel #
+header NEXTINCH
+	movq	u_ifi(r11),r0
+	incl	r0
+	cmpl	r0,r1
+	bgtr	ni_err			;if table overflow
+	movl	r0,u_ifi(r11)
+	movl	r0,-(r10)
+	rsbx
+ni_err:	jsb	fatal
+	string	</Input file table overflow./>
+
+;----LASTINCH:  LASTINCH, inch
+header LASTINCH
+	decl	u_ifi(r11)		;decrement input file #
+	blss	20$			;if index underflow
+	brb	inch
+20$:
+	ret				;normal exit from STOIC
+	wterm				;macro to terminate header
+
+;----LOAD: file name, LOAD
+header LOAD
+	bsbw	nextinch
+	bsbw	open
+	rsbx
+
+;----CLOSE:  STOIC channel #, CLOSE
+header CLOSE
+	.extrn	_close
+	jsb	_close
+	movl	(r10)+,r0		;condition code
+	.errstop
+	rsbx
+
+
+;	File words with FRAB addresses on stack
+
+;----FOPEN: file name, access byte, FRAB address, .FOPEN, condition code
+header .FOPEN
+	jsbext	_fopen
+	rsbx
+
+;----FCREATE: file name, access byte, FRAB address, .FCREATE, condition code
+header .FCREATE
+	jsbext	_fcreate
+	rsbx
+
+;----FCLOSE: FRAB address, .FCLOSE, condition code
+header .FCLOSE
+	jsbext	_fclose
+	rsbx
+
+;----FREAD: buffer address, length, FRAB address, .FREAD, condition code
+header .FREAD
+	jsbext	_fread
+	rsbx
+
+;----FWRITE: buffer address, length, FRAB address, .FWRITE, condition code
+header .FWRITE
+	jsbext	_fwrite
+	rsbx
+
+;----FGET: buffer address, length, FRAB, .FGET, not-end-of-file, cond. code
+header .FGET
+	jsbext	_fget
+	rsbx
+
+;----FPUT: buffer address, length, FRAB, .FPUT, condition code
+header .FPUT
+	jsbext	_fput
+	rsbx
+
+;----;F
+header SEMIF,<;F>
+	jsb	inch
+	jsb	close
+	jsb	lastinch
+	tstl	(r10)+			;drop channel #
+	rsbx
+
+;----LOAD_reset:  LOAD_reset
+;	cancels all active LOAD's, forcing input from console
+header LOAD_RESET
+	brb	20$
+30$:
+;...loop, closing out input files
+	jsb	semif
+20$:	tstl	u_ifi(r11)		;input file index
+	bgtr	30$			;if not yet at console level
+	rsbx
+
+;----.GET:  buffer, len, chan, GET, ret. len, condition code
+header .GET
+	jsbext	_get
+	rsbx
+
+;----GET:  buffer, maxlen, chan, GET,
+;	[ret. len., -1 (if not EOF)] or [0 (if EOF)]
+header GET
+	jsb	.get
+	jsb	syserr
+	blbs	(r10),20$		;if not EOF
+	movl	(r10)+,(r10)		;EOF, don't return count
+20$:	rsbx
+
+;----GET_STRING:  string, chan, GETSTRING
+header	GET_STRING
+	movq	(r10),r2
+	addl3	s^#2,r3,(r10)		;buffer address
+	movzwl	-2(r3),-(r10)		;buffer length
+	movl	r2,-(r10)		;channel
+	jsb	.get
+	jsb	syserr
+	movq	(r10)+,r0
+	cvtlw	r1,@(r10)+		;return count
+	movl	r0,-(r10)		;eof code
+	rsbx
+
+;----.PUT:  buffer, maxlen, chan, .PUT, condition code
+header .PUT
+	jsbext	_put
+	rsbx
+
+;----PUT:  buffer, maxlen, chan, PUT
+header PUT
+	jsb	.put
+	jsb	syserr
+	rsbx
+
+;----RANDOGET: record #, buffer, length, chan., RANDOGET,-
+;	returned length, condition code
+	.extrn	_randoget
+header RANDOGET
+	jsb	_randoget
+	rsbx
+
+;----RANDOPUT: record #, buffer, length, RANDOPUT,condition code
+header RANDOPUT
+	.extrn	_randoput
+	jsb	_randoput
+	rsbx
+
+newpage <READLINE, PROMPT>
+;----READLINE:  % READLINE, not(eof)
+;    reads a line into line buffer from current input device
+header	I_READLINE
+	addl3	prompt(r11),#5,r0	;get addr of check in prompt
+	addb3	#^a/0/,check(r11),(r0)	;put check in prompt msg.
+	movl	line_buffer(R11),-(R10)	;line buffer
+	jsb	inch			;input channel
+	jsb	get_string
+	movl	line_buffer(r11),-(r10)
+	bsbw	count
+	movq	(r10)+,rest_of_line(r11);initial count
+	clrl	@word_buffer(R11)	;null current word
+	rsbx
+
+;----NEWPROMPT:  string pointer, NEWPROMPT
+;	install console prompt string
+header NEWPROMPT
+	movl	(r10),prompt(r11)	;install in user table
+	jsb	count
+	jsbext	_prompt			;install in FAB
+	rsbx
+
+;	start remote listener
+header	REMSTART
+	jsbext	_remstart
+	jsb	syserr
+	rsbx
+
+;	type to remote port
+header	REMTYPE
+	jsbext	_remtype
+	jsb	syserr
+	rsbx
+
+newpage <WORD>
+;----WORD:  WORD, pointer to next word, success (fails if no more words)
+header WORD
+	movq	rest_of_line(r11),r0	;descriptor of rest of line
+20$:
+;...skip leading blanks, tabs, and form feeds
+	movq	r0,r2			;save current position
+	skpc	#^a/ /,r0,(r1)		;skip blanks
+	skpc	#^x9,r0,(r1)		;skip tabs
+	skpc	#^xC,r0,(r1)		;skip form feeds
+	cmpl	r0,r2			;get any this time?
+	bneq	20$			;yes, try to get more
+					;2<length of line with word
+					;3->beginning of word
+
+;...leading double quote indicates string literal
+	skpc	#^a/"/,r0,(r1)
+	cmpl	r0,r2			;was there a leading /"/
+	beql	30$			;no
+	locc	#^a/"/,r0,(r1)
+	skpc	#^a/"/,r0,(r1)
+	brb	40$			;resume normal processing
+30$:
+;...leading percent sign indicates comment
+	skpc	#^a/%/,r0,(r1)
+	cmpl	r0,r2			;was there a leading /%/
+	beql	35$			;no
+	locc	#^a/%/,r0,(r1)
+	skpc	#^a/%/,r0,(r1)
+	brb	20$			;ignore comment
+35$:
+;...find end of normal word
+	locc	#^a/ /,r0,(r1)		;find trailing space
+	movq	r0,r4			;save result
+	locc	#9,r2,(r3)		;find trailing tab
+	cmpl	r0,r4			;which came first
+	bgtr	40$			;if tab won
+	movq	r4,r0			;restore
+40$:
+					;0,1>descriptor of rest of line
+	movq	r0,rest_of_line(r11)
+	subw2	r0,r2			;length of word
+	bneq	50$			;if not end of line
+	clrl	-(r10)			;signal failure
+	rsb
+50$:
+
+;make word a STOIC string, place results on p-stack
+	movl	word_buffer(r11),r4	;address of word buffer
+	movw	r2,(r4)+		;length of word
+	movl	r4,-(r10)
+	movl	r2,-(r10)		;push string descriptor
+	movc3	r2,(r3),(r4)		;move string
+	movl	#1,-(r10)		;push true
+	rsbx
+newpage <COUNT, TYPE, MSG, TYI, TYO>
+;----COUNT:  string pointer, COUNT, string address, string length
+header COUNT
+	movzwl	@(r10),-(r10)		;push count
+	addl2	#2,4(r10)		;bump pointer
+	rsbx
+
+;----TYPE:  string address, string length, TYPE
+;	outputs string to console
+;header TYPE
+;	.extrn	_type
+;	jmp	_type
+;	rsbx
+
+;----TYPE: uses routine in TYPEADDR
+header TYPE
+	jmp	@typeaddr(r11)
+	wterm
+
+;Specialized type routines (RMSTYPE is necessary for batch jobs; either
+;will work interactively but QIOTYPE is cheaper
+header RMSTYPE
+	jsbext	_rmstype
+	rsbx
+header QIOTYPE
+	jsbext	_type
+	rsbx
+
+;----MSG:  string pointer, MSG
+;    outputs string to console
+header MSG
+	jsb	count
+	jsb	type
+	rsbx
+
+;----TYI:  TYI, byte
+;	reads byte from console
+header TYI
+	.extrn	_tyi
+	jsb	_tyi
+	jsb	syserr
+	rsbx
+
+;----TYPE_GETLINE: buffer address, count, TYPE_GETLINE, count of bytes transferred
+;	reads a line from the console using a QIO
+header TYPE_GETLINE
+	jsbext	_type_getline
+	jsb	syserr
+	rsbx
+
+;----TYPE_TYI: performs TYPE and TYI efficiently
+header TYPE_TYI
+	jsbext	_type_tyi
+	jsb	syserr
+	rsbx
+
+;----TYO:  byte, TYO
+;    outputs byte to console
+;header TYO
+;	.extrn	_tyo
+;	jsb	_tyo
+;	jsb	syserr
+;	rsbx
+
+;----TYO: byte, TYO: calls routine whose address is in TYOADDR
+header TYO
+	jsb	@tyoaddr(r11)
+	rsb
+
+header RMSTYO
+	jsbext	_rmstyo
+	rsbx
+header QIOTYO
+	jsbext	_tyo
+	rsbx
+
+;----IO_CTRL_C: io_ctrl_c, [-1 if last I/O operation was interrupted
+;    by ^C, 0 otherwise]
+header IO_CTRL_C
+	jsbext	_io_ctrl_c
+	rsbx
+
+;----GETMODE:  address of characteristics block, GETMODE
+header GETMODE
+	jsbext	_getmode
+	jsb	syserr
+	rsbx
+
+;----SETMODE:  address of characteristics block, SETMODE
+header SETMODE
+	jsbext	_setmode
+	jsb	syserr
+	rsbx
+
+;----CR:  CR
+;    outputs a carriage return to console
+header CR
+	movl	#^xd,-(r10)		;push ASCII carriage return
+	jsb	tyo			;output it
+	movl	#^xA,-(r10)		;push ASCII line feed
+	jsb	tyo			;output it
+	rsbx
+
+;----SPACE:  SPACE
+;    outputs a space character to console
+header SPACE
+	movl	#^a/ /,-(r10)		;push ASCII space
+	jsb	tyo			;output it
+	rsbx
+
+;----equal:  integer, EQUAL
+;    converts integer to output string and types it.
+header EQ_SGN,<=>
+;	r0 - magnitude of number
+;	r1 - 0 (high order part of dividend)
+;	r2 - extracted digit
+;	r3 - signed number
+;	r4 - radix
+;	r5 - string pointer
+jsb	space
+	movl	u_rad(r11),r4
+	movl	r9,r5			;5<string pointer
+	movl	(r10)+,r3		;3<signed #
+	clrl	r1			;clear high part of dividend
+	movl	r3,r0
+	bgeq	20$			;if #<0
+	mnegl	r3,r0			;0<abs(#)
+20$:
+	ediv	r4,r0,r0,r2		;0<quotient
+					;2<raw digit
+	cmpl	r2,#10			;convert to num. of alph.?
+	bgeq	30$			;if alph.
+	addb3	#^a/0/,r2,-(r5)		;convert & prefix to string
+	brb	40$
+30$:					;here on alph.
+	addb3	#^a/A/-10,r2,-(r5)	;convert and prefix to string
+40$:					;any more digits?
+	tstl	r0			;any more digits?
+	bgtr	20$			;if more digits
+	tstl	r3			;test sign
+	bgeq	50$			;if not negative
+	movl	#^a/-/,-(r5)		;prefix minus
+50$:
+	movl	r5,-(r10)		;push string location
+	subl3	r5,R9,-(r10)		;push length
+	jsb	type			;output #
+	rsbx
+
+;----SHOW_TIME: 64-bit date, SHOW_TIME
+header SHOW_TIME
+	tstl	(r10)			;is the time non-zero?
+	bneq	10$
+	tstl	4(r10)
+	bneq	10$
+	brb	20$			;if zero, say kernel
+10$:	cvtbl	#^x17,@time_string(r11)	;put length in descriptor
+	$asctim_s	timbuf=@time_string(r11),timadr=(r10)+	;get the time
+	.errstop
+	movq	@time_string(r11),-(r10) ;push address, length
+	bsbw	type			;type the time string
+	rsb
+20$:	addl2	#8,r10			;pop the time longwords
+	moval	time_kernel,-(r10)
+	bsbw	msg
+	rsbx
+
+	.psect	datinit
+
+i_time_string:				;string descriptor
+	.long	^x17			;string size is 23
+	.long	i_time_string+8		;string address
+	.blkb	^x17
+
+	.psect	kernel
+
+;----ENABLE_CTRL_C
+
+enab_ctrl_c:
+	pushal	ctrl_c_temp(r11)
+	pushal	here_on_ctrl_c
+	.extrn	enable_ctrl_c
+	calls	#2,enable_ctrl_c
+	rsb
+
+	.entry	here_on_ctrl_c,^m<r2,r3,r4,r5,r6,r7,r8,r9,r10>
+	movl	4(ap),r6		;get the address of the arg block
+	subl3	#ctrl_c_temp,r6,r11	;set up R11
+	mnegl	#1,ctrl_c_flag(r11)
+	movl	ctrl_c_handler(r11),r0  ;address of handler
+	beql	10$			;if no handler
+	jsb	(r0)
+10$:
+	ret
+
+header	I_CTRL_C_HNDLR			;initial control_c handler
+;	causes an abort on control_c
+	movl	fp,r0			;get frame pointer
+20$:	cmpl	^xc(r0),r_stack_0(r11)
+	beql	40$			;found stoic frame
+	bgtr	60$			;if cannot find STOIC frame
+	movl	^x0c(r0),r0		;get next frame
+	brb	20$			;go try it
+40$:					;here on frame found
+	moval	i_abort,^x10(r0)	;force abort
+60$:
+	rsbx
+
+;----OCONSTACK:  OCONSTACK, pointer to output conversion stack
+header OCONSTACK
+	movl	out_conv_stack(r11),-(r10)
+	rsbx
+newpage <Constant>
+;----CONSTANT: value, name, CONSTANT
+;	compiles longword constant
+header CONSTANT
+	movzbl	#4,-(r10)		;word length is 4
+	movzbl	#push_this_word,-(r10)	;set up attribute byte
+	jsb	@enter(r11)
+	movl	code_pntr(r11),r0	;r0<dictionary pointer
+	movl	(r10)+,(r0)+		;push value onto dictionary
+	movl	r0,code_pntr(r11)
+	rsbx
+
+;----DATA_ADDRESS: value, name, DATA_ADDRESS, compiles address
+;    relative to data pointer (r11)
+header DATA_ADDRESS
+	movzbl	#4,-(r10)		;word length is 4 for now
+	movzbl	#disp_to_r11,-(r10)	;attribute byte
+	jsb	@enter(r11)
+	movl	code_pntr(r11),r0	;r0<dictionary pointer
+	subl3	r11,(r10)+,(r0)+	;push displacement onto dictionary
+	movl	r0,code_pntr(r11)
+	rsbx
+newpage <System stuff>
+;----SYSTEM_SERVICES:  SYSTEM_SERVICES,
+;	pointer to system services dictionary branch
+header SYSTEM_SERVICES
+	.extrn ss_calls
+	movl	ss_calls,-(r10)
+	rsbx
+
+;-----MOAT:  MOAT, address of moat before parameter stack
+header MOAT
+	subl3	#^x200,p_stack_0(r11),-(R10)
+	rsbx
+
+;----P_STACK:  P_STACK, address of parameter stack
+;	(also address of moat between P-stack & L-stack)
+header P_STACK
+	movl	p_stack_0(r11),-(r10)
+	rsbx
+
+;----L_STACK:  L_STACK, address of loop stack
+;	(also address of moat between P-stack & L-stack)
+header L_STACK
+	movl	l_stack_0(r11),-(r10)
+	rsbx
+
+;----F_STACK:  F_STACK, address of floating point stack
+;	(also address of moat between F-stack and V-stack)
+header F_STACK
+	moval	f_stack_0(r11),-(r10)
+	rsb
+
+;----V_STACK:  V_STACK, address of vocabulary stack
+;	(also address of moat after V-stack)
+header V_STACK
+	movl	v_stack_0(r11),-(r10)
+	rsbx
+
+	newpage <Memory Management>
+;----B,:  byte, B,
+;    append byte to end of dictionery
+header BCOMMA,<B,>
+	movl	code_pntr(r11),r0	;r0->end of dictionary
+	cvtlb	(r10)+,(r0)+		;append byte to dictionary
+	movl	r0,code_pntr(r11)	;restore pointer
+	rsbx
+
+;----,:  value, ,
+;    append value to end of dictionery
+header COMMA,<,>
+	movl	code_pntr(r11),r0	;r0->end of dictionary
+	movl	(r10)+,(r0)+		;append to dictionary
+	movl	r0,code_pntr(r11)	;restore pointer
+	rsbx
+
+;----ISOLATE_BLOCK:  accepts number of pages in R0
+;    reserves that many pages with a moat before them
+;    returns first usable address of new region in R1, first
+;    unusable address in r2
+header ISOLATE_BLOCK
+	jsbext	get_block			;get pages
+	rsbx					;and return
+
+	newpage <Vocabulary Branches>
+
+;----BRANCH:  pointer to branch header, name, BRANCH
+;	creates a new vocabulary branch
+header	BRANCH
+	movl	#4,-(r10)		;code length is one longword
+	movzbl	#push_vocab,-(r10)	;attribute
+	jsb	@enter(r11)
+	jsb	comma			;literal pointing to branch pointer
+	rsbx
+
+header	I_PUSH_VOCAB
+	jsb	i_push_this_wd
+	movl	#v_push,-(r10)
+	jsb	i_jump_to_me
+	rsbx
+
+;----V_PUSH:
+header V_PUSH
+	movl	vocab_sp(r11),r0	;r0<vocabulary stack pointer
+	movl	(r10)+,-(r0)		;push branch onto V-stack
+	movl	r0,vocab_sp(r11)	;restore vocabulary-stack pointer
+	rsbx
+
+;---->:  pops the top off the V-stack
+header LEFT_ANGLE,^!>!
+	addl2	#4,vocab_sp(r11)
+	rsbx
+
+;----DEFINITIONS:  makes current the branch at top of V-stack
+header DEFINITIONS
+	movl	@vocab_sp(r11),current(r11)
+	rsbx
+
+;----ASSEMBLER<:  pushes pointer to ASSEMBLER branch onto V-stack
+header ASSEMBLER_LA,^!ASSEMBLER<!
+	movl	vocab_sp(r11),r0
+	moval	assembler(r11),-(r0)
+	movl	r0,vocab_sp(r11)
+	rsbx
+
+;----STOIC<:  pushes pointer to STOIC branch onto V-stack
+header STOIC_LA,^!STOIC<!
+	movl	vocab_sp(r11),r0
+	moval	stoic(r11),-(r0)
+	movl	r0,vocab_sp(r11)
+	rsbx
+;----TTIO<:  pushes TTIO vocabulary onto V-stack
+header TTIO_LA,^!TTIO<!
+	moval	ttio(r11),-(r10)
+	bsbw	v_push
+	rsbx
+;----FLOAT<: pushes run-time library vocabulary onto V-stack
+; (vocabulary named CRTL with code in that module)
+header FLOAT_LA,^!FLOAT<!
+	moval	float(r11),-(r10)
+	bsbw	v_push
+	rsbx
+
+newpage	<Table Macros>
+
+	.macro newtab			;start a new table
+	table_offset=0
+	.endm
+
+	.macro dlrte	name,init=0,?p1	;macro to defin a longword
+					;(address relative to R11)
+	name==table_offset-^x8000	;table entry, sets name to
+	foo=.				;remember this address
+	.long init			;name and initial value to init
+	table_offset=table_offset+4
+	.save				;remember where we were
+
+	.psect kernel			;and make a stoic word
+	header p1,name,disp_to_r11	;that will execute the code
+	.long name			;set up displacement
+	.restore
+	.endm
+
+	.macro dlte	name,init=0,?p1	;macro to defin a longword
+
+	name==table_offset		;table entry, sets name to
+	foo=.				;remember this address
+	.long init			;name and initial value to init
+	table_offset=table_offset+4
+	.save				;remember where we were
+
+	.psect kernel			;and make a stoic word
+	header p1,name,push_this_word	;that will push the address
+	.long foo
+	.restore
+	.endm
+
+	newpage <Table Definitions>
+
+	.psect datinit
+;user table
+
+ut_start::	newtab
+	dlrte	ADDRESS_STORAGE		;space for mem. management data
+	.long	1			;leave space for two longwords
+	table_offset=table_offset+4	;and adjust offset
+	.global	address_storage		;make it available
+	dlrte	COND_HANDLER,i_cond_handler
+	dlrte	CTRL_C_TEMP		;terminal channel for control-c
+	.long	1			;temporary for control-c
+	table_offset=table_offset+4	
+	dlrte	CTRL_C_FLAG		;flag which is set on control-c
+	dlrte	CTRL_C_HANDLER,i_ctrl_c_hndlr
+	dlrte	P_STACK_0		;initial p stack pointer
+	dlrte	R_STACK_0		;initial return stack pointer
+	dlrte	L_STACK_0		;initial loop stack pointer
+	dlrte	F_STACK_0		;initial floating point stack ptr
+	dlrte	V_STACK_0		;initial vocab stack pointer
+	dlrte	FRAME_0			;initial frame pointer
+	dlrte	VOCAB_SP		;vocabulary stack pointer
+	dlrte	OUT_CONV_STACK		;output conversion stack
+.list me
+	dlrte	ASSEMBLER,<^x7fffffff>	;ASSEMBLER dictionary branch
+	dlrte	STOIC,<^x7fffffff>	;STOIC branch
+	dlrte	TTIO,ttio_ttio-dict_start-^x8000	;TTIO branch
+	dlrte	FLOAT,crtl_crtl-dict_start-^x8000
+.nlist me
+	dlrte	DISPATCH_ADR,lookup_dispatch	;pntr to dispatch table
+	dlrte	LOOKUP,i_lookup
+	dlrte	COMPILE,i_compile
+	dlrte	COMP_BUF_0
+	dlrte	COMP_BUF_PNTR		;compile buffer pointer
+	dlrte	END_OF_CMND		;compile end of command
+	dlrte	END_OF_LINE		;compile end of line
+	dlrte	CHECK			;if level
+	dlrte	EXECUTE,i_execute	;execute word
+	dlrte	LITERAL,i_literal	;literal handler
+	dlrte	ERRCHK,i_errchk		;error checker
+	dlrte	READLINE,i_readline
+	dlrte	ABORT,i_abort
+	dlrte	ERROR_PC		;pc saved by condition handler
+	dlrte	COND_CODE		;conition code from error handler
+	dlrte	COMPILE_ERROR,i_compile_error
+	dlrte	DATE,0			;revision date for checking of
+	table_offset=table_offset+4	;save files (quadword)	
+	.long	0
+	dlrte	DATE_ERROR,i_date_error		;address of date error routine
+	dlrte	TIME_STRING
+	dlrte	ENTER,i_enter
+	dlrte	CODE_PNTR,dictionary	;code pointer
+	dlrte	DICT_PNTR,dict_cur	;dictionary pointer
+	dlrte	DICT_BASE,dict_start+^x8000
+	dlrte	USER_DICTIONARY,<<^x200*<dict_cur/^x200>>+^x200>
+	dlrte	USER_CODE,<<^x200*<dictionary/^x200>>+^x200>
+	dlrte	DICT_0,dict_start
+	dlrte	CODE_0,k_start
+	dlrte	DATA_0,dat_start	;data prototype address
+	dlrte	DATA_END,dat_fin
+	dlrte	USER_DATA
+	dlrte	VARIABLE_LIST		;list for var initialization
+	dlrte	B_KERNEL,last_kernel-dict_start-^x8000	;kernel beginning
+	dlrte	B_GLOBAL,last_global-dict_start-^x8000	;global beginning
+	dlrte	CURRENT			;current dictionary branch
+	dlrte	GLOBAL
+	dlrte	PROMPT			;address of prompt string
+	.blkl	1			;(2 longwords)
+	table_offset=table_offset+4
+
+	dlrte	USER_INIT,i_user_init		;user initializer
+
+	dlrte	U_IFI			;input fab indexfab number
+	dlrte	U_IFM,3			;max. fab #
+	dlrte	U_IFT,channel_list ;file access table
+	dlrte	LINE_BUFFER
+	dlrte	REST_OF_LINE
+	.long	0			;(this is a quadword entry)
+	table_offset=table_offset+4
+	dlrte	WORD_BUFFER
+	dlrte	U_SGN			;sign for iliteral
+	dlrte	U_MAG			;magnitude for iliteral
+	.long
+table_offset=table_offset+4		;this should be a quadword for fp
+	dlrte	U_FLOAT			;flag for floating point
+	dlrte	U_RAD,16		;radix
+	dlrte	.D			;next free data location
+	dlrte	.M			;first unavailable memory loc.
+	dlrte	MSG_CHANNEL,4		;---RMS stuff---  message chan.
+	dlrte	RANDOCHAN,5
+	dlrte	BLK_CHAN,6
+	dlrte	TYOADDR			;address of TYO routine
+	dlrte	TYPEADDR		;address of TYPE routine
+	dlrte	CHANNEL_LIST		;address of channel list
+	dlrte	CMDDESC			;---SS stuff--- comm. desc.
+	dlrte	TTNAME			;---TYIO stuff--- sys$command
+	dlrte	TTCHAN			;entries for terminal channel
+	.blkl	1			;2-longword entry for extra stuff
+	table_offset=table_offset+4
+	dlrte	NLEN,63			;device descriptor name field
+	dlrte	NADDR			;address
+	dlrte	NSTORE			;holding area for address
+	dlrte	RMINAME
+	.blkl	1
+	table_offset=table_offset+4	;2 longword entry
+	dlrte	RMICHAN
+	.blkl	2
+	table_offset=table_offset+8	;3 longword entry
+	dlrte	RMONAME
+	.blkl	1
+	table_offset=table_offset+4	;2 longword entry
+	dlrte	RMOCHAN
+	.blkl	2
+	table_offset=table_offset+8	;3 longword entry
+	dlrte	RMBUF
+
+;	Size calculations for data prototype
+
+u_cbp==comp_buf_pntr
+
+lookup_dispatch::
+	newtab				;lookup atribute bytes dispatch through here
+	dlte	JUMP_TO_ME,i_jump_to_me	;compiles a jump to its arg
+	dlte	IMMEDIATE,i_immediate	;execute at compile time
+	dlte	COMPILE_BYTE,i_compile_byte	;compiles a byte
+	dlte	PUSH_THIS_WORD,i_push_this_wd	;constant
+	dlte	PUSH_VOCAB,i_push_vocab		;branch
+	dlte	DISP_TO_R11,i_disp_to_r11	;variable, etc.
+
+lt_length=.-lookup_dispatch
+
+ut_end::
+dat_end::
+
+.save
+.psect dictionary
+.=kernel
+last_kernel::
+.=globlink
+last_global::
+.restore
+
+.psect	kernel
+
+newpage	<FINIS>
+
+dictionary:
+
+.psect	dictionary
+
+dict_cur:
+
+
+	.end start

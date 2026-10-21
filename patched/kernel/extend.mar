@@ -1,0 +1,15 @@
+.title	EXTEND
+
+.psect	dictionary
+	.blkb	<^x10000-^x1c00>	;fill out program sections
+dict_end::
+
+.psect	kernel
+	.blkb	<^x10000-^x2200>
+k_end::
+
+.psect	datinit
+	.blkb	<^x10000-^x1000>
+dat_fin::
+
+.end

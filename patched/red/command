@@ -1,0 +1,207 @@
+%	*****************************************************************
+%	*								*
+%	*	This module is a part of the SAO VAX/VMS		*
+%	*	RED full-screen text editor				*
+%	*								*
+%	*	It was created by					*
+%	*	Roger Hauck						*
+%	*	Smithsonian Institution					*
+%	*	Astrophysical Observatory				*
+%	*	Cambridge, Massachusetts  02138				*
+%	*	(617)495-7151  (FTS 830-7151)				*
+%	*								*
+%	*	This module may be reproduced				*
+%	*	provided that this header is retained.			*
+%	*								*
+%	*****************************************************************
+
+%  Variables
+1 'C.SIGN VARIABLE  % sign as multiplier
+0 'C.MAG VARIABLE  % magnitude of argument
+0 'C.ARGLEN VARIABLE  % string-length of argument
+0 'C.XARG VARIABLE  % first argument for X commands
+0 'C.DEFAULT? VARIABLE  % whether there's a default argument
+0 'C.LOOP_COUNT VARIABLE  % count for prevention of loop stack overflow
+0 'C.REC_LENGTH VARIABLE  % record length for fixed-length files
+0 'C.LINE_COUNT VARIABLE  % tally for the comma command
+0 'MAIN_SEP VARIABLE  % separator for main file
+0 'REC_ATT VARIABLE  % record attribute
+0 'MAIN_ATT VARIABLE  % main file attribute
+0 'ERR_FLAG VARIABLE  % error flag for ? command
+0 'ERR_SUPPRESS VARIABLE  % error suppress flag
+0 'FIRST_BYTE VARIABLE  % address of first byte of block being read
+0 'FSIZE VARIABLE  % holding area for control block size during file open
+0 'CHAN VARIABLE  % RMS channel number for file mapping operations
+0 'OK_TO_MAP VARIABLE  % flag to prevent attempts at unimp. file types
+0 'STOIC_ESCAPE_FLAG VARIABLE  % whether to drop out
+
+% Utilities
+
+
+ASSEMBLER<
+
+'E.MATCH :  % pattern identifier, E.MATCH, pattern id., success
+%	(compares pattern string to top of bottom buffer)
+  TOPOBOT @ MOVL (P)+ R3  MOVQ (P) R0  % load parameters into registers
+  CMPC3 R0 (R1) (R3)  % do it
+  MOVL R0 -(P) EQZ  % success value
+  ;
+
+>
+
+ 
+'TF_LL :  % move cursor to bottom of screen then scroll to center cursor
+  TF @ 2* 2+  % row # of bottom line
+  SROW @  % current row #
+  - GTZ_IF  % already at bottom line?
+    UNDROP C.L+ THEN  % no, move cursor to bottom line
+  CENTER_UP  % scroll if necessary
+  SCOL @ 1 EQ_IF  %  already at column 1?
+    S.CUP ELSE  % yes, restore cursor
+    1 C.L- THEN  % no, move cursor to beginning of line
+  ;
+
+'TF_-LL :  % move cursor to top of screen then scroll to center cursor
+  SROW @  % current row #
+  1- C.L-  % move cursor to top line
+  CENTER_DOWN  % scroll down if necessary
+  ;
+
+'I.WORDRIGHT :  % move one word to the right
+  TOPOBOT @ BEGIN  % save TOPOBOT
+    BOPOP IF  % anything left?
+      BLANK LT ELSE  % yes, stop if not delimiter
+      -1 THEN
+    END
+  BEGIN
+    BOPOP IF  % anything left?
+      BLANK GE_IF  % yes, delimiter?
+        TOPOBOT 1-! -1 ELSE  % yes, restore byte to bottom buffer, done
+        0 THEN ELSE  % no, keep going
+      -1 THEN  % nothing left, all done
+    END
+  TOPOBOT @ OVER -  % # of bytes to move
+  SWAP TOPOBOT !  % restore TOPOBOT
+  C.M+  % do move
+  ;
+
+'I.WORDLEFT :  % move one word to the left
+  BOTOTOP @ BEGIN  % save BOTOTOP
+    TOPOP IF  % anything left?
+      BLANK LT ELSE  % yes, stop if not delimiter
+      -1 THEN
+    END
+  BEGIN
+    TOPOP IF  % anything left?
+      BLANK GE_IF  % yes, delimiter?
+        BOTOTOP 1+! -1 ELSE  % yes, restore byte to top buffer, done
+        0 THEN ELSE  % no, keep going
+      -1 THEN  % nothing left, all done
+    END
+  DUP BOTOTOP @ -  % # of bytes to move
+  SWAP BOTOTOP !  % restore BOTOTOP
+  C.M-  % do move
+  ;
+
+'E.B :  % go to beginning of file
+  BEGIN  % loop till at beginning of file
+    TOPOP IF  % EOF?
+      BOPUSH REPEAT
+  ;
+
+'E.W :  % write current file
+  FILE_NAME 3 WOPEN
+  E.B  % go to top
+  BEGIN  % loop through file
+    BOT_COUNT UNDER NEZ IF  % all done?
+    BOT_COUNT SFCR DUP E.M+ 2DROP  % move first line to top
+      TOP_COUNT 1- 3 PUT  % output one line
+      TOPOTOP BOTOTOP MOVE  % delete line
+      REPEAT
+  3 CLOSE
+  ;
+
+'C.K :  % Kill command
+  BEGIN
+    BOPOP IF  % any more bytes?
+      CRET EQ_IF  % yes, is this a CR?
+        -1 ELSE  % yes, end the loop
+        0 THEN ELSE  % no, keep going
+      -1 THEN  % no more bytes, end the loop
+    END DISP -1  % always succeed
+  ;
+
+'FAIL_SEARCH :  % returns error message if error suppress flag is off
+  ERR_SUPPRESS @ IF
+    -1  % if flag is on, return success
+  ELSE
+    ERR.NOSTRN  % otherwise return "Search failed"
+  THEN
+  ;
+
+'C.+S :  % pattern descriptor, iteration count, C.+S, success
+%	(searches forward for countth occurence of the pattern)
+%	(on success, moves cursor and records pattern length)
+%	(on failure, moves cursor to top of file)
+  BOT_COUNT -ROT (  % loop count times
+    SEARCH_STRING IF  % found?
+      I' EQZ_IF -1 ERR_FLAG 0<- THEN  % yes, if nth occurence, succeed
+    ELSE
+      EXIT FAIL_SEARCH  % not found, exit, fail
+      ERR_FLAG -1<-
+    THEN
+  )
+  IF  % was nth occurence found?
+    DROP TOPOBOT @ -  % yes, how far away is it
+    C.M+ -1 ELSE  % move that many bytes up, succeed
+    UNDROP TOPOTOP D@ - C.M-  % restore err. code, go to top of file
+    UNDER UNDER THEN  % drop rest-of-source descr.
+  UNDER UNDER  % drop pattern descr.
+  ;
+
+'C.-S :  % pattern identifier, count, -S  (searches backwards for string)
+  ERR_FLAG 0<-
+  TOPOBOT @ NOTE  % save present position
+  ( DUP 1- MOVE_DOWN  % move down count-1 bytes
+  BEGIN  % loop until string found or BOF
+    TOPOP IF BOPUSH -1 ELSE 0 THEN IF  % move one byte down, BOF?
+      E.MATCH IF  % string found?
+        -1 I' EQZ_IF -1 THEN ELSE  % exit, success if last time through
+        0 THEN ELSE  % not what we're looking for, continue
+      FAIL_SEARCH -1 THEN  % not there, exit, failure
+    END ) UNDER UNDER  % drop pattern descriptor
+  TOPOBOT @ RECALL OVER - D.M-  % describe string passed over, update window
+  ;
+
+'C..S :  % string descriptor, iteration count, C..S, success
+%	(search for string)
+  C.STRLEN 0<-  % initialize string length
+  C.ARG @ EQZ_IF  % no iterations?
+    2DROP DROP DISP -1 ELSE  % no iterations; drop desc.,  iter. count, succeed
+    +ROT EQZ_IF  % null string?
+      2DROP -1 ELSE  % yes, succeed
+        UNDROP DUP MINUS C.SIGN @ * C.STRLEN ! -ROT  % save string length
+        DUP GTZ_IF C.+S ELSE MINUS C.-S THEN  % do it
+      THEN
+    THEN
+  DUP NOT IF  % success?
+    C.STRLEN 0<- THEN  % no, zero string length
+  ERR_SUPPRESS 0<-  % clear the error flag
+  ;
+
+'C..D :  % count, C..D, -1  (delete characters)
+  C.STRLEN 0<-
+  NEZ_IF  % nonzero iteration count?
+    UNDROP DUP GTZ_IF  % which way
+      C.D+ ELSE  % forward
+      MINUS C.D- THEN  % backward
+    THEN
+  -1
+  ;
+
+'C..I :  % string desc., C..I, -1  (insert string)
+  LTZ_IF  % direction of insertion?
+    C.I+ ELSE
+    C.I- THEN
+  -1
+  ;

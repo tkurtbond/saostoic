@@ -1,0 +1,75 @@
+                               RED COMMANDS
+          
+           B           JUMP TO BEGINNING
+           nCabc~def   CHANGE STRING
+           nD          DELETE CHARACTER
+           FIxxx.yyy   FILE INSERT
+           FOxxx.yyy   FILE OUTPUT WITH NEW NAME AND CONTINUE
+                         WORKING FILE UNDER OLD NAME
+           GX          KILL WORKING FILE WITH NO OUTPUT
+           GWxxx.yyy   CREATE NEW EMPTY WORKING FILE
+           H           EXIT
+           nIabc       INSERT STRING
+           J           JOURNAL, OUTPUT A NEW VERSION OF THE
+                          WORKING FILE WITH CHANGES MADE THUS
+                          FAR (IN CASE THE MACHINE CRASHES) AND
+                          CONTINUE
+           nK          KILL LINE
+           nL          LINE, MOVE TO NEXT LINE
+           nM          MOVE TO NEXT CHARACTER
+           Oxxx.yyy    OPEN EXISTING FILE AS WORKING FILE
+           nSabc       SEARCH FOR STRING
+           nTF         TV DISPLAYS CURRENT LINE +/- n LINES
+           W           WRITE OUTPUT FILE AND DELETE WORKING FILE
+           nXmC        COPY LINE INTO BUFFER Xm AFTER CLEARING Xm
+           XD          DISPLAY BUFFERS
+           nXmG        GET BUFFER Xm (INSERT CONTENTS OF BUFFER)
+           nXmIC       nXmC BUT APPEND TO BUFFER
+           nXmIM       nXmM BUT APPEND TO BUFFER
+           XmK         KILL BUFFER Xm
+           nXmM        MOVE LINE INTO BUFFER Xm AFTER CLEARING Xm
+                          AND KILL LINE
+           XmS         SWITCH TO BUFFER Xm, XS SWITCH TO X0
+           Z           JUMP TO END
+           n[commands~]REPEAT n TIMES; CTRL-C ABORTS
+           [commands~] REPEAT UNTIL END; CTRL-C ABORTS
+
+           SPECIAL KEYS: PF1     SCROLL UP
+                         PF2     SCROLL DOWN
+                         PF3     JUMP LEFT TO BEGINNING OF WORD
+                         PF4     JUMP RIGHT TO END OF WORD
+                         PAD 0   TOGGLE IMMEDIATE/COMMAND MODE
+                         PAD .   TOGGLE LIGHT/DARK SCREEN
+                         PAD -   CUT OUT TEXT BETWEEN CURSOR
+                                    POSITION WHEN FIRST PRESSED AND
+                                    WHEN REPEATED   = X9M OR X9IM
+                         PAD ,   INSERTS PREVIOUSLY CUT OUT TEXT
+                                    AT CURSOR POSITION   = X9G
+                         CTRL-R  REWRITE SCREEN TO REMOVE GARBAGE
+                         CTRL-C  ABORT COMMAND
+          
+              Invoke RED by saying RED xxx.yyy or RED and then
+           GWxxx.yyy or Oxxx.yyy .  The field xxx.yyy stands for
+           an arbitrary file specification.  The working file
+           exists only in virtual memory unless it is saved
+           explicitly.  If RED displays a message, acknowledge
+           it with a RETURN.  In the immediate mode characters
+           are added or deleted at the position of the cursor
+           which is positioned by arrow or PF keys.
+
+              LINEFEED, indicated ~, is used as punctuation after
+           commands that have character strings.  Commands may be
+           individual or run together with the end marked by ~~.
+           For example, BSabc~L~~ jumps to the beginning, then 
+           searchs for the first appearance of pattern abc, and
+           finally moves to the next line.  The default if the
+           number of repeats n is not specified is 1.  To execute
+           a command in the backward direction use -n. In addition
+           to the main working buffer X0, there are 9 scratch
+           buffers Xm.  The default for m is 1 except that XS
+           means X0S.  An escape sequence is produced by the keys 
+           BACKSPACE,[,letter .  For example, escU is BACKSPACE[U.
+           The fields abc and def stand for any character strings.
+
+           Include @SYS$UTIL:REDINIT in LOGIN or type before using.
+

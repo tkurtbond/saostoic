@@ -1,0 +1,240 @@
+%  Floating point words for VAX STOIC
+%  Jonathan Mark 1982
+
+FLOAT< DEFINITIONS  % (FLOAT vocabulary initialized in KERNEL.MAR)
+
+ASSEMBLER<
+
+RADIX @ HEX  % save radix and set to hexadecimal
+
+% Storage
+
+15 'F_STRING SVARIABLE  % room for 16 digits, plus ".", plus "Esnn"
+
+% Floating<-->Integer conversion words
+
+'I->F : CVTLD (P)+ -(FS) ;  % integer to floating
+'F->I : CVTDL (FS)+ -(P) ;  % floating to integer
+
+% Words for manipulation of floating point stack
+
+'.DUP : INLINE< MOVQ (FS) -(FS) >INLINE ;  IMMEDIATE
+'.OVER : INLINE< MOVQ B^(FS) 8 -(FS) >INLINE ;  IMMEDIATE
+'.DDUP : INLINE< .OVER .OVER >INLINE ;  IMMEDIATE
+'.DROP : INLINE< ADDL2 S^ 8 FS >INLINE ;  IMMEDIATE
+'.2DROP : INLINE< ADDL2 S^ 10 FS >INLINE ;  IMMEDIATE
+'.SWAP : MOVQ B^(FS) 8 R0  MOVQ (FS)+ (FS)  MOVQ R0 -(FS) ;
+
+'.+ROT :  % arg1, arg2, arg3, +ROT, arg2, arg1, arg3
+  MOVQ (FS) R0  % r0 is temporary stack pointer
+  MOVQ B^(FS) 8 (FS)  % move up arg1
+  MOVQ B^(FS) 10 B^(FS) 8  % move up arg2
+  MOVL R0 B^(FS) 10  %  put arg3 underneath
+  ;
+
+'.-ROT :  % arg1, arg2, arg3, -ROT, arg1, arg3, arg2
+  MOVL B^(FS) 10 R0  % set arg1 aside
+  MOVQ B^(FS) 8 B^(FS) 10  % move arg3 down
+  MOVQ (FS) B^(FS) 8  % move arg2 down
+  MOVL R0 (FS)  % put arg1 on top
+  ;
+
+'.UNDER :  % value1, value2, UNDER, value2 (drops next to top value)
+  .SWAP .DROP
+  ;
+
+'.FLIP :  % value1, value2, value3, FLIP, value1, value2, value3
+  MOVL (FS) R0  MOVL (FS) B^ 10 (FS)  MOVL R0 (FS) B^ 10
+  ;
+
+
+% Floating point operation words
+
+'.+ : INLINE< ADDD2 (FS)+ (FS) >INLINE ;  IMMEDIATE
+'.- : INLINE< SUBD2 (FS)+ (FS) >INLINE ;  IMMEDIATE
+
+'.* :  % multiplier, multiplicand, *, product
+  MULD2 (FS)+ (FS)
+  ;
+
+'./ :  % divisor, dividend, /, quotient
+  DIVD2 (FS)+ (FS)
+  ;
+
+'.MINUS : MNEGD (FS) (FS) ;
+
+'.^ : .POWDD ;  % make a readable form of the exponentiation word
+
+'.EFIX :  % f.p. value, .EFIX, pos. exponent on p-stack, new value <1 on F
+  0 BEGIN
+    .DUP F->I ABS NEZ_IF  % whole part greater than 0?
+      10. ./  % divide number by 10
+      1+  % and add 1 to exponent
+      0  % signal to continue loop
+    ELSE
+      -1  % if done, halt loop
+    THEN
+  END
+  ;
+
+% Floating point comparisons
+
+'.NEZ : TSTD (FS)+  BNEQ ITEFT ;
+'.EQZ : TSTD (FS)+  BEQL ITEFT ;
+'.GTZ : TSTD (FS)+  BGTR ITEFT ;
+'.LEZ : TSTD (FS)+  BLEQ ITEFT ;
+'.GEZ : TSTD (FS)+  BGEQ ITEFT ;
+'.LTZ : TSTD (FS)+  BLSS ITEFT ;
+
+'.NE : CMPD (FS)+ (FS)+  BNEQ ITEFT ;
+'.EQ : CMPD (FS)+ (FS)+  BEQL ITEFT ;
+'.GT : CMPD (FS)+ (FS)+  BGTR ITEFT ;
+'.LE : CMPD (FS)+ (FS)+  BLEQ ITEFT ;
+'.GE : CMPD (FS)+ (FS)+  BGEQ ITEFT ;
+'.LT : CMPD (FS)+ (FS)+  BLSS ITEFT ;
+
+'.EQ_IF :  %  value1, value2, EQ_IF (combines function of EQ and IF)
+          +CHECK INLINE< CMPD (FS)+ (FS)+ BNEQ >INLINE TARGET ; IMMEDIATE
+'.NE_IF  : +CHECK INLINE< CMPD (FS)+ (FS)+ BEQL >INLINE TARGET ; IMMEDIATE
+'.GT_IF  : +CHECK INLINE< CMPD (FS)+ (FS)+ BLEQ >INLINE TARGET ; IMMEDIATE
+'.LE_IF  : +CHECK INLINE< CMPD (FS)+ (FS)+ BGTR >INLINE TARGET ; IMMEDIATE
+'.GE_IF  : +CHECK INLINE< CMPD (FS)+ (FS)+ BLSS >INLINE TARGET ; IMMEDIATE
+'.LT_IF  : +CHECK INLINE< CMPD (FS)+ (FS)+ BGEQ >INLINE TARGET ; IMMEDIATE
+
+'.EQZ_IF :  % value, EQZ_IF  (combines compare to zero with IF)
+          +CHECK INLINE< TSTD (FS)+ BNEQ >INLINE TARGET ; IMMEDIATE
+'.NEZ_IF : +CHECK INLINE< TSTD (FS)+ BEQL >INLINE TARGET ; IMMEDIATE
+'.GTZ_IF : +CHECK INLINE< TSTD (FS)+ BLEQ >INLINE TARGET ; IMMEDIATE
+'.LEZ_IF : +CHECK INLINE< TSTD (FS)+ BGTR >INLINE TARGET ; IMMEDIATE
+'.GEZ_IF : +CHECK INLINE< TSTD (FS)+ BLSS >INLINE TARGET ; IMMEDIATE
+'.LTZ_IF : +CHECK INLINE< TSTD (FS)+ BGEQ >INLINE TARGET ; IMMEDIATE
+
+% Simple floating point output words
+
+'F->S :  % string appears in F_STRING, number is popped off f-stack
+  16 F_STRING W!  % make sure F_STRING is its maximum size
+  F_STRING COUNT FLOAT_TO_STRING  % and call common run-time routine
+  ;
+
+'.= :
+  F->S  % convert floating point number
+  F_STRING MSG  % and output it
+  ;
+
+% Floating point output conversion
+
+0 'F.EXPADD VARIABLE  % -1 before decimal point, 0 after
+0 'F.10POWER VARIABLE  % highest multiple of 10 lt or eq to number
+0 'F.WHOLE VARIABLE  % integer part presently converted
+
+'.PUT :
+  OCONSTACK 4 + @ B!  % store the digit on the stack
+  OCONSTACK 4 + 1+!  % increment the pointer
+  ;
+
+'.<# :  % Start number conversion (floating)
+  OCONSTACK 4 + DUP 4 - @ <-  % reset stack
+  -1 F.EXPADD !  % thing to add to exponent on conversion
+  .EFIX F.10POWER !  % make <1, save power of 10
+  0 F.WHOLE !  % save whole number part
+  ;
+
+'.#> :  % .#>, byte pointer, count (of converted number)
+  .DROP  % get rid of un-converted portion
+  F.10POWER @ NEZ_IF  % is there some exponent?
+    UNDROP DUP GEZ_IF ASCII + ELSE ASCII - THEN  % get sign
+    ASCII E .PUT .PUT  % make "Es"
+    ABS RADIX @ /MOD SWAP #A .PUT #A .PUT  % store two digits
+  THEN
+  OCONSTACK @   % beginning of string
+  OCONSTACK 4 + @  % end of string
+  OVER -  % count
+  ;
+
+'.E#> :  % .E#>: same as .#> but always produces a signed exponent
+  .DROP  % get rid of un-converted portion
+  F.10POWER @ DUP GEZ_IF ASCII + ELSE ASCII - THEN  % get sign
+  ASCII E .PUT .PUT  % make "Es"
+  ABS RADIX @ /MOD SWAP #A .PUT #A .PUT  % store two digits
+  OCONSTACK @   % beginning of string
+  OCONSTACK 4 + @  % end of string
+  OVER -  % count
+  ;
+
+'.# :
+  RADIX @ DUP I->F .* F.WHOLE @ * F.WHOLE !  % adjust by radix
+  .DUP F->I F.WHOLE @ -  % get whole part and subtract for digit
+  #A .PUT  % store the digit
+  F.10POWER DUP @ F.EXPADD @ + <-  % fix exponent
+  .DUP F->I F.WHOLE !  % get this whole part for the next one
+  ;
+
+'>.< :  % same arguments as .#
+  F.EXPADD 0<-  % stop subtracting from the exponent
+  ASCII . .PUT  % put a decimal point on the string
+  ;
+
+% General-purpose conversion word (4 digits after decimal point)
+
+'.<#> :
+  .DUP .LTZ NOTE
+  .<# RECALL IF ASCII - .PUT .MINUS THEN
+  BEGIN
+    F.10POWER @ NEZ
+  IF
+    .#
+  REPEAT >.<
+  4 ( .# ) .#>
+  ;
+
+% Fortran-type conversion words
+
+'.ERRCHK :  % size, digits of fraction, .ERRCHK: checks validity
+  DDUP GEZ SWAP GTZ AND  % ok with regard to zero?
+  2OVER 2OVER - GTZ  % enough space for at least the decimal point?
+  AND NOT IF "Floating point output conversion error." MSG I_ABORT THEN
+  ;
+
+'.SELECT :  % size, digits of fraction, .SELECT: converts digits
+  SWAP  % now digits, field size
+  .DUP .LEZ IF 1- .MINUS -1 ELSE 0 THEN NOTE  % take action if negative
+  1-  % fix for decimal point space  
+  OVER -  % get number of digits allowed before decimal point
+  DUP F.10POWER @ - ( 20 .PUT )  % set up leading blanks
+  RECALL IF ASCII - .PUT THEN  % add "-" if negative was signalled
+  F.10POWER @ MIN ( .# )  % convert the rest of the integer portion
+  >.< ( .# )  % convert the right number of fractional digits
+  ;
+
+'F= :  % field size, digits after d.p., (number on f-stack), F=, desc.
+  .ERRCHK  % make sure the two arguments are ok
+  .<# .SELECT .#> TYPE  % perform conversion and output
+  ;
+
+'E= :  % same as F= but forces an exponent within the field
+  SWAP 4- SWAP  % make room for it
+  .ERRCHK  % and check the arguments
+  .<# .SELECT .E#> TYPE  % perform the conversion
+  ;
+
+% Words for floating point variables
+
+'.@ : MOVD @(P)+ -(FS) ;
+'.! : MOVD (FS)+ @(P)+ ;
+'.? : .@ .= ;
+
+'.VARIABLE :
+  .D@ DUP -ROT CONSTANT  % constant points to next free space
+  8 .D+!  % make 8 bytes of space for the number
+  .!  % and store the number in the data region
+  ;
+
+>  % close assembler branch
+>  % and close FLOAT
+DEFINITIONS  % reset definitions to STOIC branch
+
+'FLODEF : FLOAT< DECIMAL ; IMMEDIATE  %  for calculator function
+
+RADIX !  % restore the radix
+
+;F

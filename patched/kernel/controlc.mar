@@ -1,0 +1,97 @@
+	.title	CONTROLC:  generalized CTRL-C interrupt handler
+	.ident	/02/
+;
+;    Roger Hauck
+;    Smithsonian Institution
+;    Astrophysical Observatory
+;    Cambridge, Mass. 02138
+;    (617)495-7151 or (FTS)830-7151
+;    January, 1981
+;
+	.mcall	$iodef,$trnlog,$assign,$qiow_s,$getchn
+	$iodef
+	$dcdef
+
+	.macro	.errsignal	?p1
+	blbs	r0,p1
+	pushl	r0
+	calls	#1,g^lib$signal
+p1:
+	.endm
+
+	.psect	ABS,abs
+;----DEFINE DISPLACEMENTS FOR STACK STORAGE
+maxbuf=63
+.=0
+devnam:	.blkq				;descriptor for console device
+lognam: .blkq				;descriptor for console log. name
+buffer:	.blkb	maxbuf			;buffer
+stacklen:				;amt. of space to allocate on stack
+
+	.psect	kernel
+
+ttname:	.ascic	/SYS$COMMAND/		;terminal name
+
+	.entry	enable_ctrl_c,^m<r2,r3>
+	movl	8(ap),r3		;r3->fixed storage
+	movl	4(ap),4(r3)		;save address of module to get the AST
+
+;form descriptors on the stack
+	subl2	#stacklen,sp		;allocate result buffer
+	movl	sp,r2			;r2->stack space
+	movab	b^ttname,r1		;r0->counted string
+	movzbl	(r1)+,r0		;r0<length of string
+	movq	r0,lognam(r2)		;logical name descriptor
+	movl	#maxbuf,devnam(r2)	;device name descriptor
+	movab	buffer(r2),devnam+4(r2)
+
+;----translate the name
+	$trnlog_s lognam=lognam(r2),-
+		rsllen=devnam(r2),rslbuf=devnam(r2)
+	.errsignal
+	cmpb	buffer(r2),#^x1b	;does name begin with escape?
+	bneq	10$			;no, skip
+	subw	#4,devnam(r2)		;otherwise, subtract 4 from length
+	addl	#4,devnam+4(r2)		;add 4 to address
+10$:
+
+;----assign a channel number
+	$assign_s devnam=devnam(r2),chan=(r3) ;assign channel
+	.errsignal
+	addl2	#4,ap			;adjust ap for p2 of QIO below
+
+CKTERM:
+;    check that device is a terminal
+;	setup stack for $GETCHN
+	clrq	-(sp)			;allocate 8-byte buffer & clear it
+	movl	sp,r2			;r2->buffer
+	movl	sp,-(sp)		;-4(r2)-> buffer
+	movl	#8,-(sp)		;-8(r2)<length of buffer
+	clrl	-(sp)			;-c(r2)<returned length, clear it
+	$getchn_s chan=(r3),-
+		prilen=-12(r2),-
+		pribuf=-08(r2)
+					;ignore error condition
+		cmpb	#DC$_TERM,4(r2)	;is it a terminal
+		beql	30$		;yes, enable
+		ret			;no, ignore request
+30$:
+	$qiow_s	chan=(r3),-
+		func=#io$_setmode!io$m_ctrlcast,-
+		p1=b^here_on_ctrl_c,p2=4(ap)
+	.errsignal
+	ret
+
+here_on_ctrl_c:
+	.word	^m<r2,r3>
+	movl	4(ap),r3		;3-> comm. block
+	pushl	r3			;give address of communications block
+	calls	#1,@4(r3)		;call application subroutine
+	brb	CKTERM			;go re-enable
+
+	.entry	disable_ctrl_c,0
+	$dassgn_s	@4(ap)
+	.errsignal
+	ret
+
+	.end
