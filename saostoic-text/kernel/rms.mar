@@ -1,0 +1,789 @@
+	.title	RMS driver for SAO VAX/VMS STOIC
+;	*****************************************************************
+;	*								*
+;	*	This is a module of SAO VAX/VMS STOIC			*
+;	*								*
+;	*	It was created by					*
+;	*	Roger Hauck						*
+;	*	Smithsonian Institution					*
+;	*	Astrophysical Observatory				*
+;	*	Cambridge, Massachusetts  02138				*
+;	*	(617)495-7151  (FTS 830-7151)				*
+;	*								*
+;	*	Modified by Jonathan Mark, 1981-1982			*
+;	*								*
+;	*	This module may be reproduced				*
+;	*	provided that this title page is retained.		*
+;	*								*
+;	*****************************************************************
+
+	.enabl	dbg,tbk
+	.dsabl	gbl
+	.mcall	$fab,$rab,$open,$connect,$get,$put,$disconnect,$close
+	.mcall $create
+	.mcall	$fabdef,$rabdef,$rmsdef
+	$fabdef
+	$rabdef
+	$rmsdef
+	.extrn	lib$stop
+
+	.macro newpage title
+	.page
+	.sbttl title
+	.endm
+
+	.macro	jsbext	parm
+		.extrn	parm
+		jsb	parm
+	.endm
+
+	.macro	.errstop	?p1
+	blbs	r0,p1
+	pushl	r0
+	calls	#1,g^lib$stop
+p1:
+	.endm
+
+.extrn	dat_end,.m,vocab_sp,ut_start
+
+;macro to assemble code to initialize a user table location with
+;an address
+
+.macro	addr_to_ut addr,dest
+	.save			;save current location
+	.psect setup		;go to setup psect
+	moval	l^<addr-dat_end-^x8000>(r11),w^dest(r11)	;do move
+	.restore		;return to where we were
+.endm
+
+;macro to give one block in the data area the address of another
+
+.macro	addr_to_addr addr,dest
+	.save
+	.psect setup
+	moval	l^<addr-dat_end-^x8000>(r11),l^<dest-dat_end-^x8000>(r11)
+	.restore
+.endm
+
+newpage <DATA>
+	.psect	datinit
+
+rmsdata::
+	.extrn	msg_channel,channel_list,randochan,address_storage
+	.extrn	user_dictionary,user_code,user_data
+	.extrn	dict_pntr,code_pntr,.d
+	.extrn	date,date_error,u_ifi
+	.extrn	syserr			;use the error checker from RKERNEL
+
+; blk_xab::
+; 	$xabfhc
+; xablen==.-blk_xab
+; map_xab::
+; 	$xabfhc
+; 
+; fab0::	$fab	fna=console,fns=consize,rat=cr
+; fab1::	$fab	fop=sqo
+; fab2::	$fab	fop=sqo
+; fab3::	$fab	fop=sqo
+; 
+; msg_fab::
+; 	$fab	fna=console,fns=consize
+; randofab::
+; 	$fab	fac=<get,upd>
+; blk_fab::
+; 	$fab	fac=<bio,get,put>,xab=blk_xab
+; map_fab::
+; 	$fab	fop=ufo,xab=map_xab
+; fabsize=.-map_fab
+; 
+; rab0:: $rab fab=fab0,rop=<pmt,cvt>
+; rab1:: $rab fab=fab1
+; rab2:: $rab fab=fab2
+; rab3:: $rab fab=fab3
+; 
+; msg_rab::
+; 	$rab	fab=msg_fab
+; randorab::
+; 	$rab	fab=randofab,ksz=4,rac=key
+; blk_rab::
+; 	$rab	fab=blk_fab
+; map_rab::
+; 	$rab	fab=map_fab
+; rabsize=.-map_rab
+; 
+; rmssize==<.-rmsdata>/^x200+1
+
+;	prototype FAB,RAB,XAB (theoretically make preceding obsolete)
+
+proto_rab::
+	$rab
+	rablen==.-proto_rab
+proto_fab::	;note: PROTO_FAB must immediately succeed PROTO_RAB
+	$fab
+	fablen==.-proto_fab
+proto_xab::
+	$xabfhc
+	xablen==.-proto_xab
+
+channel_prot::
+	.long	1,1,1,1,1,1,1,1		;make space for channel list; avoid sep.
+
+newpage <OPERATIONS>
+	.psect	kernel
+console:: .ascii /sys$command/
+consize == .-console
+
+;----GETRAB: channel #, GETRAB  (puts RAB address in R2)
+getrab:	movl	(r10)+,r2		;2<channel #
+	movl	@channel_list(r11)[r2],r2 ;2->RAB
+	rsb
+
+;----GETFAB: channel#, GETFAB  (puts RAB address in R2, and
+;				     FAB address in R3)
+getfab:	bsbb	getrab
+	movl	rab$l_fab(r2),r3	;3->FAB
+	rsb
+
+_GETFAB::
+	bsbb	getfab
+	movl	r3,-(r10)
+	rsb
+
+;----GETXAB_FHC: channel#, GETXAB_FHC (returns XAB address in r0, success;
+;				       or failure)
+getxab_fhc:
+	bsbb	getfab			;get FAB address
+	movl	fab$l_xab(r3),r0	;get XAB address
+	beql	30$			;if no XAB return 0
+20$:	movzbl	xab$b_cod(r0),r1	;get type of XAB
+	cmpl	#xab$c_fhc,r1		;is it an XAB FHC?
+	beql	30$			;if yes, go return FFB field
+	movl	xab$l_nxt(r0),r0	;no, chain to next XAB
+	bneq	20$			;continue if there is one
+30$:	rsb
+
+;----channel, FIL_EBK: returns number of EOF block (or 0)
+_FIL_EBK::
+	bsbb	getxab_fhc		;get XAB address in r0
+	cmpl	r0,#0
+	beql	20$			;return 0 if no XAB FHC
+	movl	xab$l_ebk(r0),-(r10)	;push the EOF block addr
+	rsb
+20$:	clrl	-(r10)			;push a fail value
+	rsb
+
+;----channel, FIL_FFB: gets number of first free byte in EOF block (or 0)
+_FIL_FFB::
+	bsbb	getxab_fhc		;get XAB address in r0
+	cmpl	r0,#0
+	beql	20$			;return 0 if no XAB
+	movzwl	xab$w_ffb(r0),-(r10)	;push the ffb count
+	rsb
+20$:	clrl	-(r10)
+	rsb
+
+;----channel, FIL_FSZ: returns value in fixed control area size field
+_FIL_FSZ::
+	bsbw	getfab			;get fab address in R3
+	movzbl	fab$b_fsz(r3),-(r10)	;push field size from fab
+	rsb
+
+;----channel, FIL_MRS: returns maximum record size
+_FIL_MRS::
+	bsbw	getfab			;get fab in R3
+	movzwl	fab$w_mrs(r3),-(r10)
+	rsb
+
+;----channel, FIL_RFM: returns record format
+_FIL_RFM::
+	bsbw	getfab
+	movzbl	fab$b_rfm(r3),-(r10)
+	rsb
+
+;----channel, FIL_RAT: returns record attribute byte (makes CR_RAT obsolete)
+_FIL_RAT::
+	bsbw	getfab
+	movzbl	fab$b_rat(r3),-(r10)	;push the RAT byte
+	rsb
+
+;----DOCON:  does a connect
+docon:
+	blbc	r0,20$			;if not successful
+	$connect rab=r2
+20$:	movl	r0,-(r10)		;condition code
+	rsb
+
+;----ERASE: file name, channel #, ERASE, completion code
+_ERASE::
+	bsbb	getfab			;2->RAB, 3->FAB
+	cvtlb	(r10)+,fab$b_fns(r3)	;filename size
+	movl	(r10)+,fab$l_fna(r3)	;filename address
+	$erase	fab=r3			;erase file
+	movl	r0,-(r10)		;get condition code
+	rsb
+
+;----open:  file name, stoic channel #, OPEN, completion code
+_OPEN::
+	bsbw	getfab			;2->RAB, 3->FAB
+	bisb2	#fab$m_get,fab$b_fac(r3)	;open for reading
+	bicb2	#fab$m_put,fab$b_fac(r3)	;don't get write access
+__OPEN:	cvtlb	(r10)+,fab$b_fns(r3)	;filename size
+	movl	(r10)+,fab$l_fna(r3)	;filename address
+	$open	fab=r3
+	bsbw	docon			;connect
+	rsb
+
+;----ROPEN:  file name, stoic channel #, ROPEN, completion code
+;	(open for random-access I/O)
+_ROPEN::
+	bsbw	getfab			;2->RAB, 3->FAB
+	movb	#fab$m_get+fab$m_upd,fab$b_fac(r3)  ;open for rand.
+	brb	__open			;do open
+
+;----RCREATE: (arguments same as for ROPEN)
+_RCREATE::
+	bsbw	getfab
+	movb	#fab$m_get+fab$m_upd,fab$b_fac(r3)
+	cvtlb	(r10)+,fab$b_fns(r3)
+	movl	(r10)+,fab$l_fna(r3)
+	$create	fab=r3
+	bsbw	docon
+	rsb
+
+;----mapopen:  file name descriptor, MAPOPEN, RMS channel, completion code
+_MAPOPEN::
+	cvtbl	#7,-(r10)		;set STOIC channel 7
+	bsbw	getfab			;r3 gets FAB address
+	bsbw	_do_mapopen		;and go ahead
+	rsb
+
+_DO_MAPOPEN::
+	bisb2	#fab$m_get,fab$b_fac(r3)	;open for reading
+__MAPOPEN:	cvtlb	(r10)+,fab$b_fns(r3)	;filename size
+	movl	(r10)+,fab$l_fna(r3)	;filename address
+	$open	fab=r3
+	movl	fab$l_stv(r3),-(r10)	;push channel
+	movl	r0,-(r10)		;push completion code
+	blbs	(r10),20$		;exit if condition ok
+	movl	(r10)+,(r10)		;do UNDER to get rid of channel
+20$:	rsb
+
+;----WOPEN:  name addr., name len., _WOPEN, condition code
+_WOPEN::
+	bsbw	getfab
+	bisb2	#fab$m_put,fab$b_fac(r3)	;open for writing
+	bicb2	#fab$m_get,fab$b_fac(r3)	;no read access
+	movb	#fab$m_cr,fab$b_rat(r3)	;give CR record format
+	cvtlb	(r10)+,fab$b_fns(r3)	;filename size
+	movl	(r10)+,fab$l_fna(r3)	;filename address
+	$create	fab=r3
+	bsbw	docon			;cleanup
+	rsb
+
+;----RWOPEN:  name addr., name len., _RWOPEN, condition code
+_RWOPEN::
+	bsbw	getfab
+	bisb2	#fab$m_put,fab$b_fac(r3)	;open for writing...
+	bisb2	#fab$m_get,fab$b_fac(r3)	;...and reading
+	movb	#fab$m_cr,fab$b_rat(r3)	;give CR record format
+	cvtlb	(r10)+,fab$b_fns(r3)	;filename size
+	movl	(r10)+,fab$l_fna(r3)	;filename address
+	$create	fab=r3
+	bsbw	docon			;cleanup
+	rsb
+
+;----WOPEN_NCR:  name addr., name len., _WOPEN_NCR, condition code
+;	opens for writing without CR attribute
+_WOPEN_NCR::
+	bsbw	getfab
+	bisb2	#fab$m_put,fab$b_fac(r3)	;open for writing
+	bicb2	#fab$m_get,fab$b_fac(r3)	;no read access
+	clrb	fab$b_rat(r3)		;don't give CR record format
+	cvtlb	(r10)+,fab$b_fns(r3)	;filename size
+	movl	(r10)+,fab$l_fna(r3)	;filename address
+	$create	fab=r3
+	bsbw	docon			;cleanup
+	rsb
+
+;----WOPEN_FTN:  name addr., name len., _WOPEN_FTN, condition code
+;	opens for writing with Fortran attribute
+_WOPEN_FTN::
+	jsb	getfab
+	movb	#fab$m_put,fab$b_fac(r3)	;open for writing
+	movb	#1,fab$b_rat(r3)		;Fortran rec. format
+	cvtlb	(r10)+,fab$b_fns(r3)	;filename size
+	movl	(r10)+,fab$l_fna(r3)	;filename address
+	$create	fab=r3
+	bsbw	docon			;cleanup
+	rsb
+
+;----APPEND:  name addr., name len., _APPEND, condition code
+_APPEND::
+	bsbw	getfab
+	movb	#fab$m_put,fab$b_fac(r3)	;open for writing
+	movb	#fab$m_cr,fab$b_rat(r3)	;give CR record format
+	cvtlb	(r10)+,fab$b_fns(r3)	;filename size
+	movl	(r10)+,fab$l_fna(r3)	;filename address
+	$open	fab=r3
+	movl	#rab$m_eof,rab$l_rop(r2) ;connect positions at EOF
+	bsbw	docon			;cleanup
+	clrl	rab$l_rop(r2)		;clean the RAB
+	rsb
+
+;----close:  stoic channel #, CLOSE, completion code
+_CLOSE::
+	movl	(r10)+,r2		;2<stoic channel #
+	movl	@channel_list(r11)[r2],r2	;2->rab
+	$disconnect rab=r2
+	blbc	r0,20$			;if not successful
+	movl	rab$l_fab(r2),r2	;2->fab
+	$close	fab=r2
+20$:	movl	r0,-(r10)		;completion code
+	rsb
+
+;----MAPCLOSE: MAPCLOSE, condition code
+_MAPCLOSE::
+	cvtbl	#7,-(r10)		;use channel 7
+	bsbw	getfab			;r3<-FAB address
+	$dassgn_s chan=l^<fab$l_stv>(r3)
+	movl	r0,-(r10)		;push completion code
+	rsb
+
+;----GET:  buffer, length, channel, GET, returned length,-
+;	not_end_of_file, condition code
+_GET::
+	bsbw	getrab
+	cvtlw	(r10)+,rab$w_usz(r2)	;buffer length
+	movl	(r10)+,rab$l_ubf(r2)	;buffer address
+	$get	rab=r2
+	movzwl	rab$w_rsz(r2),-(r10)	;returned length
+	cvtbl	#-1,-(r10)
+	cmpl	r0,#rms$_eof
+	bneq	20$			;if not end of file
+	mcoml	(r10),(r10)		;not end of file
+	incl	r0			;signal success
+20$:	movl	r0,-(r10)		;condition code
+	rsb
+
+_PUT::
+	bsbw	getrab
+	cvtlw	(r10)+,rab$w_rsz(r2)	;record length
+	movl	(r10)+,rab$l_rbf(r2)	;buffer address
+	$put	rab=r2
+	movl	r0,-(r10)		;condition code
+	rsb
+
+;----buffer, length, channel, READ, condition code
+_READ::
+	bsbw	getrab			;2->RAB
+	movl	(r10)+,r6		;get number of bytes in R6
+	movl	(r10)+,rab$l_ubf(r2)	;setup buffer area
+	clrl	rab$l_bkt(r2)		;signal to use NBP
+10$:	cmpl	r6,#^xFE00		;do we have a large transfer?
+	bleq	20$			;no; go load all of it
+	movw	#^xFE00, rab$w_usz(r2)	;load the max possible
+	brb	30$			;and go read it
+20$:	cvtlw	r6,rab$w_usz(r2)	;load # bytes into size area
+30$:	$read	rab=r2			;perform the read
+	blbc	r0,40$			;if error, stop now
+	movzwl	rab$w_rsz(r2),r3	;get # of bytes read
+	cmpl	r3,r6			;did we read the last of the file?
+	bgeq	40$			;if we did, go exit
+	addl2	r3,rab$l_ubf(r2)	;add size to buffer area
+	subl2	r3,r6			;subtract size from total to be read
+	brb	10$			;and go repeat operation
+40$:	movl	r0,-(r10)		;push condition code onto stack
+	rsb
+
+;----buffer, length, channel, WRITE, condition code
+_WRITE::
+	bsbw	getrab			;2->RAB
+	movl	(r10)+,r6		;get number of bytes in R6
+	movl	(r10)+,rab$l_rbf(r2)	;setup buffer area
+	clrl	rab$l_bkt(r2)		;signal to use NBP
+10$:	cmpl	r6,#^xFE00		;do we have a large transfer?
+	bleq	20$			;no; go write all of it
+	movw	#^xFE00, rab$w_rsz(r2)	;write the max possible
+	brb	30$			;and go do it
+20$:	cvtlw	r6,rab$w_rsz(r2)	;write # bytes from size area
+30$:	$write	rab=r2			;perform the write
+	blbc	r0,40$			;if error, stop now
+	movzwl	rab$w_rsz(r2),r3	;get # of bytes written
+	cmpl	r3,r6			;are we done?
+	bgeq	40$			;if so, go exit
+	addl2	r3,rab$l_rbf(r2)	;add size to buffer area
+	subl2	r3,r6			;subtract size from total to be read
+	brb	10$			;and go repeat operation
+40$:	movl	r0,-(r10)		;push condition code onto stack
+	rsb
+
+;----TYPE:  string pointer, string length, TYPE
+_TYPE:	;this function has been moved to module TYIO
+	movl	msg_channel(r11),r2	;2<message channel
+	movl	@channel_list(r11)[r2],r2	;2->message RAB
+	cvtlw	(r10)+,rab$w_rsz(r2)	;message length
+	movl	(r10)+,rab$l_rbf(r2)	;message location
+	$put	rab=r2
+	.errstop
+	rsb
+
+;----PROMPT:  string pointer, string length, PROMPT
+;	attach prompt string to console RAB
+_PROMPT::
+	movl	@channel_list(r11),r2	;2->console input RAB
+	cvtlb	(r10)+,rab$b_psz(r2)	;string length
+	movl	(r10)+,rab$l_pbf(r2)	;string location
+	rsb
+
+;----RANDOGET: record #, buffer, length, RANDOGET,-
+;	returned length, condition code
+_RANDOGET::
+	movl	randochan(r11),-(r10)	;STOIC channel
+	bsbw	getrab			;2->RAB
+	cvtlw	(r10)+,rab$w_usz(r2)	;buffer length
+	movl	(r10)+,rab$l_ubf(r2)	;buffer address
+	movl	r10,rab$l_kbf(r2)	;points to record #
+	$get	rab=r2
+	movzwl	rab$w_rsz(r2),(r10)	;returned length
+	movl	r0,-(r10)		;condition code
+	rsb
+
+;----RANDOPUT: record #, buffer, length, RANDOPUT, condition code
+_RANDOPUT::
+	movl	randochan(r11),-(r10)
+	bsbw	getrab			;2->RAB
+	cvtlw	(r10)+,rab$w_rsz(r2)	;buffer length
+	movl	(r10)+,rab$l_rbf(r2)	;buffer address
+	movl	r10,rab$l_kbf(r2)	;points to record #
+	$find	rab=r2			;lock the record
+	blbc	r0,20$			;if error condition
+	$update	rab=r2			;write it
+20$:
+	movl	r0,(r10)		;condition code
+	rsb
+
+;	Words for dealing with files with addresses of RAB/FAB blocks
+;	on the stack
+
+;----FOPEN: file name, access byte, FRAB address, FOPEN, condition code
+_FOPEN::
+	movl	(r10)+,r6		;get block address
+	cvtlb	(r10)+,b^<fab$b_fac+rablen>(r6)	;set access
+	cvtlb	(r10)+,b^<fab$b_fns+rablen>(r6)	;file name size
+	movl	(r10)+,b^<fab$l_fna+rablen>(r6)	;file name address
+	addl3	#rablen,r6,r5
+	$open	fab=r5			;do the open
+	blbc	r0,10$			;ok so far?
+	bbs	#fab$v_ufo,fab$l_fop(r5),10$	;if UFO don't connect
+	$connect rab=r6			;else do a connect
+10$:	movl	r0,-(r10)		;push the condition code
+	rsb
+
+;----FCREATE: file name, access byte, FRAB address, FCREATE, condition code
+_FCREATE::
+	movl	(r10)+,r6		;get block address
+	cvtlb	(r10)+,b^<fab$b_fac+rablen>(r6)	;set access
+	cvtlb	(r10)+,b^<fab$b_fns+rablen>(r6)	;file name size
+	movl	(r10)+,b^<fab$l_fna+rablen>(r6)	;file name address
+	addl3	#rablen,r6,r5
+	$create	fab=r5			;do the open
+	blbc	r0,20$			;ok so far?
+	bbs	#fab$v_ufo,fab$l_fop(r5),20$	;if UFO don't connect
+	$connect rab=r6			;otherwise, do connect
+20$:	movl	r0,-(r10)		;push the condition code
+	rsb
+
+;----buffer, length, FRAB address, FREAD, condition code
+_FREAD::
+	movl	(r10)+,r2		;2<-RAB
+	movl	(r10)+,r6		;get number of bytes in R6
+	movl	(r10)+,rab$l_ubf(r2)	;setup buffer area
+	clrl	rab$l_bkt(r2)		;signal to use NBP
+10$:	cmpl	r6,#^xFE00		;do we have a large transfer?
+	bleq	20$			;no; go load all of it
+	movw	#^xFE00, rab$w_usz(r2)	;load the max possible
+	brb	30$			;and go read it
+20$:	cvtlw	r6,rab$w_usz(r2)	;load # bytes into size area
+30$:	$read	rab=r2			;perform the read
+	blbc	r0,40$			;if error, stop now
+	movzwl	rab$w_rsz(r2),r3	;get # of bytes read
+	cmpl	r3,r6			;did we read the last of the file?
+	bgeq	40$			;if we did, go exit
+	addl2	r3,rab$l_ubf(r2)	;add size to buffer area
+	subl2	r3,r6			;subtract size from total to be read
+	brb	10$			;and go repeat operation
+40$:	movl	r0,-(r10)		;push condition code onto stack
+	rsb
+
+;----buffer, length, channel, FWRITE, condition code
+_FWRITE::
+	movl	(r10)+,r2		;2->RAB
+	movl	(r10)+,r6		;get number of bytes in R6
+	movl	(r10)+,rab$l_rbf(r2)	;setup buffer area
+	clrl	rab$l_bkt(r2)		;signal to use NBP
+10$:	cmpl	r6,#^xFE00		;do we have a large transfer?
+	bleq	20$			;no; go write all of it
+	movw	#^xFE00, rab$w_rsz(r2)	;write the max possible
+	brb	30$			;and go do it
+20$:	cvtlw	r6,rab$w_rsz(r2)	;write # bytes from size area
+30$:	$write	rab=r2			;perform the write
+	blbc	r0,40$			;if error, stop now
+	movzwl	rab$w_rsz(r2),r3	;get # of bytes written
+	cmpl	r3,r6			;are we done?
+	bgeq	40$			;if so, go exit
+	addl2	r3,rab$l_rbf(r2)	;add size to buffer area
+	subl2	r3,r6			;subtract size from total to be read
+	brb	10$			;and go repeat operation
+40$:	movl	r0,-(r10)		;push condition code onto stack
+	rsb
+
+;----FGET:  buffer, length, FRAB, FGET, returned length,-
+;	not_end_of_file, condition code
+_FGET::
+	movl	(r10)+,r2		;2<-RAB
+	cvtlw	(r10)+,rab$w_usz(r2)	;buffer length
+	movl	(r10)+,rab$l_ubf(r2)	;buffer address
+	$get	rab=r2
+	movzwl	rab$w_rsz(r2),-(r10)	;returned length
+	cvtbl	#-1,-(r10)
+	cmpl	r0,#rms$_eof
+	bneq	20$			;if not end of file
+	mcoml	(r10),(r10)		;not end of file
+	incl	r0			;signal success
+20$:	movl	r0,-(r10)		;condition code
+	rsb
+
+_FPUT::
+	movl	(r10)+,r2		;2<-RAB
+	cvtlw	(r10)+,rab$w_rsz(r2)	;record length
+	movl	(r10)+,rab$l_rbf(r2)	;buffer address
+	$put	rab=r2
+	movl	r0,-(r10)		;condition code
+	rsb
+
+;----fclose:  FRAB address, FCLOSE, completion code
+;    (just does deassign if UFO bit is set)
+_FCLOSE::
+	movl	(r10)+,r2		;2<-rab
+	movl	rab$l_fab(r2),r3	;3<-fab
+	bbs	#fab$v_ufo,fab$l_fop(r3),20$	;if UFO go deassign channel
+	$disconnect rab=r2
+	blbc	r0,30$			;if not successful
+	$close	fab=r3
+	brb	30$
+20$:	$dassgn_s chan=fab$l_stv(r3)	;deassign
+30$:	movl	r0,-(r10)		;push condition code
+	rsb
+
+;----MAKBLK: channel, MAKBLK: duplicates RAB and FAB into program
+;	stack space; returns RAB address in r2, FAB address in r3.
+_MAKBLK::
+	bsbw	getfab			;get regular addresses
+	movl	(sp)+,-(r10)		;save the return address
+	movl	r2,-(r10)		;save the RAB address
+	subl2	#fablen,sp		;make space
+	movc3	#fablen,(r3),(sp)	;move the FAB
+	movl	sp,r6			;remember FAB address
+	subl2	#rablen,sp		;make RAB space
+	movq	r5,address_storage(r11)	;save fab, rab
+	movc3	#rablen,@(r10)+,(sp)	;move RAB
+	movq	address_storage(r11),r5	;restore values
+	movl	r6,r3			;recall FAB address
+	movl	sp,r2			;get RAB address
+	movl	r3,rab$l_fab(r2)	;tell RAB where FAB is
+	pushl	(r10)+			;find out where to go home to
+	rsb
+
+;----GETBLK: region address, size, GETBLK (reads blocks from file)
+;	(RAB address should be in r5)
+_GETBLK::
+	blbc	(r10),10$		;make size even or read won't work
+	incl	(r10)			;if odd, add 1
+10$:	cvtlw	(r10)+,rab$w_usz(r5)	;install size
+	movl	(r10)+,rab$l_ubf(r5)	;set up buffer
+	$read	rab=r5			;read the data
+	.errstop
+	rsb
+
+;----WRTBLK: region address, size, WRTBLK
+_WRTBLK::
+	blbc	(r10),10$		;make size even for write
+	incl	(r10)			;if odd, add 1
+10$:	cvtlw	(r10)+,rab$w_rsz(r5)	;install buffer size
+	movl	(r10)+,rab$l_rbf(r5)	;buffer address
+	$write	rab=r5
+	.errstop
+	rsb
+
+;----SAVE_DATA: pushes non-changeable data on stack, preserving call address
+_SAVE_DATA:
+	movl	(sp)+,r0		;save the return address
+	pushl	u_ifi(r11)		;save the load state
+	pushl	vocab_sp(r11)		;save the vocabulary pointer
+	pushl	r0			;and get the return address back
+	rsb
+
+;----RESTORE_DATA: gets stable data back in reverse order
+_RESTORE_DATA:
+	movl	(sp)+,r0		;save the return address
+	movl	(sp)+,vocab_sp(r11)	;recover vocabulary pointer
+	movl	(sp)+,u_ifi(r11)	;recover load state
+	pushl	r0			;replace return address
+	rsb
+
+;----PUSHSIZE: value, PUSHSIZE: If the value is odd, it pops the
+;	stack one byte; then it pushes the value.
+_PUSHSIZE:
+	movl	(sp)+,r1		;return addr to R1
+	blbc	(r10),10$		;is it odd?
+	movb	#0,-(sp)		;if so, push stack
+10$:	pushl	(r10)+			;then push the value
+	pushl	r1			;push our return address
+	rsb				;and return to it
+
+;----POPSIZE: Pops a value from the return stack into the P-stack,
+;	and aligns the return stack if the value is odd.
+_POPSIZE:
+	movl	(sp)+,r1		;save our return addr
+	movl	(sp)+,-(r10)		;pop the return stack
+	blbc	(r10),10$		;aligned already?
+	tstb	(sp)+			;if not, align it
+10$:	pushl	r1			;push on our return address
+	rsb				;and return to it
+
+;----XLOAD: file name, count, channel, XLOAD
+_XLOAD::
+	bsbw	_makblk			;fab=r3,rab=r2
+	movq	r2,r5			;fab=r6,rab=r5
+	subl2	(r10),sp		;make stack space for string
+	movq	r5,address_storage(r11)
+	movc3	(r10),@4(r10),(sp)	;load the string
+	movq	address_storage(r11),r5
+	movl	sp,fab$l_fna(r6)	;install name address
+	bsbw	_pushsize		;save name size
+	cvtlb	(sp),fab$b_fns(r6)	;install size
+	tstl	(r10)+			;pop old string address
+	bisb2	#fab$m_get,fab$b_fac(r6)	; get read access
+	bicb2	#fab$m_put,fab$b_fac(r6)	; no write access
+	$open	fab=r6			;open the file
+	.errstop
+	$connect rab=r5
+	.errstop
+	subl2	#^x14,sp		;make stack space for lengths
+	clrl	rab$l_bkt(r5)		;start at block 0
+	movl	sp,rab$l_ubf(r5)	;buffer address is stack
+	cvtbw	#^x14,rab$w_usz(r5)	;size is 5 longwords (two for date)
+	$read	rab=r5
+	.errstop
+	cmpl	date(r11),(sp)		;do the dates match?
+	bneq	15$			;if they do, go on
+	cmpl	date+4(r11),4(sp)	;test high longwords
+	bneq	15$
+	brb	16$			;if equal, proceed
+15$:	$disconnect rab=r5		;disconnect
+	.errstop			;if we have real problems, forget it
+	$close	fab=r6			;close the file
+	.errstop
+	movq	(sp)+,-(r10)		;push the faulty daytime
+	jsb	@date_error(r11)	;date_error must ABORT
+16$:	addl2	#8,sp			;pop date from stack
+	movl	user_dictionary(r11),-(r10)	;push dictionary start address
+	movl	(sp)+,-(r10)		;push block count
+	bsbw	_getblk
+	movl	user_code(r11),-(r10)	;push code address
+	movl	(sp)+,-(r10)
+	bsbw	_getblk
+	movl	user_data(r11),-(r10)	;push data
+	movl	(sp)+,-(r10)
+	addl3	(r10),4(r10),r1		;get address in final page
+	subl2	.m(r11),r1		;subtract end of memory
+	blss	20$			;if not exceeded, proceed
+	divl2	#^x200,r1		;make a page count
+	incl	r1			;add 1 to set up the final page
+	$expreg_s pagcnt=r1		;expand the region
+20$:	bsbw	_save_data		;save data that should not change
+	bsbw	_getblk
+	bsbw	_restore_data		;get the data back
+	$disconnect rab=r5		;disconnect the RAB
+	.errstop
+	$close	fab=r6			;close the file
+	.errstop
+
+	bsbw	_popsize			;get string length
+	addl2	(r10)+,sp		;clear from stack
+	addl2	#fablen+rablen,sp	;get rid of RAB, FAB
+	jsbext	outinit			;find out the running mode in case
+					;it's different
+	rsb
+
+;----SAVE: name, count, channel, SAVE
+_SAVE::
+	bsbw	_makblk			;fab=r3,rab=r2
+	movq	r2,r5			;fab=r6,rab=r5
+	subl2	(r10),sp		;make stack space for string
+	movq	r5,address_storage(r11)	;save values
+	movc3	(r10),@4(r10),(sp)	;load the string
+	movq	address_storage(r11),r5	;and restore the values
+	movl	sp,fab$l_fna(r6)	;install name address
+	bsbw	_pushsize		;save name size
+	cvtlb	(sp),fab$b_fns(r6)	;install size
+	tstl	(r10)+			;pop old string address
+	bicb2	#fab$m_get,fab$b_fac(r6)	;no read access
+	bisb2	#fab$m_put,fab$b_fac(r6)	;get write access
+;	(do CREATE and CONNECT after allocation space is known)
+	clrl	r3
+	subl3	user_data(r11),.d(r11),-(sp)	;get data length
+	divl3	#^x200,(sp),r2		;get number of full blocks
+	addl3	#1,r2,r3		;add to block count
+	subl3	user_code(r11),code_pntr(r11),-(sp)	;get code length
+	divl3	#^x200,(sp),r2		;get number of full blocks
+	addl3	#1,r2,r3		;add to block count
+	subl3	user_dictionary(r11),dict_pntr(r11),-(sp)	;get dict. length
+	divl3	#^x200,(sp),r2		;get number of full blocks
+	addl3	#2,r2,fab$l_alq(r6)	;set up block count (+1 for header)
+	movq	date(r11),-(sp)		;add the revision date to the header
+	$create	fab=r6
+	.errstop
+	$connect rab=r5
+	.errstop
+	movl	sp,rab$l_rbf(r5)	;buffer address is stack
+	cvtbw	#^x14,rab$w_rsz(r5)	;buffer size
+	$write	rab=r5			;write the first page
+	.errstop
+	addl2	#8,sp			;pop off the date
+	movl	user_dictionary(r11),-(r10)	;push dictionary start address
+	movl	(sp)+,-(r10)		;push block count
+	bsbw	_wrtblk
+	movl	user_code(r11),-(r10)	;push code address
+	movl	(sp)+,-(r10)
+	bsbw	_wrtblk
+	movl	user_data(r11),-(r10)	;push data
+	movl	(sp)+,-(r10)
+	bsbw	_wrtblk
+	$close	fab=r6
+	.errstop
+	bsbw	_popsize			;get string length
+	addl2	(r10)+,sp		;clear from stack
+	addl2	#fablen+rablen,sp	;get rid of RAB, FAB
+	rsb
+
+;	RMS I/O TYPE and TYO: These use $PUT calls instead of QIO's
+;	and will work for batch jobs as well as interactive jobs,
+;	although they are slightly less efficient.
+
+_rmstype::
+	movl	msg_channel(r11),-(r10)	;push the channel number
+	bsbw	_put		;go do a normal PUT
+	jsb	syserr		;check for error
+	rsb
+
+_rmstyo::
+	movl	r10,-(r10)	;push the address of the byte on the stack
+	movzbl	#1,-(r10)	;push the count (which is 1)
+	movl	msg_channel(r11),-(r10)	;push the channel number
+	bsbw	_put		;do the PUT
+	movl	(r10)+,(r10)	;do UNDER to get rid of byte, keep error code
+	jsb	syserr		;check for error
+	rsb
+
+.end

@@ -1,0 +1,53 @@
+1 RED
+! This HELP file written by Roger Hauck
+
+RED is a VT100-oriented text editor.
+
+It divides the VT100 screen into two areas: a text window and a command
+area.  The text window always displays a cursor and a section of the
+file being edited to either side of the cursor.  The command area
+shows the command line currently being entered or executed.
+
+Please report any favorable comments, difficulties, and bugs to
+Roger Hauck or Jonathan Mark.  These reports may be made in person
+or by "MAIL" to GPVAX::JONATHAN.
+
+See the subtopics below for information on how to obtain a MANUAL and how to
+IMPLEMENT RED for yourself.  NOTES gives the latest
+information on new features and fixed and unfixed problems.
+
+2 IMPLEMENT
+
+To initialize the RED command for the duration of a terminal session, type
+the following line or insert it in your LOGIN.COM file.
+  @SYS$UTIL:REDINIT
+
+To invoke RED after doing the above initialization, type
+  RED [filename]
+where filename is optional. Filename may refer to a new or an existing
+file.
+!
+!
+2 MANUAL
+
+To print a copy of the RED user manual as well as a copy of this HELP
+file, type
+  @SYS$HELP:REDMANUAL
+!
+!
+2 NOTES
+--------------------------------------------------------------------------
+July 6, 1982
+
+Version 3.0 of RED became effective today at 1pm.  It is a shared
+image and therefore more efficient during heavy system loading.  There are
+no new user features.  The old version of RED will be available for a
+limited time under the name OLDRED.
+
+NOVEMBER 2 1979
+
+REPORTED BUGS & PROBLEMS:
+ 1)  If an illegal filename is used when issuing a GW command,
+the error will not be noted until the W or J command is issued.
+If this happens, issue the command FOfilename~~ with a legal
+filename and then GX~~.

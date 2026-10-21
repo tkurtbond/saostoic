@@ -1,0 +1,100 @@
+% Floating point operations
+% W. Wiitanen, GMR
+% 17.XII.81
+% 
+ASSEMBLER< DEFINITIONS
+4F 'ACBF AC	40 'ADDF2 AC	41 'ADDF3 AC
+D4 'CLRF AC	51 'CMPF AC	4C 'CVTBF AC
+48 'CVTFB AC	4A 'CVTFL AC	49 'CVTFW AC
+4E 'CVTLF AC	4B 'CVTRFL AC	4D 'CVTWF AC
+46 'DIVF2 AC	47 'DIVF3 AC	54 'EMODF AC
+52 'MNEGF AC	DE 'MOVAF AC	50 'MOVF AC
+44 'MULF2 AC	45 'MULF3 AC	55 'POLYF AC
+DF 'PUSHAF AC	42 'SUBF2 AC	43 'SUBF3 AC
+53 'TSTF AC
+
+> DEFINITIONS
+'FLOATING_POINT< BRANCH ASSEMBLER<
+FLOATING_POINT< DEFINITIONS
+
+% Floating point add
+'+. : INLINE< ADDF2 (P)+ (P)  >INLINE ; IMMEDIATE
+
+% Floating point subtract
+'-. : INLINE< SUBF2 (P)+ (P)  >INLINE ; IMMEDIATE
+
+% Floating point multiplication
+'*. : INLINE< MULF2 (P)+ (P)  >INLINE ; IMMEDIATE
+
+% Floating point division
+'/. : INLINE< DIVF2 (P)+ (P)  >INLINE ; IMMEDIATE
+
+% Floating point unary minus
+'MINUS. : INLINE< MNEGF (P) (P)  >INLINE ; IMMEDIATE
+
+% Convert floating to long
+'FIX : INLINE< CVTFL (P) R0 MOVL R0 (P)  >INLINE ; IMMEDIATE
+
+% Convert long to floating
+'FLOAT : INLINE< CVTLF (P) R0 MOVL R0 (P)  >INLINE ; IMMEDIATE
+
+% Output floating point as integer
+'=I : FIX = ;
+
+% Output floating point number on TOP of stack
+'=. : #F COUNT TYPE ;
+
+% Floating point tests
+
+'.NEZ. : TSTF (P)+  BNEQ ITEFT ;
+
+'.EQZ. : TSTF (P)+  BEQL ITEFT ;
+
+'.GTZ. : TSTF (P)+  BGTR ITEFT ;
+
+'.LEZ. : TSTF (P)+  BLEQ ITEFT ;
+
+'.GEZ. : TSTF (P)+  BGEQ ITEFT ;
+
+'.LTZ. : TSTF (P)+  BLSS ITEFT ;
+
+'.NE. : CMPF (P)+ (P)+  BNEQ ITEFT ;
+
+'.EQ. : CMPF (P)+ (P)+  BEQL ITEFT ;
+
+'.GT. : CMPF (P)+ (P)+  BGTR ITEFT ;
+
+'.LE. : CMPF (P)+ (P)+  BLEQ ITEFT ;
+
+'.GE. : CMPF (P)+ (P)+  BGEQ ITEFT ;
+
+'.LT. : CMPF (P)+ (P)+  BLSS ITEFT ;
+
+% Tests combined with conditionals
+%	(values may be UNDROPed after execution of combined conditionals)
+
+'.EQ_IF. :  %  value1, value2, .EQ_IF. (combines function of .EQ. and IF)
+            +CHECK INLINE< CMPF (P)+ (P)+ BNEQ >INLINE TARGET ; IMMEDIATE
+'.NE_IF.  : +CHECK INLINE< CMPF (P)+ (P)+ BEQL >INLINE TARGET ; IMMEDIATE
+'.GT_IF.  : +CHECK INLINE< CMPF (P)+ (P)+ BLEQ >INLINE TARGET ; IMMEDIATE
+'.LE_IF.  : +CHECK INLINE< CMPF (P)+ (P)+ BGTR >INLINE TARGET ; IMMEDIATE
+'.GE_IF.  : +CHECK INLINE< CMPF (P)+ (P)+ BLSS >INLINE TARGET ; IMMEDIATE
+'.LT_IF.  : +CHECK INLINE< CMPF (P)+ (P)+ BGEQ >INLINE TARGET ; IMMEDIATE
+
+'.EQZ_IF. :  % value, .EQZ_IF.  (combines compare to zero with IF)
+            +CHECK INLINE< TSTF (P)+ BNEQ >INLINE TARGET ; IMMEDIATE
+'.NEZ_IF. : +CHECK INLINE< TSTF (P)+ BEQL >INLINE TARGET ; IMMEDIATE
+'.GTZ_IF. : +CHECK INLINE< TSTF (P)+ BLEQ >INLINE TARGET ; IMMEDIATE
+'.LEZ_IF. : +CHECK INLINE< TSTF (P)+ BGTR >INLINE TARGET ; IMMEDIATE
+'.GEZ_IF. : +CHECK INLINE< TSTF (P)+ BLSS >INLINE TARGET ; IMMEDIATE
+'.LTZ_IF. : +CHECK INLINE< TSTF (P)+ BGEQ >INLINE TARGET ; IMMEDIATE
+
+% Some simple operators
+
+'MAX. : DDUP .GT_IF. UNDER ELSE DROP THEN ;
+
+'MIN. : DDUP .LT_IF. UNDER ELSE DROP THEN ;
+
+'ABS. : DUP MINUS. MAX. ;
+
+;F

@@ -1,0 +1,317 @@
+%	*****************************************************************
+%	*								*
+%	*	This module is a part of the SAO VAX/VMS		*
+%	*	RED full-screen text editor				*
+%	*								*
+%	*	It was created by					*
+%	*	Roger Hauck						*
+%	*	Smithsonian Institution					*
+%	*	Astrophysical Observatory				*
+%	*	Cambridge, Massachusetts  02138				*
+%	*	(617)495-7151  (FTS 830-7151)				*
+%	*								*
+%	*	Modifications by Jonathan Mark				*
+%	*	Summer 1981						*
+%	*								*
+%	*	This module may be reproduced				*
+%	*	provided that this header is retained.			*
+%	*								*
+%	*****************************************************************
+
+
+% Things for DEF
+
+ASSEMBLER<
+
+'8+ : ADDL2 S^ 08 (P) ;
+'C+ : ADDL2 S^ 0C (P) ;
+
+>
+
+'SPACES :
+  GTZ_IF UNDROP ( SPACE ) THEN
+  ;
+
+'I= :  % value, n, I=  (types value with leading blanks, field-width n)
+  SWAP <#> -ROT OVER - SPACES TYPE
+  ;
+%  Search for byte, and other utilities
+
+ASSEMBLER<
+
+'(SBB) :  % byte, string pointer, length, SBB,-
+%	match position (or -1), string pointer, byte
+%	(searches backwards through string for specified byte)
+  INLINE< MOVQ (P)+ R0  % r0,1<descriptor
+  TSTL R0  BLSS >INLINE TARGET  % to end, i.e. do nothing if count is neg.
+  INLINE< DECL R0  % initial decrement to count
+  BLSS >INLINE TARGET  % to end if count was zero
+  INLINE< CVTLB (P) R2 >INLINE  % r2<match byte
+  CMARK  % beginning of loop
+  INLINE< CMPB [R0] (R1) R2 BEQL >INLINE
+  TARGET SWAP  % to exit
+  INLINE< DECL R0  BGEQ  >INLINE  % decrement index and loop?
+  TARGET SWAP ARCHER  % to beginning of loop
+  CMARK ARCHER  % this is exit from loop
+  CMARK ARCHER  % this is exit for zero count
+  CMARK ARCHER  % from initialization, if count was neg.
+  INLINE< MOVQ R0 -(P) >INLINE  % restore descriptor
+  ;  IMMEDIATE
+
+'SBB :  % (subroutine version of (SBB))
+  (SBB)
+  ;
+
+>
+
+'SBF :  % new version using SEARCH_STRING
+  DUP GEZ_IF
+    NOTE NOTE  % save string descriptor
+    MARK RECALL 1  % string descriptor for the byte
+    RECALL RECALL  % restore string descriptor
+    SEARCH_STRING NOT IF  % search, success?
+      1- SWAP 1+ SWAP THEN  % no, signal failure with count of -1
+    NOTE NOTE 2DROP  % save descriptor of remainder, drop match string
+    RECALL RECALL THEN  % restore descriptor of remainder
+  ;
+
+'SFCR :  % n, string descriptor, SFCR,
+%	descriptor of string passed over to find nth CR
+%	(If there are not n CR's in string, full string descriptor is returned)
+  -ROT NOTE  % save count
+  OVER SWAP  % save string location
+  CRET +ROT  % setup to search for CR
+  RECALL (  % do it n times
+    SBF LTZ_IF  % search, anything left?
+      1- -1 EXIT ELSE  % no, correct position, exit
+      UNDROP THEN )  % yes, continue
+  DROP UNDER  % drop remaining string length & search byte
+  OVER -  % descriptor of string passed over
+  ;
+
+'SRCR :  % n, string descriptor, SRCR,
+%	descriptor of string passed over to find nth CR
+%	(If there are not n CR's in string, full string descriptor is returned)
+  DDUP + NOTE  % save end of string
+  -ROT NOTE  % save loop count
+  CRET +ROT  % setup to search
+  RECALL  % bring forth loop count
+  ( SBB ) 1+  % descriptor of remaining string
+  -ROT DROP  % drop search byte
+  + RECALL OVER -  % string passed over
+  ;
+
+% Lower-level words
+
+	ASSEMBLER<
+'D@- :  % pointer pair of longwords, D@-, difference between the two
+%	(gives the length of a dynast)
+  MOVQ @(P)+ R0
+  SUBL3 R0 R1 -(P)
+  ;
+
+'DYNACOUNT :  % dynast pointer, DYNACOUNT, string address, length
+  MOVQ @(P)+ R0
+  MOVL R0 -(P)
+  SUBL3 R0 R1 -(P)
+  ;
+
+
+
+% Define buffer pointers
+  0A '#BUFS CONSTANT
+  .D@ 'D.START CONSTANT
+  8 'K0 ARRAY  % allocate four longword pointers for each keyboard buffer
+  #BUFS 4 * 'X0 ARRAY  % allocate four longword pointers for each buffer
+  0 'D.STOP  VARIABLE
+
+0  'KBUF# VARIABLE
+X0 'CURBUF VARIABLE  % pointer to descripter of current edit buffer
+K0 'CURKBUF VARIABLE  % pointer to descriptor of current keyboard #
+
+'D.LOOK :  % (displays dynamic string allocations)
+  D.STOP 4+ D.START DO I ? CR 4 +LOOP
+  ;
+
+'OLD_J : MOVL (L) B^ C -(P) ;  % gets 4th entry on loop stack
+
+>
+
+'D.EXPAND2 :  % ptr. to dyn. str. descr., D.EXPAND2
+  DUP D@ SWAP OVER -  % source descriptor
+  OVER OLD_J +  % destination
+  MOVE_BYTES  % move string
+  DUP D@ OLD_J + SWAP OLD_J + SWAP -ROT D!  % update pointers
+  ;
+
+'D.EXPAND1 :  % exp. area ptr., space needed, D.EXPAND
+%	(expands by a given amount, the expansion area for the dynamic string)
+  800 MAX  % as long as we need to expand, do it big
+  NOTE  % yes, save amount of space needed on loop stack
+  D.STOP 4- @ RECALL DUP NOTE +
+  .D@ - GTZ_IF  % is there already enough room in memory?
+    UNDROP .D+! THEN  % no, expand memory
+  .D@ D.STOP !  % expand last dynast
+  3 - D.STOP 7 - DDUP GT_IF  % any strings to move?
+    SWAP DO  % yes, loop through individual dynasts
+      I' D.EXPAND2  % move next dynast
+      8 +LOOP ELSE
+    2DROP THEN  % nothing to move, cleanup
+  RECALL DROP  % clean loop stack
+  ;
+
+'D.EXPAND :  % exp. area ptr., space needed, D.EXPAND
+%	(expands to a given amount, the expansion area for the dynamic string)
+  OVER D@- - DUP GTZ_IF  % how much does it need to be expanded by?
+    D.EXPAND1 ELSE  % go expand
+    2DROP THEN  % it doesn't need expanding
+  ;
+
+'ABE :  % byte, ptr. to dynamic string descr., ABE, success
+%	(add byte to end)
+  4+  % expansion area descriptor
+  DUP D@ GE IF  % any room?
+    DUP 800 D.EXPAND THEN  % no, expand
+  DUP @ -ROT B<-  % add the byte
+  1+!  % bump pointer
+  ;
+
+'RBE :  % dyn. str. ptr., RBE, [byte, TRUE] or [FALSE]
+  DUP D@ LT IF  % anything there?
+    4+ DUP 1-<-  % yes, decrement pointer
+    @ B@ -1 ELSE  % pickup byte, succeed
+    DROP 0 THEN  % nothing there, fail
+  ;
+
+'ABB :  % byte, dyn. str. ptr., ABB
+  DUP 4- D@ GE IF  % any room?
+    DUP 4- 800 D.EXPAND THEN  % no, expand
+  DUP 1-!  % yes, decrement pointer
+  @ B!  % store byte
+  ;
+    
+'RBB :  % dyn. str. ptr., RBB, [byte, TRUE] or [FALSE]
+  DUP D@ LT IF  % anything there?
+  DUP @ B@  % pick up byte
+  SWAP 1+<- -1 ELSE  % increment pointer, succeed
+    DROP 0 THEN  % nothing there, fail
+  ;
+
+'ASB :  % str. descr., dyn. str. ptr., ASB  (adds string at beginning of dynast)
+  DDUP 4- SWAP D.EXPAND  % make sure there is sufficient room
+  +ROT OVER + SWAP DDUP NE_IF DO
+      I' B@ OVER ABB LOOP
+    ELSE
+  2DROP THEN
+  DROP
+  ;
+
+'RLB :  % dyn. str. ptr., RLB, (str. descr., -1) or (0 if null dynast)
+%	(removes line at beginning of dynast)
+  1 OVER DYNACOUNT NEZ_IF
+    UNDROP SFCR
+    -ROT DDUP -! -1 ELSE
+    3 (DROP) 0 THEN
+  ;
+
+'ASE :  % str. descr., dyn. str. ptr., ASE, (add string to end of dynast)
+  DDUP 4+ SWAP D.EXPAND  % make sure there is sufficient room
+  +ROT OVER + SWAP DDUP NE_IF DO  % loop through string
+      I B@ OVER ABE LOOP  % move next byte
+    ELSE
+    2DROP THEN
+  DROP
+  ;
+
+%  Stuff which is specific to the editor
+
+'TOPOTOP : CURBUF @ ;
+'BOTOTOP : CURBUF @ 4+ ;
+'TOPOBOT : CURBUF @ 8+ ;
+'BOTOBOT : CURBUF @ C+ ;
+'KBUF    : CURKBUF @   ;
+
+'TOP_COUNT :  % TOP_COUNT, pointer to top buffer, length
+  TOPOTOP @ BOTOTOP @ OVER -
+  ;
+
+'BOT_COUNT :  % BOT_COUNT, pointer to bottom buffer, length
+  TOPOBOT @ BOTOBOT @ OVER -
+  ;
+
+'TOPUSH : TOPOTOP ABE ;
+'TOPOP  : TOPOTOP RBE ;
+'BOPUSH : TOPOBOT ABB ;
+'BOPOP  : TOPOBOT RBB ;
+
+'MOVE_UP : % count, MOVE_UP  (moves string from bottom to top)
+  BOT_COUNT -ROT MIN  % source descriptor
+  DDUP + TOPOBOT !  % new bound on bottom
+  BOTOTOP @  % destination
+  DDUP + BOTOTOP !  % new bound on top
+  MOVE_BYTES  % do it
+  ;
+
+'MOVE_DOWN :  % count, MOVE_DOWN  (moves string from top to bottom)
+  TOPOTOP D@- MIN  % # bytes to move
+  BOTOTOP @ OVER - SWAP  % source descriptor
+  OVER BOTOTOP !  % new bound on top
+  TOPOBOT @ OVER -  % destination
+  DUP TOPOBOT !  % new bound on top
+  MOVE_BYTES
+  ;
+
+%  Initialization
+
+'D.INIT :  % D.INIT  (initializes dynamic-string region)
+%	(must be called after all variables are defined
+%	 and before using dynamic strings.)
+  D.STOP 4 + D.START DO .D@ I ! 4 +LOOP
+  ;
+
+%  buffer display
+
+'D.DISPLINE :  % pointer to text-buffer descriptor, D.DISPLINE,
+%	pointer to next buffer descr.
+  DUP @ 6 I=  % type origin of buffer
+  4 (  % loop through description of this buffer
+    DUP D@- 6 I= 4+ )
+  ;
+
+'D.DISP :
+  CR "    LOC.   TOP   GAP  BOT.  IBUF" MSG
+  K0 2 (
+    CR ASCII K TYO I ASCII 0 + TYO D.DISPLINE )
+  CR
+  0A (
+    CR ASCII X TYO I ASCII 0 + TYO D.DISPLINE )
+  CR DROP
+  ;
+
+'D.COUNT :  % ptr. to dsd, D.COUNT, string descriptor
+  DYNACOUNT
+  ;
+
+'SUB :
+  X0 D@ DO
+    I B@ DUP 0D NE_IF
+      SWAP OVER XOR 0D NE_IF
+        UNDROP ELSE
+        DUP THEN THEN
+     I B!
+    LOOP
+  DROP
+  ;
+
+'ADD :
+  X0 D@ DO
+    I B@ DUP 0D NE_IF
+      SWAP OVER XOR 0D NE_IF
+        UNDROP UNDER DUP ELSE
+        DUP THEN THEN
+    I B!
+    LOOP
+  DROP
+  ;
+
+;F

@@ -1,0 +1,305 @@
+	.TITLE	SYSTEM-SERVICES driver for SAO VAX/VMS STOIC
+;	*****************************************************************
+;	*								*
+;	*	This is a module of SAO VAX/VMS STOIC			*
+;	*								*
+;	*	It was created by					*
+;	*	Roger Hauck						*
+;	*	Smithsonian Institution					*
+;	*	Astrophysical Observatory				*
+;	*	Cambridge, Massachusetts  02138				*
+;	*	(617)495-7151  (FTS 830-7151)				*
+;	*								*
+;	*	Modified by Jonathan Mark, 1981-1982			*
+;	*								*
+;	*	This module may be reproduced				*
+;	*	provided that this title page is retained.		*
+;	*								*
+;	*****************************************************************
+
+	.enabl dbg,tbk
+
+.macro	newpage	title
+	.page
+	.sbttl	title
+.endm
+
+	$SSDEF
+	$IODEF
+	$JPIDEF
+	$CLIDEF
+	$SECDEF
+
+
+;make a header for a stoic word
+;stores link,name,lookup atribute
+	.macro header name,lookup_atr=jump_to_me,-
+			branch=kernel
+	kplace=.		;remember current location
+	.save
+	.psect	dictionary	;go to dictionary psect
+	.long branch-dict_start-^x8000	;link onto last word of branch
+	branch=.-4		;set branch to point to here
+	.long globlink-dict_start-^x8000	;link onto global pointer
+	globlink=.-4		;and set it
+	.ascic /name/		;store the name and count
+	.byte lookup_atr
+	.blkw	1		;space for the code length word
+	clplace=.-2		;note location to put it later
+	.word	kplace-k_start-^x8000	;r8 displacement to code address
+	.restore
+	.endm
+
+;terminate a word: this or RSBX should be used at the ends of all
+;routines begun with HEADER
+.macro	wterm
+	kend=.
+	.save
+	.psect dictionary
+	.=clplace		;code length place
+	.word	kend-kplace	;store code length
+	.restore
+	.endm
+
+.macro	rsbx		;used to end normal code words
+	rsb		;add a rsb
+	wterm		;and terminate
+	.endm
+
+;macro to connect to link symbols defined in another module
+
+.macro	nullhead gglobal,glocal,lglobal,llocal
+	kplace=.
+	.save
+	.psect	dictionary
+	.long	glocal-dict_start-^x8000	;put in local symbol reference
+	llocal=.-4			;and update the new one
+	.long	gglobal-dict_start-^x8000	;global reference
+	lglobal=.-4			;update it
+	.ascic	/NULL/			;name
+	.byte	jump_to_me		;lookup attribute
+	.word	1			;one byte long (rsb)
+	.word	kplace-k_start-^x8000		;word address
+	.restore
+	rsb				;load on the rsb
+	.endm
+
+.psect kernel
+
+.list me
+;nullhead	crtlglob,dict_start+^x80007fff,globlink,kernel
+	kplace=.
+	.save
+	.psect	dictionary
+	.long	^x7fffffff		;put in local symbol reference
+	kernel=.-4			;and update the new one
+	.long	^x7fffffff		;global reference
+	globlink=.-4			;update it
+	.ascic	/NULL/			;name
+	.byte	jump_to_me		;lookup attribute
+	.word	1			;one byte long (rsb)
+	.word	kplace-k_start-^x8000	;word address
+	.restore
+	rsb				;load on the rsb
+.nlist me
+
+.extrn	dat_end,k_start
+
+;macro to assemble code to initialize a user table location with
+;an address
+
+.macro	addr_to_ut addr,dest
+	.save			;save current location
+	.psect setup		;go to setup psect
+	moval	l^<addr-dat_end-^x8000>(r11),w^dest(r11)	;do move
+	.restore		;return to where we were
+.endm
+
+;macro to give one block in the data area the address of another
+
+.macro	addr_to_addr addr,dest
+	.save
+	.psect setup
+	moval	l^<addr-dat_end-^x8000>(r11),l^<dest-dat_end-^x8000>(r11)
+	.restore
+.endm
+
+jump_to_me=0
+
+.macro	ss	name
+	header	name
+	name'_g	(r10)
+	movl	r0,(r10)
+	rsbx
+.endm
+
+.macro	jpi$	item
+	header item
+	movl	#JPI$_'item,-(R10)  ;push item code
+	rsbx
+.endm
+
+.macro	io$	item
+	header	IO$'item
+	movl	#IO$'item,-(R10)  ;push item code
+	rsbx
+.endm
+
+.macro	sec$	item
+	header	SEC$'item
+	movl	#SEC$'item,-(R10)  ;push item code
+	rsbx
+.endm
+
+.macro	ss$	item
+	header $'item
+	movl	#SS$'item,-(R10)  ;push System Service code
+	rsbx
+.endm
+
+	newpage	<SYSTEM SERVICES DEFINITIONS>
+	.psect	kernel
+
+;	Event Flag Services
+SS $READEF		;Read Event Flags
+  SS$ _WASCLR		;Event Flag Was 0
+  SS$ _WASSET		;Event Flag Was 1
+SS $CLREF		;Clear Event Flag
+SS $WAITFR		;Wait for Single Event Flag
+
+;	AST (Asynchronous System Trap) Services
+
+
+;	Logical Name Services
+
+SS $TRNLOG		;Translate Logical Name
+
+;	Input/Output Services
+
+SS $ASSIGN		;Assign I/O Channel
+SS $DASSGN		;Deassign I/O Channel
+SS $QIO			;Queue I/O Request
+SS $QIOW		;Queue I/O Request and Wait for Event Flag
+SS $GETCHN		;Get Info. About Device Assigned to Channel
+;	I/O Operation Codes
+  IO$ _READVBLK		;Read Virtual Block
+  IO$ _READPROMPT	;Read with Prompt
+  IO$ _WRITEVBLK	;Write Virtual Block
+  IO$ _READLBLK		;Read Logical Block
+  IO$ _WRITELBLK	;Write Logical Block
+  IO$ _READPBLK		;Read Physical Block
+  IO$ _WRITEPBLK	;Write Physical Block
+
+  IO$ _SETCHAR		;Affects Temporary Terminal Characteristics
+  IO$ _SETMODE		;Affects Permanent Terminal Characteristics
+
+;	I/O Operations for Tape Drives
+  IO$ _WRITEOF		;Write Extended Gap and Tape Mark
+  IO$ _REWIND		;Reposition to BOT
+  IO$ _SENSEMODE	;Put tape characteristics in IOSB
+  IO$ _SKIPFILE
+  IO$ _SKIPRECORD
+
+;	I/O Operation Modifiers
+  IO$ M_NOECHO		;Do Not Echo Characters For This Read
+  IO$ M_NOFILTR		;Do Not process ^U, ^R, or DEL for This Read
+  IO$ M_TIMED		;P3 Specifies Timeout in Seconds
+  IO$ M_TRMNOECHO	;Do Not Echo Terminating Character
+  IO$ M_NOFORMAT	;PASSALL Mode for This Write
+  IO$ M_HANGUP		;Disconnects the Modem on a Dialup Line
+
+;	I/O Operation Modifiers for Mag. Tape Driver
+  IO$ M_DATACHECK
+  IO$ M_INHRETRY
+  IO$ M_NOWAIT
+
+;	System Service Status Codes
+  SS$ _NORMAL		;Successful Completion
+  SS$ _TIMEOUT		;Operation Timeout
+
+;S SS $INPUT		;Inputs from Console
+;S SS $OUTPUT		;Outputs to console
+SS $GETMSG		;Returns text of system error message
+
+;	Process Control Services
+
+SS $CREPRC		;Creates a subprocess or detached process
+SS $DELPRC		;Deletes the current process or a subprocess
+SS $WAKE		;Wake
+SS $SCHDWK		;Scheduled Wake
+SS $EXIT		;Exit
+SS $SETPRN		;Set Process Name
+SS $SETPRI		;Set Priority
+SS $GETJPI		;Get Job/Process Information
+  JPI$ ACCOUNT		;Account name string
+  JPI$ CPUTIM		;Accumulated CPU time (in 10-ms. tics)
+  JPI$ DIRIO
+  JPI$ FREP0VA		; First free page at end of program region
+  JPI$ GRP		; Group number of UIC
+  JPI$ MEM		; Member number of UIC
+  JPI$ UIC		; Process's UIC
+
+;	Timer and Time Conversion Services
+
+SS $GETTIM		;Get Time
+SS $NUMTIM		;Convert Binary Time to Numeric Time
+SS $ASCTIM		;Converts system time to ASCII string
+SS $BINTIM		;Converts an ASCII string to system format time
+SS $SETIMR		;Set Timer
+$SCHDWK		;Schedules a Wakeup
+
+;	Condition Handling Services
+
+
+;	Memory Management Services
+
+SS $EXPREG		;Expand Program/Control Region
+;S SS $CNTREG		;Contract Program/Control Region
+SS $CRETVA		;Create Firtual Adress Space
+SS $DELTVA		;Delete Virtual Address Space
+SS $CRMPSC		;Create and Map Section
+SS $UPDSEC		;Update Section File on Disk
+SS $MGBLSC		;Map Global Section
+SS $DGBLSC		;Delete GlobalSection
+SS $SETPRT		;Set Protection on Pages
+
+; Flag		  Meaning			Default attribute
+; ====		  =======			=================
+  SEC$ M_GBL	; Global section		Private section
+  SEC$ M_CRF	; Pages are copy-on-reference	Pages are shared
+  SEC$ M_DZRO	; Pages are demand-zero pages	Pages are not zeroed
+;						when copied
+  SEC$ M_EXPREG	; Map into first		Map into range
+;		  available space		specified by INADR
+  SEC$ M_WRT	; Read/write section		Read only
+  SEC$ M_PERM	; Permanent			Temporary
+  SEC$ M_PFNMAP	; Page frame section		Disk file section
+  SEC$ M_SYSGBL	; System global section		Group global section
+
+
+;	Change Mode Services
+	newpage <CLI definitions>
+
+	.psect	datinit
+
+ssdata::
+	$clireqdesc	rqtype=cli$k_getcmd	;descriptor for CLI GETCMD
+
+ssbyte==.-ssdata
+sssize==<.-ssdata>/^x200+1
+	.psect	kernel
+header GETCMD
+	pushl	cmddesc(r11)			;->request descriptor
+	calls	#1,@cli$a_utilserv(ap)		;request cli command line
+	addl3	#cli$q_rqdesc,cmddesc(r11),r0	;get address of quadword
+	movq	(r0),-(r10)			;command string descriptor
+	rsb
+
+ss_calls:: .long	kernel		;points to linked list of headers
+
+;----connect these definitions to the kernel dictionary
+
+ss_kernel==kernel
+ssglob==kernel+4
+
+	.end

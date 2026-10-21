@@ -1,0 +1,511 @@
+%	*****************************************************************
+%	*								*
+%	*	This module is a part of the SAO VAX/VMS		*
+%	*	RED full-screen text editor				*
+%	*								*
+%	*	It was created by					*
+%	*	Roger Hauck						*
+%	*	Smithsonian Institution					*
+%	*	Astrophysical Observatory				*
+%	*	Cambridge, Massachusetts  02138				*
+%	*	(617)495-7151  (FTS 830-7151)				*
+%	*								*
+%	*	Modifications by Jonathan Mark				*
+%	*	Summer 1981						*
+%	*								*
+%	*	This module may be reproduced				*
+%	*	provided that this header is retained.			*
+%	*								*
+%	*****************************************************************
+
+%  High-level words for CUT/PASTE facility
+
+'SET_BLINK :  % blinks the cut character, restores cursor to original position
+  TOP_COUNT SWAP DROP  % get the number of bytes in the top
+  BLINK_POS @ -  % get the distance (signed) to the byte to blink
+  DUP DUP  % make there be three of them
+  GEZ_IF  % is it above the cursor? 
+    C.M- BLINK_CHR C.M+  % yes, move up, blink it, and restore
+  ELSE
+   MINUS C.M+ BLINK_CHR MINUS C.M-  % otherwise move down
+   THEN S.CUP  % reposition the cursor
+   ;
+
+'CHECK_BLINK :  % blinks the cut character if it's just moved into the window
+  TOP_COUNT SWAP DROP TOPWINDOW @ -  % get the byte number for the window top
+  BLINK_POS @  % get the byte number for the cut
+  GE  % is the cut below the top of the window?
+  TOP_COUNT SWAP DROP BOTWINDOW @ +  % get the window bottom
+  BLINK_POS @  % get the cut again
+  LE  % is it above the bottom?
+  AND
+  IF  % are both true (is it in the window?)
+    BLINK_OK @ NOT  % has it just come back on?
+    IF
+      SET_BLINK  % make it blink
+      BLINK_OK -1<-  % and don't do it again until we have to
+    THEN
+  ELSE
+    BLINK_OK 0<-  % blink it the next time it returns
+  THEN
+  ;
+
+% Words to move the characters enclosed in the cut
+% into buffer 9 (killing current contents) and to
+% delete them from the current buffer
+
+'MAKE_ROOM :  % count, MAKE_ROOM -- clears buffer 9 and opens a gap  
+% (does not clear buffer 9 if APPEND_FLAG is set)
+  9 X.PUSH DROP  % go to buffer 9
+  APPEND_FLAG @ NOT IF X.KILL THEN  % kill it if we're not appending
+  BOTOTOP OVER D.EXPAND X.POP  % clear enough space
+  ;
+
+'MOVE_STUFF : % moves all bytes between a cut and the cursor to buffer 9
+  BLINK_POS @ TOP_COUNT SWAP DROP -  % find out how many bytes are in the cut
+  NEZ_IF  % are there any?
+    UNDROP DUP
+    LTZ_IF  % is the cursor at the end of the region?
+      UNDROP MINUS C.M- MINUS  % yes, move to the beginning
+    THEN
+    MAKE_ROOM  % clear enough space
+    TOPOBOT @ OVER    % make a descriptor
+    9 X.PUSH DROP TOPOTOP ASE X.POP    % move the string
+    C.D+  % and delete it from the current buffer
+  ELSE
+    WRITE_CHR  % rewrite the character to stop the blinking
+    APPEND_FLAG @ NOT IF  % are we appending nothing?
+      9 X.PUSH DROP X.KILL X.POP  % no, kill buffer 9
+      PASTE_FLAG -1<-  % and don't safeguard the contents
+    THEN
+  THEN
+  ;
+
+%  High-level words for keyboard interpretter
+
+'K.KILL_COMMAND :
+  KBUF DUP 4+ MOVE  % zero-out buffer
+  KBUF C+ DUP 4- MOVE  % also clear bottom dynast
+  ERASE_COMMAND  % erase command pane
+  CUT_FLAG @ IF "CUT MODE" MSG CR THEN  % if cutting, display message
+  TERMINATORS 0<-  % initialize count of consecutive terminators
+  DRAW_COMMAND_CURSOR  % and put a cursor there
+  ;
+
+'INST_MACRO :  % byte after ESC O, INST_MACRO
+  ASCII q - 1+  % make it a value from 1 to 9
+  CURKBUF @  % save the current key buffer
+  SWAP DUP 2+ KBUF# ! 10 * X0 + CURKBUF !  % set the key buffer
+  CLI S.CUP FLUSH  % process the command
+  DUP CURKBUF ! K0 - 10 / KBUF# !  % restore the key buffer
+  ;
+
+'TOGGLE_IMODE :  % (toggles INSTANTANEOUS mode)
+  CUT_FLAG @ NOT IF  % is cut mode enabled?
+    IMODE 1+!  % toggle the flag
+    IMODE @ IF
+      ERASE_COMMAND "IMMEDIATE MODE" MSG S.CUP ELSE
+      DRAW_COMMAND THEN
+  ELSE
+    BELL
+  THEN
+  ;
+
+% 'TOGGLE_MARK :   toggles 8th bit of character at cursor
+%   BOT_COUNT GTZ_IF   anything there?
+%     B@ DUP 7F AND CRET NE_IF   yes, is it a carriage return?
+%       80 XOR DUP TOPOBOT @ B!   no, flip the bit
+%       E.TYO 8 TYO   redraw character and backspace
+%       1 C.M+ ELSE   move one position
+%       DROP THEN ELSE
+%     DROP THEN
+%   ;
+
+'CLEAR_OPTIONS :  % gets rid of the option messages
+  DRAW_DIVIDER
+  IMODE @ IF
+    ERASE_COMMAND "IMMEDIATE MODE" MSG S.CUP
+  ELSE
+    DRAW_COMMAND
+  THEN
+  ;
+
+'CUT_INIT :
+  PASTE_FLAG @ NOT IF CLEAR_OPTIONS THEN
+  TOP_COUNT BLINK_POS ! DROP  % remember the byte number
+  BLINK_CHR  % blink the character at the cursor
+  BLINK_OK -1<-  % remember that it's blinking
+  CUT_FLAG 1+! % toggle the cut flag
+  IMODE @ SWAP IMODE 0<-  % push mode (retrieve truth value), force command mode
+  KBUF @ KBUF D@- C.OLDSTR .MOVE_STRING  % save command
+  K.KILL_COMMAND  % and kill it
+  DRAW_COMMAND
+  PASTE_FLAG 0<-  % and remember no pastes yet
+  ; 
+
+'CUT_APPEND :  % starts a cut with the append flag set
+  APPEND_FLAG -1<-  % remember to append it
+  CUT_INIT  % and start the cut
+  ;
+
+'OPEN_CUT :  % called when a first cut is interpreted
+  APPEND_FLAG 0<-  % don't append unless set later
+  PASTE_FLAG @ 1+ IF  % was the last cut restored?
+    SHOW_OPTIONS  % no; print out the messages
+    BEGIN  % loop until a legal character is typed
+      TYI
+      CONVERT_TO_UPPER
+      DISPATCH 0D CUT_INIT  % CR
+      DISPATCH 41 CUT_APPEND  % A
+      DISPATCH 51 CLEAR_OPTIONS  % Q
+      DROP 0
+    END
+  ELSE
+    CUT_INIT  % simply start a new cut
+  THEN
+  ;
+
+'TOGGLE_MARK :  % toggles cut mode
+  CUT_FLAG @ % check the value
+  IF  % has a cut region just been closed?
+    MOVE_STUFF  % move enclosed bytes to buffer 9
+    CUT_FLAG 1+!  % toggle the flag
+    K.KILL_COMMAND C.OLDSTR COUNT KBUF ASE  % restore command
+    SWAP IMODE !  % retrieve the mode
+    IMODE @  % show either IMMEDIATE MODE or current command
+    IF
+      ERASE_COMMAND "IMMEDIATE MODE" MSG S.CUP
+    ELSE
+      DRAW_COMMAND
+    THEN
+    TERMINATORS OLD_TERM @ <-  % retrieve the number of terminators
+  ELSE  % is this a beginning cut?
+    BUFFER# @ 9 EQ_IF  % are we already at buffer 9?
+      ERR.CUTFM9 ERR.MSG % yes; make angry noises
+      S.CUP  % and restore the cursor
+    ELSE
+      OLD_TERM TERMINATORS @ <-  % save the number of command terminators
+      OPEN_CUT  % ok; call the routine for it
+    THEN
+  THEN
+  ;
+
+'K.CUT_SEARCH :  % count, KBD.CUT_SEARCH: searches for string in KBUF
+  KBUF @ 1+  % get the starting address
+  KBUF D@- 3 -  % get the string length
+  KBUF @ B@ ASCII - EQ_IF  % is there a minus as the first character?
+    1- SWAP 1+ SWAP -1  % yes; fix pointers and push -1 value
+    C.ARG -1<-  % negate argument
+  ELSE
+    1  % push 1 iteration count otherwise
+    C.ARG 1<-  % set argument to 1
+  THEN C..S
+  DUP NOT IF ERR.MSG ELSE DROP THEN  % print error if necessary
+  ;
+
+'KILL_TERMINATORS :  % deletes up to 2 trailing line feeds in text buffer
+  % (cursor should already be at the end)
+  2 ( TOPOP  % get a byte
+    NEZ_IF  % was there anything?
+      DUP LFEED NE_IF TOPUSH EXIT ELSE DROP THEN  % take care of it
+    ELSE
+      EXIT  % no more bytes on top; exit loop
+    THEN
+  )
+  ;
+
+'RESTORE_KBUF :
+  UNDROP 1-  % recover the old buffer number
+  C.Z DROP  % move to end of buffer
+  DUP BUFFER# !  % yes
+  10 * X0 + CURBUF !
+  0 KBUF# ! K0 CURKBUF !
+  TEXT_BUF 0<-
+  TERMINATORS 0<-  % remember no terminators for retrieved command
+  ;
+
+'SET_KBUF :
+  BUFFER# @ 1+ TEXT_BUF !  % save the buffer number (plus 1)
+  1 KBUF# ! K0 10 + CURKBUF !  % switch the keyboard buffer
+  -2 BUFFER# ! K0 CURBUF !  % and move the text buffer
+  ASCII ~ TOPUSH TOPOP 2DROP  % force a gap
+  KILL_TERMINATORS  % get rid of terminators
+  ;
+
+'TOGGLE_KBUF :
+  CUT_FLAG @ IF BELL -1 ELSE  % are we in cut mode?
+    TEXT_BUF @ NEZ_IF  % are we going back to K0?
+      RESTORE_KBUF
+    ELSE
+      SET_KBUF
+    THEN SETSCREEN DISP DRAW_COMMAND  % refresh screen either way
+    -1  % leave a success value
+  THEN
+  ;
+
+'PASTE :  % inserts the contents of buffer 9 into the current buffer
+  CUT_FLAG @ IF  % is cut mode currently activated?
+    BELL  % yes; don't allow paste
+  ELSE
+    C.XARG 1<-  % do it once
+    C.ARG 9 <-  % simulate from buffer 9
+    C.XG    % get the stuff
+    DROP    % get rid of the error code
+    PASTE_FLAG -1<-  % remember characters have been restored
+  THEN
+  ;
+
+'TOGGLE_BACKGROUND :
+  BACKGROUND 1+!
+  BACKGROUND @ IF
+    LIGHT_BACKGROUND ELSE
+    DARK_BACKGROUND THEN
+  ;
+
+'SCAN_CUT : % take action to blink a character if necessary
+  CUT_FLAG @  % are we in cut mode?
+  IF
+    CHECK_BLINK  % yes; blink the character if it's not already
+  THEN
+  ;
+
+'CTRL-R :  % causes an immediate screen refresh
+  ANSI_VT100 ESC[ "?6l" MSG APPLICATION_KEYPAD WRAP_OFF SMOOTH_SCROLL
+  SETSCREEN DISP DISP_FLUSH
+  CUT_FLAG @ NOT IF IMODE 1+! TOGGLE_IMODE ELSE DRAW_COMMAND THEN
+  SCAN_CUT
+  -1  % always succeeds
+  ;
+
+
+%  Escape-sequence interpreter
+
+'FOUND_ESCO :  % FOUND_ESCO, success
+%	succeeds if it gets a valid sequence
+       -1  % indicate success
+  TYI  % get next char. from kybd.
+  DUP ASCII q LE OVER ASCII y GE AND IF  % is it a number
+    INST_MACRO  % yes, run a macro
+  ELSE
+    DISPATCH 'M TOGGLE_IMODE  % enter key
+    DISPATCH 'm TOGGLE_MARK  % - key
+    DISPATCH 'l PASTE  % , key
+    DISPATCH 'n TOGGLE_BACKGROUND  % . key
+    DISPATCH 'p TOGGLE_IMODE  % zero
+    DISPATCH 'P TF_-LL  % PF1, skip (TF) lines foreward
+    DISPATCH 'Q TF_LL  % PF2, skip (TF) lines backward
+    DISPATCH 'R I.WORDLEFT  % PF3, skip 1 word backward
+    DISPATCH 'S I.WORDRIGHT  % PF4, skip 1 word forward
+    DROP BELL  % invalid escape sequence, ring bell
+  THEN
+  ;
+
+'FOUND_ESCO.CUT :  % same as FOUND_ESCO but allows only moves, cuts 
+  -1
+  TYI
+  DISPATCH 'm TOGGLE_MARK
+  DISPATCH 'n TOGGLE_BACKGROUND  % allow background changes
+  DISPATCH 'P TF_-LL
+  DISPATCH 'Q TF_LL
+  DISPATCH 'R I.WORDLEFT
+  DISPATCH 'S I.WORDRIGHT
+  DROP BELL
+  ;
+
+'FOUND_ESC[ :  % FOUND_ESC[, not success
+  -1  % indicate success so far
+  1  % count of 1 for operation to be performed
+  TYI  % get next char. from keyboard
+    DISPATCH 'A C.UP_ARROW  % up arrow
+    DISPATCH 'B C.L+  % down arrow
+    DISPATCH 'C C.M+  % left arrow
+    DISPATCH 'D C.M-  % right arrow
+  DROP BELL  % invalid sequence, ring bell
+  ;
+
+'FOUND_ESC :  % here upon finding "ESC"
+  TYI  % get next char. from keyboard
+  DISPATCH '[ FOUND_ESC[
+  DISPATCH 'O FOUND_ESCO
+  ASCII S EQ IF  % escape to STOIC?
+    0 ELSE  % yes
+    BELL -1 THEN  % no, invalid escape sequence
+  ;
+
+'FOUND_ESC.CUT :  % same as FOUND_ESC but gives control to FOUND_ESCO.CUT
+  TYI
+  DISPATCH '[ FOUND_ESC[
+  DISPATCH 'O FOUND_ESCO.CUT
+  ASCII S EQ IF
+    0 ELSE
+    BELL -1 THEN
+  ;
+
+'FOUND_DEL :
+  I.DELETE -1  % delete character
+  ;
+
+%  Process LINEFEED or DELETE in command mode
+
+'K.LF :  % line feed
+  D.COM_POS  % put real cursor at command cursor
+  TERMINATORS @ 1 GE IF  % how many terminators so far?
+    TERMINATORS 1+!  % 1 or less, add this one
+    LFEED KBUF ABE THEN  % and append it to command line
+    ASCII ~ D.COM_APPEND  % echo as tilde
+  TERMINATORS @ 2 LE IF  %  2 or more terminators now?
+    CUT_FLAG @ IF  % are we in cut mode?
+      K.CUT_SEARCH DRAW_COMMAND
+    ELSE
+      FLUSH CLI DRAW_COMMAND THEN  % yes, execute command line
+    THEN
+  -1 %  always succeed
+  ;
+
+'K.DEL :  % delete, do it
+  KBUF RBE IF  % remove last character, success?
+    DUP LFEED EQ_IF
+      DROP ASCII ~  % make line feed into ~
+    THEN
+    D.COM_DEL  % delete it on the screen
+    TERMINATORS @ GTZ_IF  % is last byte a terminator?
+      TERMINATORS 1-!  % yes, decrement term. count
+    THEN
+  THEN
+  -1  % always succeed
+  ;
+
+'K.CUT_S :
+  ASCII S DUP KBUF ABE D.COM_APPEND
+  ;
+
+'K.CUT_MINUS :
+  ASCII - DUP KBUF ABE D.COM_APPEND
+  ;
+
+'K.CHECK_CUT_LETTER :
+  KBUF D@- EQZ_IF  % are there no letters?
+    CONVERT_TO_UPPER
+    DISPATCH 'S K.CUT_S
+    DISPATCH '- K.CUT_MINUS
+    DROP BELL
+  ELSE
+    KBUF @ B@ ASCII - EQ_IF  % is there a minus?
+      CONVERT_TO_UPPER
+      DISPATCH 'S K.CUT_S
+      DROP BELL
+    ELSE
+      DUP KBUF ABE D.COM_APPEND
+    THEN
+  THEN
+  ;
+
+'K.APPEND :  % character, K.APPEND, -1
+%	appends character to keyboard buffer and
+%	updates display
+  IO_CTRL_C IF DROP ELSE  % do nothing if control-C interrupted I/O
+    CUT_FLAG @ IF  % is cut mode active?
+      KBUF D@-  % count characters in key buffer
+      2 LE_IF  % are there at least 2?
+        DUP KBUF ABE D.COM_APPEND  % yes; append the new one
+      ELSE
+        K.CHECK_CUT_LETTER
+      THEN
+    ELSE
+      TERMINATORS @ 2 LE_IF  % are there two terminators?
+        K.KILL_COMMAND THEN  % yes, discard command line
+      TERMINATORS 0<-  % zero-out terminator count
+      DUP KBUF ABE  % append to keyboard buffer
+      D.COM_APPEND  % append on screen
+    THEN
+  THEN
+  ;
+
+% Get next character from keyboard:
+%	KBD_COM for command mode
+%	KBD_IMM for immediate mode
+%	KBD_CUT for cut mode
+
+'KBD_COM :  % interpret next character from keyboard in command mode
+  DISPATCH 1B FOUND_ESC		% escape
+  DISPATCH 7F K.DEL		% delete
+  DISPATCH 0A K.LF		% line feed
+  DISPATCH 12 CTRL-R		% ^R
+  15 EQ_IF			% ^U?
+    K.KILL_COMMAND ELSE  % yes, kill command line
+    UNDROP K.APPEND THEN -1  % no, append character
+  ;
+
+'KBD_IMM :  % interpret next character from keyboard in immediate mode
+  DISPATCH 1B FOUND_ESC
+  DISPATCH 7F FOUND_DEL
+  DISPATCH 12 CTRL-R		% ^R
+  I.INSERT -1
+  ;
+
+'INTERPRET_COMMAND_BYTE :
+  DISPATCH 06 TOGGLE_KBUF  % control-F
+  KBD_COM  % insert in command if not an immediate instant command
+  ;  
+
+% Routine to get keyboard input.  This routine simply does a TYI
+% **unless** RED is in immediate mode, on the end of a line.  In
+% that case, it uses INPUT_TEXT to read its key as a terminator.
+
+'GET_KEY :
+  BOT_COUNT UNDER EQZ_IF  % bottom buffer empty?
+    -1  % if so, OK to INPUT_TEXT if we're in immediate mode
+  ELSE
+    TOPOBOT @ B@ CRET EQ  % otherwise OK if next char is CR
+  THEN
+  IMODE @ AND IF  % can we simulate input mode?
+    INPUT_TEXT  % yes; read some text and return the terminator
+  ELSE
+    TYI  % otherwise do normal input
+  THEN
+  ;
+
+
+%  RED's main loop
+
+'SELECT_MODE :
+  DISPATCH 02 C.B  % control-B
+  DISPATCH 1A C.Z  % control-Z
+  IMODE @ IF  % IMMEDIATE or COMMAND mode?
+    KBD_IMM  % IMMEDIATE mode
+  ELSE
+    INTERPRET_COMMAND_BYTE
+  THEN
+  ;
+
+'KEY_LOOP :
+  DISP_FLUSH  % flush accumulated screen output
+  SCAN_CUT  % if there is a cut make sure it's blinking
+  CTRL_C_FLAG @ IF  % has control-C been typed ahead?
+    O.BUFCUR O.BUFSTRT <-  % yes; clear the output buffer
+    CTRL-R DROP CTRL_C_FLAG 0<-  % refresh screen, clear flag
+  THEN
+  GET_KEY  % get next character
+  08 EQ_IF  % backspace?
+    TYI 1F AND IMODE @ IF  % yes, convert next char. to control
+      I.INSERT ELSE
+      K.APPEND THEN -1 ELSE
+    UNDROP
+    SELECT_MODE
+  THEN
+  ;
+
+'KBD :  % KBD (keyboard interpretter, main loop of RED)
+  CTRL_C_HANDLER 0<-  % disable ABORT on control-C
+  6 RESET_MODE BUFFER_ON  % start buffered output
+  ANSI_VT100 APPLICATION_KEYPAD  % setup VT100
+  IMODE -1<- TOGGLE_IMODE %  set COMMAND mode
+  K.KILL_COMMAND  % initialize command line & cursors
+  BEGIN  % main loop
+    KEY_LOOP NOT  % read a character, get exit code
+  END
+  D.COM_POS
+  BUFFER_OFF
+  'I_CTRL_C_HNDLR COUNT I_LOOKUP IF
+    CODE_COUNT DROP CTRL_C_HANDLER ! THEN  % restore ABORT on control-C
+  ;

@@ -1,0 +1,191 @@
+%  REM3: VAX/VMS Dialout program
+%  Roger Hauck
+%  Smithsonian Astrophysical Observatory
+%  January, 1981
+
+% Constants
+10 'MAXWAIT CONSTANT  % maximum timeout period
+CTRL_C_TEMP 'TTCHAN CONSTANT  % address of TT channel
+22C 'TIMEOUT CONSTANT  % timeout status code
+0A 'L_FEED CONSTANT
+
+% Variables
+0 'TO_COUNT VARIABLE  % # of consecutive timeouts
+2 'IOSB VARIABLE
+0 'REMCHAN VARIABLE
+0 'CTRL_FLAG VARIABLE  % control-character flag
+0 'L->RBYTE VARIABLE  % local to remote buffer
+0 'LASTBYTE VARIABLE  % previous local to remote byte
+
+% String Variables
+100 'R->LBUF SVARIABLE  % remote to local buffer
+100 'LOG_BUF SVARIABLE  % log file buffer
+
+% IORB's
+% 'QIO LOAD/L  (no longer needed)
+IORB<
+'RI_IORB IORB  % remote input IORB
+'RO_IORB IORB  % remote output IORB
+'LI_IORB IORB  % local input IORB
+'RC_IORB IORB  % remote control IORB
+
+% The following are experimental definitions of the IORB's & QIO's
+'RI_IORB : RI_IORB CUR_IORB ! ;
+'RO_IORB : RO_IORB CUR_IORB ! ;
+'LI_IORB : LI_IORB CUR_IORB ! ;
+'RC_IORB : RC_IORB CUR_IORB ! ;
+'QIO : CUR_IORB @ QIO ;
+'QIOW : CUR_IORB @ QIOW ;
+
+%  Initialization of IORB's
+TTIO<
+RI_IORB INIT_IORB
+  IO$_TTYREADALL IO$M_NOECHO OR IO$M_TIMED OR FUNC!
+  R->LBUF 2+ P1!  % location of buffer
+  R->LBUF 2- W@ P2!  % length of buffer
+  0 P3!  % immediate timeout
+  IOSB IOSB!
+
+RO_IORB INIT_IORB
+  IO$_WRITEVBLK
+% IO$M_NOFORMAT
+ FUNC!
+  L->RBYTE P1!  % location of buffer
+  1 P2!  % length of buffer
+  IOSB IOSB!
+
+LI_IORB INIT_IORB
+  TTCHAN @ CHAN!  % channel # for local terminal
+  IO$_READVBLK IO$M_NOECHO OR IO$M_TIMED OR FUNC!
+  L->RBYTE P1!  % location of buffer
+  1 P2!  % length of buffer
+  IOSB IOSB!
+
+RC_IORB INIT_IORB
+  REMCHAN @ CHAN!
+  IO$_SETMODE IO$M_HANGUP OR FUNC!
+  IOSB IOSB!
+>
+
+
+'OPEN_LOG :  % (open log file)
+  'REMOTE.LOG 2 WOPEN
+  ;
+
+'INI :  % remote port name, INI
+  OPEN_LOG
+  ASSIGN SYSERR DUP  % get remote channel #
+  RI_IORB CHAN! DUP
+  RO_IORB CHAN!
+  RC_IORB CHAN!
+  LI_IORB TTCHAN @ CHAN!  % local channel #
+  ;
+
+'READ_STRING_REMOTE :
+  RI_IORB QIOW
+  IOSB 2+ W@  % # of chars before terminator
+  IOSB W@ TIMEOUT NE_IF  % was there a timeout?
+    IOSB 6 + W@ + THEN  % no, add terminator count
+  DUP R->LBUF W!  % post byte count in string
+  GTZ  % true if at least one byte read
+  ;
+
+'WRITE_STRING_LOCAL :
+  R->LBUF MSG
+  ;
+
+  ASSEMBLER<
+'DUPI+B@ :  % (equivalent to "DUP I + B@")
+  ADDL3 (P) (L) R0
+  MOVZBL (R0) -(P)
+  ;
+>
+
+'LOG_REMOTE :
+  R->LBUF COUNT (
+    DUPI+B@  % get next byte
+    CRET EQ_IF  % yes, CR?
+      LOG_BUF COUNT 2 PUT  % yes write buffer
+      LOG_BUF 0W<- ELSE  % erase buffer
+      UNDROP L_FEED NE_IF
+        UNDROP LOG_BUF STAB THEN THEN  % not CR, append to log buf
+    ) DROP
+  ;
+
+'READ_BYTE_LOCAL :
+  LI_IORB
+  TO_COUNT @ 2 / MAXWAIT MIN P3!
+  QIOW
+  IOSB 2+ W@ IOSB 6 + W@ + GTZ  % true if one byte was read
+  ;
+
+'QIOX :
+  QIO
+%  IOSB ? 20 TYO L->RBYTE ? CR
+  ;
+
+'WRITE_BYTE_REMOTE :
+  RO_IORB  % prepare for remote output
+  L->RBYTE @ CRET EQ % CR?
+  LASTBYTE B@ CRET EQ AND IF  % consecutive CR?, if so, fool driver
+    20 L->RBYTE ! QIOW  % send space
+    7F L->RBYTE ! QIOW  % send delete
+    0D L->RBYTE ! QIOW ELSE  % send CR
+    CTRL_FLAG @ IF  % convert to control character?
+      L->RBYTE @ 1F AND 80 OR L->RBYTE ! QIOX  % yes, convert & send
+      CTRL_FLAG 0<- ELSE  % reset flag
+      L->RBYTE @ 8 EQ_IF  % backspace?
+        CTRL_FLAG -1<- ELSE  % yes, set flag but don't send it
+        QIOX THEN THEN  % no, it's normal, send it
+    THEN
+  L->RBYTE LASTBYTE MOVE
+  ;
+
+'HANGUP :
+  RC_IORB QIOW
+  ;
+
+'GO :
+  BEGIN
+    READ_STRING_REMOTE IF  % anything there?
+      TO_COUNT 0<-  % no, reset timeout counter
+      WRITE_STRING_LOCAL LOG_REMOTE ELSE
+      TO_COUNT 1+! THEN  % yes, increment timeout counter
+    READ_BYTE_LOCAL IF  % anything there?
+      TO_COUNT 0<-  % no, reset timeout counter
+      WRITE_BYTE_REMOTE ELSE
+      TO_COUNT 1+! THEN  % yes, increment timeout counter
+    0 END
+  ;
+
+'HD :
+  BEGIN
+    READ_STRING_REMOTE IF  % anything there?
+      TO_COUNT 0<-  % no, reset timeout counter
+      WRITE_STRING_LOCAL LOG_REMOTE ELSE
+      TO_COUNT 1+! THEN  % yes, increment timeout counter
+    READ_BYTE_LOCAL IF  % anything there?
+      L->RBYTE B@ TYO  % local echo
+      TO_COUNT 0<-  % no, reset timeout counter
+      WRITE_BYTE_REMOTE ELSE
+      TO_COUNT 1+! THEN  % yes, increment timeout counter
+    0 END
+  ;
+>
+
+'TYOR :
+  L->RBYTE !
+  RO_IORB QIO
+  ;
+
+'DIAL :
+  '_TTH1: INI
+  1 TYOR  % abort
+  2 TYOR  % access dialer
+  COUNT (  % loop through string
+    DUP I + B@ TYOR ) DROP
+  0F TYOR  % end of number
+  03 TYOR  % send number
+  GO
+  ;
+

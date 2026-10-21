@@ -1,0 +1,19 @@
+To make STOIC and RED work under version 4 of VMS:
+
+Insert at the end of module SAO$STOIC:IMAGE insert the statement:
+
+	'IMAGE : IMAGE_WRT ;
+
+ Then do a STOBUILD.  Everything should be OK.  You have produced a writable
+ images for STOIC and RED.  This image, I believe, is not sharable, so if you
+ want to install it with the INSTALL command, use the /OPEN and /HEAD switches
+ only.  The sharable image feature was to increase RED's efficiency on
+ heavily loaded edit-intensive systems.
+
+				Roger Hauck
+				Smithsonian Institution
+				Astrophysical Observatory
+				60 Garden Street
+				Cambridge, MA  02138
+
+				(617)495-7151

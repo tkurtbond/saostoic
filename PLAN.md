@@ -1,0 +1,338 @@
+# PLAN.md: testing and documenting SAO STOIC
+
+This plan is how we test SAO STOIC on the SIMH VAX and document its
+design. `AGENTS.md` covers access rules, tree layout and conventions; read it
+first. `notes/` holds the design reports this plan is drawn from, and the
+claims in them are still unverified.
+
+Each phase lists its goal, its steps, the files it produces, and when it
+is done. Phases 0 and 1 come first. Phases 2–4 can run in any order once
+Phase 1 passes. Phase 5 is written gradually as results come in.
+
+## Status
+
+| Phase | State |
+|---|---|
+| 0 Tooling | not started |
+| 1 Characterize shipped binaries | a few one-liners run by hand (see AGENTS.md, "Facts already established") |
+| 2 Rebuild from source | not started |
+| 3 IMAGE | not started |
+| 4 RED | not started |
+| 5 Documentation | design drafts in `notes/` |
+
+Update this table as work proceeds.
+
+---
+
+## Phase 0: Tooling
+
+**Goal:** be able to run STOIC tests on the VAX unattended and repeatably,
+without typing into the user's tmux pane and without exposing the password.
+
+### Steps
+
+1. **Copy and adapt the Peaseblossom tools** from
+   `~/Repos/Oberon/Peaseblossom/tools/` into `tools/`:
+   - `vax-login.tcl`:
+     - read host, user and password from `~/.netrc-claude-vax`;
+     - use `log_user 0` until the prompt appears;
+     - set the prompt to a fixed string such as `STOICTEST> `.
+   - `vax-ftp.tcl`: active mode, ASCII with CRLF handling, retries with
+     backoff, and one session per batch of files.
+   - `vax-do` and `vax-do.exp`:
+     - upload a `.COM` file;
+     - run `@NAME/OUTPUT=VAXDO.LOG` over a fresh telnet login;
+     - fetch the log;
+     - print `$STATUS` and exit non-zero on failure.
+   - `vax-lock.sh`: a flock lock per account, e.g.
+     `~/.cache/vax-lock-claude`.
+   - Every file they upload, and every log or `.COM` they create, must
+     go under `[.WORK...]`, never the login directory: upload to
+     `%5B.WORK%5D` paths and `SET DEFAULT [.WORK]` before running anything.
+   - Strip anything specific to Peaseblossom: Oberon paths, MACRO assembly
+     steps, the VAXASM prompt.
+2. **Set up `[.WORK]`.** Write a one-time `tools/setup-work.com` that runs:
+   ```
+   $ CREATE/DIRECTORY [.WORK]
+   $ BACKUP [.SAOSTOIC...]*.*;* [.WORK...]*.*;*
+   ```
+   Also write `tools/work-assign.com`, which defines `SAO$KERNEL`,
+   `SAO$STOIC` and `SAO$RED` as process logicals pointing into `[.WORK...]`,
+   and the `STOIC`, `RED` and `CALC` symbols. Every test procedure starts
+   with `@[.WORK]WORK-ASSIGN` (or its 39-character-safe equivalent).
+3. **Write `tools/stoic-run FILE.STO [EXE]`.** It:
+   1. uppercases the test file, because LOAD input is not uppercased;
+   2. appends `;F` if the file doesn't already end with it;
+   3. uploads the file to `[.WORK.TESTS]`;
+   4. generates a `.COM` that runs `$ STOIC 'FILE.STO LOAD` (or `$ RUN` a
+      named EXE and feeds the LOAD line as SYS$INPUT data);
+   5. runs it through `vax-do`;
+   6. prints only the STOIC output, with the DCL echo, the
+      "Welcome to STOIC" banner and the login noise removed.
+4. **Write `tools/stoic-suite [PATTERN]`.**
+   - For each `tests/NN-name.sto`, run `stoic-run` and diff the output
+     against `tests/NN-name.expected`.
+   - Upload all the files and run all the tests in **one** VAX job
+     (concatenated into a single `.COM`), then fetch one log and split it on
+     marker lines such as `=== NN-name ===`. This keeps FTP logins to two per
+     suite run.
+   - Print a PASS/FAIL summary.
+   - `--update` rewrites the `.expected` files. Use it only after a human
+     has reviewed the output.
+5. **Find out how output looks in batch.** The kernel switches TYPE/TYO to
+   RMS `$PUT` when SYS$OUTPUT is not a terminal, and the report expects one
+   record per TYO (defect 8). Run a short test under `/OUTPUT` and look at
+   the log. If output is one character per line, either:
+   - `LOAD/L` `obuf` and turn on `BUFFER_ON` in a test prelude, so output
+     is buffered into lines; or
+   - make `stoic-run` rejoin the records (each record would be one TYO);
+   - or drive STOIC over telnet under expect instead of with `/OUTPUT`.
+
+   Record the choice and the reason in this file.
+
+### Produces
+
+`tools/vax-login.tcl`, `tools/vax-ftp.tcl`, `tools/vax-do`,
+`tools/vax-do.exp`, `tools/vax-lock.sh`, `tools/stoic-run`,
+`tools/stoic-suite`, `tools/setup-work.com`, `tools/work-assign.com`, and a
+`tools/README.md`.
+
+### Done when
+
+`tools/stoic-suite` runs a two-test smoke suite end to end, reports PASS, and
+the password never appears in output, logs or `ps`.
+
+---
+
+## Phase 1: Characterize the shipped binaries
+
+**Goal:** an executable specification of STOIC as it actually behaves. Each
+test file covers one area. The `.expected` output comes from real runs, and
+each line is reconciled against the source. A disagreement with the manual
+is recorded, not "fixed".
+
+Run against `[.SAOSTOIC.STOIC]STOIC.EXE` (copied to `[.WORK.STOIC]`). Tests
+are in hex unless they start with `DECIMAL`.
+
+### Test files and key cases
+
+| File | Cases (expected results where known) |
+|---|---|
+| `01-arith.sto` | `3 4 + =` → 7. `7 3 - =` → 4. `6 2 / =` → 3. `7 3 MOD =` → 1. `7 3 /MOD = =` → 1 2 (remainder on top). **`-7 3 MOD =`** → 0 if the high longword of the EDIV dividend is zero (bug), 2 if floored, −1 if signed. `-7 3 /`. `MINUS`, `ABS`, `MAX`, `MIN`, `2* 4* 2/ 4/`, shifts. Products and quotients that overflow. |
+| `02-compare.sto` | `EQ NE GT LT GE LE` on (1,2), (2,1) and (2,2), and on negatives. Every `*_IF` form. Truth from odd values: `3 IF`, `2 IF`. Confirm GT is true when the top is greater. |
+| `03-stack.sto` | `DROP DUP 2DROP DDUP SWAP OVER 2OVER +ROT -ROT UNDER FLIP UNDROP 2UNDROP`. Use `[[ ]]` (vt100) or a depth word to check the stack depth afterwards. |
+| `04-control.sto` | `IF ELSE THEN` nested. `BEGIN … END`. `BEGIN … IF … REPEAT`. `0 5 DO I = LOOP` → 0 1 2 3 4 (DO takes the limit on top; confirm). `+LOOP` with a step of 2 and a negative step. `I J K` in nested loops. `I'`, `LAST_I`, `EXIT`. `5 ( I = )` → 0 1 2 3 4. The 128-byte branch limit: a long IF body should give a compile error (find which). |
+| `05-define.sto` | `'SQ : DUP * ; 9 SQ =` → 51. A redefinition calling the old word: `'SQ : SQ 1+ ; 9 SQ =` → 52. A definition spanning several lines (CHECK). CONSTANT, VARIABLE (check the argument order, rdef:925), ARRAY, SVARIABLE, `,D`. Recursion through `()` and EXEC. IMMEDIATE. |
+| `06-numio.sto` | `DECIMAL`/`HEX` round trips. Store 24 in `U_RAD` (radix 36) and check `Z =`. `<# # #S #>` and `#PUT`. `I=`. Integer literal overflow (`FFFFFFFFF`). **The DIGIT defect:** a lowercase `foo` in a LOAD file should compile silently as a float, then check the FS depth. `_` and `[` should behave the same way. |
+| `07-strings.sto` | `"abc" MSG` and `'abc MSG`. TYPE with COUNT. `.STREQ`. SEARCH_STRING. MOVE_STRING. SUBSTRING. A string containing spaces. A `%` comment in mid-line. |
+| `08-vocab.sto` | Create a branch with `'T< BRANCH`. `T< DEFINITIONS`, define a word, `>`, and check that it is no longer visible. MODULE and FORGET. A `>` that pops the last vocabulary (the GM kernel refuses this; check SAO). |
+| `09-asm.sto` | A word defined in the in-line assembler, e.g. `ADDL2 (P)+ (P)` with `RSB`, and its result. Displacement modes `B^(P)` and `@B^(P)`. `'DUPI LOAD` and `"abc" TEST` → 61 62 63. |
+| `10-files.sto` | LOAD nested to depth 3 (files `10a`–`10c`). A 4th level should give "Input file table overflow". A compile error in the innermost file, followed by LOAD_RESET back to the console. LIST of a file. Writing and reading a file with FRAB words (WOPEN/PUT/CLOSE, OPEN/GET). |
+| `11-errors.sto` | Each of these, followed by `1 =` to prove recovery: DROP on an empty stack, repeated past the moat; `1 0 /`; `0 @`; an undefined word; OPEN of a missing file (expect STOIC to exit through LIB$STOP: defect 7). Check `CHECK` and the stack after each. |
+| `12-float.sto` | `FLOAT< 7 I->F .=`. `2.5 F->I =`. `.+ .- .* ./` (`1. 4. ./ .=` → 0.25). **`2. 3. .^ .=`** → 8 (9 means the operands are reversed). `.SQRT .SIN .COS .ATAN .LOG .EXP .LOG10`. The `.=` format. `F=` and `E=`. `.<# .# .#>`. A float literal in hex radix (expected to be read as decimal). A bad float. |
+| `13-calc.com` | `$ CALC 2. .SQRT 2. ./ .ASIN 4. .* .= CR ;F` → about 3.141592653589793. Also `$ STOIC` with an empty tail → banner. |
+| `14-save.sto` | Define words, then `'T.SAV SAVE`. In a fresh run, `'T.SAV XLOAD` and check that the words work. After the Phase 2 relink, XLOAD should fail with a date error. |
+| `15-sys.sto` | `GETTIM`/`ASCTIM`, `SHOW_TIME`, `GETJPI` (PID), `TRNLOG SYS$LOGIN`, `INVENTORY` (save the output for `words.md`), `REVISION`, `WHERE` and `WHAT`. |
+
+### Interactive checks
+
+Do these in tmux window 2, or in an expect script over a fresh telnet
+session. Record the transcripts in `tests/interactive/`.
+
+- The prompt shows the nesting depth during a multi-line definition.
+- ^C during `BEGIN 0 END`, then ^C again during a second loop (defect 2).
+  Also a `$SETIMR` AST after a ^C abort.
+- ^Z at the prompt exits cleanly to DCL.
+- `GETMODE`/`SETMODE` round trip. `TYI`. `TYPE_TYI`. `IO_CTRL_C` after a
+  ^C during a read.
+- A very long multi-line definition should overflow the compile buffer and
+  ACCVIO (defect 4). Check that CHECK is reset afterwards.
+
+### Produces
+
+`tests/*.sto`, `tests/*.expected`, `tests/interactive/*.log`, and a
+`tests/README.md` that explains how to run them and how each expected value
+was justified.
+
+### Done when
+
+Every area above has a test. `stoic-suite` passes against the shipped
+`STOIC.EXE`. Every surprise is logged in `doc/defects.md` or in the
+"differences from the manual" list for `doc/language.md`.
+
+---
+
+## Phase 2: Rebuild from source
+
+**Goal:** show that the sources in this tree reproduce the shipped
+binaries on V5.5-2, and record what has to change if they don't.
+
+### Steps
+
+1. In `[.WORK]`, run `@WORK-ASSIGN` and then `@STOBUILD MAC` under
+   `/OUTPUT=BUILD.LOG`. Fetch the log.
+2. Sort every MACRO and LINK diagnostic into one of three groups: expected
+   (`UNIVERSAL=START`), harmless, or blocking. Fix blocking problems in the
+   `[.WORK]` copy only, and mirror each fix into a local `patched/` tree,
+   one change per file, explained in `doc/build.md`.
+3. Compare the new `RKERNEL.MAP` with the shipped `saostoic-text/kernel/
+   rkernel.map`: psect sizes and the addresses of `k_start`, the dictionary
+   and DATINIT.
+4. Run `ANALYZE/IMAGE` on the shipped and the rebuilt RKERNEL, STOIC and
+   RED images. Compare the header block count, the ISD list (VPN, page
+   count, flags, VBN) and the transfer address.
+5. Run the Phase 1 suite against the rebuilt `STOIC.EXE`. The output must
+   be identical. The only expected differences are REVISION and DATE.
+6. Rebuild `REDHIREZ.EXE` with `hirez.cre` to check that variant.
+
+### Produces
+
+`build/BUILD.LOG`, `build/analyze-*.txt`, `doc/build.md`, and `patched/` if
+anything needed changing.
+
+### Done when
+
+There is a clean rebuild, the suite passes against it, and the ANALYZE
+comparison is documented.
+
+---
+
+## Phase 3: IMAGE
+
+**Goal:** understand IMAGE exactly, and find out where its assumptions
+break on V5.5-2.
+
+### Steps
+
+1. `'IMAGE LOAD/L` in a fresh RKERNEL (or use STOIC.EXE, which already
+   has it), then `SHOW` and `DISPLAY_ISD`. Check the result against
+   `ANALYZE/IMAGE HEAD0.EXE`. Confirm the header is 1 block and that each
+   resident ISD is 10 hex bytes, followed by its DZRO ISD.
+2. **Round trip.**
+   1. Define words, a VARIABLE holding a value, and a string.
+   2. `'T1.EXE IMAGE`.
+   3. `$ RUN T1.EXE`: the words should work, the variable should keep its
+      value, and REVISION should be new.
+   4. From T1, define more and run `'T2.EXE IMAGE`. Check T2 in the same
+      way.
+3. Repeat with `IMAGE_WRT`. Compare `ANALYZE/IMAGE` and `DIR/FULL`
+   (record format, attributes) for the two kinds of output.
+4. **Try to break it:**
+   - a dictionary that has grown by more than the DZRO tail;
+   - a relink without copying HEAD0;
+   - a different IOSEGMENT;
+   - `SAO$KERNEL` pointing elsewhere;
+   - running T1 under `/DEBUG`.
+
+   Record which failures give a clear error and which corrupt silently.
+5. Decide whether `install.com` is worth translating to V5 `INSTALL ADD`
+   syntax. Write it up, but **don't run it**, because that would be outside
+   `[.WORK]`.
+
+### Produces
+
+`tests/image/*`, `doc/image.md`.
+
+### Done when
+
+The round trip works at two layers, or the reason it can't is
+understood, and the limits are documented.
+
+---
+
+## Phase 4: RED
+
+**Goal:** confirm that RED works on V5.5-2, and document its command set
+from how it behaves.
+
+### Steps
+
+1. Write `tools/red-drive.exp`. It logs in through `vax-login.tcl` with the
+   terminal set to VT100 (`SET TERMINAL/DEVICE=VT100`), starts
+   `RED [.WORK.TESTS]R1.TXT`, sends keystrokes from a script file, and
+   captures the screen.
+   - Feed the screen output into a small terminal emulator to get screen
+     snapshots, e.g. `tmux` in a detached session or `pyte`.
+2. Write scripts for:
+   - a new file ("New file");
+   - inserting lines;
+   - `B` LF;
+   - `5L` LF;
+   - searching with `S`;
+   - deleting;
+   - marking, cutting and pasting with the keypad `-` and `,`;
+   - `[ ]` iteration;
+   - numeric registers;
+   - writing the file and exiting;
+   - re-opening the file and checking its contents by FTP;
+   - `ESC S` back to STOIC;
+   - checking that `SHOW TERMINAL` is unchanged afterwards.
+3. Check each command in `red/cli` CLI.DISP1 against `red.mem` and mark
+   each one: documented and working, undocumented, or broken.
+
+### Produces
+
+`tools/red-drive.exp`, `tests/red/*`, `doc/red.md`.
+
+### Done when
+
+Every documented RED command has been run at least once and its result
+recorded.
+
+---
+
+## Phase 5: Documentation
+
+**Goal:** design documentation for STOIC in `doc/`, built from verified
+facts. Each claim cites the source `file:line` and, where it applies, the
+test that shows it. Material moves from `notes/` into `doc/` only once it is
+verified.
+
+| Document | Contents | Main sources |
+|---|---|---|
+| `doc/kernel.md` | Registers. Threading (subroutine-threaded, compile-and-go). The outer loop, CHECK and nesting. Header layout and attributes. The user table. The memory map and moats. Psects and extend.mar. The condition handler and CTRL/C. Terminal and RMS I/O. Channels. LOAD. SS words. | notes/kernel-design.md, rkernel.mar, Phase 1 |
+| `doc/language.md` | STOIC as implemented: syntax, literals, radix, definitions, control structures, vocabularies, strings, the loop stack, and the in-line assembler. A **"differences from stoic.mem"** section: comparisons, MOD, … | stoic.mem, rdef, Phase 1 |
+| `doc/words.md` | Every word, grouped by branch. For each: its stack effect, its source location, and a test reference. Generate the skeleton with a script that parses `header` macros in the `.mar` files and `'NAME :` definitions in the STOIC sources, then cross-check it against `INVENTORY` output. | all sources |
+| `doc/image.md` | IMAGE step by step. The ISD handling. HEAD0. IMAGE vs IMAGE_WRT. BADISD history. SAVE/XLOAD and the DATE check. P0 determinism. V5.5-2 results. | image, rms.mar, Phase 3 |
+| `doc/float.md` | The FS stack, D_floating, the word set, the output formats, MTH$ functions, CALC/FLODEF. GM `float.sto` for contrast. | float, crtl.mar, Phase 1 |
+| `doc/red.md` | Dynasts and the buffer gap. The module structure and load order. Screen and window model. The command language reference. The keypad map. Terminal setup and restore. | red/*, Phase 4 |
+| `doc/gm-variant.md` | GM vs SAO kernel: memory, headers, number input, float, missing features. | gm/*, notes/kernel-design.md §13 |
+| `doc/build.md` | How to rebuild on V5.5-2, the build pipeline, and any patches. | Phase 2 |
+| `doc/defects.md` | Each confirmed defect with a minimal repro, its cause (file:line), its impact, and a suggested fix. List suspected defects separately until they are confirmed. | Phases 1–4 |
+| `doc/README.md` | An overview and reading order. | |
+
+### Defect checklist
+
+Defects suspected from the code, numbered as in `AGENTS.md`, and the tests
+that settle them:
+
+| # | Suspected defect | Settled by |
+|---|---|---|
+| 1 | DIGIT: a character above `Z` is taken as a decimal point | 06-numio |
+| 2 | CTRL/C skips `$ASTEXIT` | interactive ^C twice, `$SETIMR` |
+| 3 | IOSB overwrites the next user-table cell | read the cell before and after a QIO, in 15-sys or interactive |
+| 4 | No check on compile-buffer overflow | interactive long definition |
+| 5 | Integer overflow is not checked; a float in hex is read as decimal | 06-numio, 12-float |
+| 6 | Nothing checks the 16-bit windows | Phase 3, large dictionary |
+| 7 | LIB$STOP from `.errstop` exits | 11-errors |
+| 8 | One record per TYO in batch | Phase 0 step 5 |
+| 9 | Remote-line code bugs | source review only, unless a test can be built |
+| 10 | GETCMD uses the CLI callback | 13-calc (works now; note why it is fragile) |
+| 11 | IMAGE header and layout assumptions | Phase 3 |
+| — | MOD with a negative dividend | 01-arith |
+| — | Comparison sense differs from the manual | 02-compare (already seen) |
+
+### Done when
+
+Every document exists. Every claim in it is backed by a source line or a
+test. `notes/` is either retired or marked as historical.
+
+---
+
+## Decisions
+
+- The tree is under git, and `saostoic/` has been deleted.
+- Nothing is written on the VAX outside `[USERS.CLAUDE.WORK...]`. All new
+  binaries, rebuilt or IMAGE-made, go there. `[.SAOSTOIC]` stays as the
+  read-only reference.
+- Interactive checks use the telnet session in tmux window 2.

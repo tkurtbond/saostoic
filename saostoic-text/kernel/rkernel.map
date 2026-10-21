@@ -1,0 +1,182 @@
+
+RKERNEL                                                          4-SEP-1985 17:53        VAX-11 Linker V03-05             Page    1
+
+                                             +------------------------+
+                                             ! Object Module Synopsis !
+                                             +------------------------+
+
+Module Name     Ident              Bytes      File                                Creation Date      Creator
+-----------     -----              -----      -----                               -------------      -------
+DTINIT          0                      65 GP2:[SAOSTOIC.KERNEL]DTINIT.OBJ;4     5-APR-1984 09:42  VAX-11 Macro V03-00
+CRTL            0                     954 GP2:[SAOSTOIC.KERNEL]CRTL.OBJ;2       5-APR-1984 09:42  VAX-11 Macro V03-00
+CONTROLC        02                    250 GP2:[SAOSTOIC.KERNEL]CONTROLC.OBJ;2   5-APR-1984 09:42  VAX-11 Macro V03-00
+SYSTEM          0                    2361 GP2:[SAOSTOIC.KERNEL]SS.OBJ;3         5-APR-1984 09:43  VAX-11 Macro V03-00
+RMS             0                    2329 GP2:[SAOSTOIC.KERNEL]RMS.OBJ;4        4-SEP-1985 17:47  VAX-11 Macro V03-00
+TYIO            01                   1087 GP2:[SAOSTOIC.KERNEL]TYIO.OBJ;2       5-APR-1984 09:46  VAX-11 Macro V03-00
+TERMINAL        0                    1105 GP2:[SAOSTOIC.KERNEL]TTIO.OBJ;2       5-APR-1984 09:47  VAX-11 Macro V03-00
+KERNEL          0                    9526 GP2:[SAOSTOIC.KERNEL]RKERNEL.OBJ;5    4-SEP-1985 17:49  VAX-11 Macro V03-00
+EXTEND          0                  176640 GP2:[SAOSTOIC.KERNEL]EXTEND.OBJ;2     5-APR-1984 09:53  VAX-11 Macro V03-00
+
+                                            +--------------------------+
+                                            ! Program Section Synopsis !
+                                            +--------------------------+
+
+Psect Name      Module Name       Base     End           Length            Align                 Attributes
+----------      -----------       ----     ---           ------            -----                 ----------
+DATINIT                         00000200 0000F690 0000F491 (      62609.) PAGE 9 NOPIC,USR,CON,REL,LCL,  SHR,  EXE,  RD,  WRT,NOVEC
+                DTINIT          00000200 00000201 00000002 (          2.) BYTE 0
+                CRTL            00000202 0000020D 0000000C (         12.) BYTE 0
+                SYSTEM          0000020E 00000229 0000001C (         28.) BYTE 0
+                RMS             0000022A 00000309 000000E0 (        224.) BYTE 0
+                TYIO            0000030A 00000385 0000007C (        124.) BYTE 0
+                KERNEL          00000386 00000690 0000030B (        779.) BYTE 0
+                EXTEND          00000691 0000F690 0000F000 (      61440.) BYTE 0
+DICTIONARY                      0000F800 0001FB2E 0001032F (      66351.) PAGE 9 NOPIC,USR,CON,REL,LCL,  SHR,  EXE,  RD,  WRT,NOVEC
+                CRTL            0000F800 0000FA66 00000267 (        615.) BYTE 0
+                SYSTEM          0000FA67 00010107 000006A1 (       1697.) BYTE 0
+                TERMINAL        00010108 0001047F 00000378 (        888.) BYTE 0
+                KERNEL          00010480 0001172E 000012AF (       4783.) BYTE 0
+                EXTEND          0001172F 0001FB2E 0000E400 (      58368.) BYTE 0
+KERNEL                          0001FC00 0002FB4C 0000FF4D (      65357.) PAGE 9 NOPIC,USR,CON,REL,LCL,  SHR,  EXE,  RD,  WRT,NOVEC
+                DTINIT          0001FC00 0001FC3E 0000003F (         63.) BYTE 0
+                CRTL            0001FC3F 0001FD85 00000147 (        327.) BYTE 0
+                CONTROLC        0001FD86 0001FE7F 000000FA (        250.) BYTE 0
+                SYSTEM          0001FE80 000200FB 0000027C (        636.) BYTE 0
+                RMS             000200FC 00020934 00000839 (       2105.) BYTE 0
+                TYIO            00020935 00020CF7 000003C3 (        963.) BYTE 0
+                TERMINAL        00020CF8 00020DD0 000000D9 (        217.) BYTE 0
+                KERNEL          00020DD1 00021D4C 00000F7C (       3964.) BYTE 0
+                EXTEND          00021D4D 0002FB4C 0000DE00 (      56832.) BYTE 0
+
+                                                +-----------------+
+                                                ! Symbols By Name !
+                                                +-----------------+
+
+Symbol          Value              Symbol          Value              Symbol          Value              Symbol          Value
+------          -----              ------          -----              ------          -----              ------          -----
+.D              FFFF8118           ABORT           FFFF807C           ASSEMBLER       FFFF803C           B_GLOBAL        FFFF80D0   
+.M              FFFF811C           ADDRESS_STORAGE FFFF8000           BLK_CHAN        FFFF8128           B_KERNEL        FFFF80CC   
+
+GP2:[SAOSTOIC.KERNEL]RKERNEL.EXE;6                               4-SEP-1985 17:53        VAX-11 Linker V03-05             Page    2
+
+
+Symbol          Value              Symbol          Value              Symbol          Value              Symbol          Value
+------          -----              ------          -----              ------          -----              ------          -----
+CHANNEL_LIST    FFFF8134           JUMP_TO_ME      00000000           TTIO_TTIO       00010469-R         _MAPOPEN        000201E1-R 
+CHANNEL_PROT    000002EA-R         K_END           0002FB4D-R         TTNAME          FFFF813C           _NAME           0000032F-R 
+CHECK           FFFF8068           K_START         0001FC00-R         TTNAME0         0000030A-R         _OPEN           0002019C-R 
+CMDDESC         FFFF8138           LAST_GLOBAL     0001171A-R         TYINAME         00020FFB-R         _PROMPT         00020400-R 
+CODE_0          FFFF80B8           LAST_KERNEL     00011716-R         TYIODATA        0000030A-R         _PUT            00020333-R 
+CODE_PNTR       FFFF80A0           LINE_BUFFER     FFFF80F4           TYIOSIZE        00000001           _RANDOGET       00020410-R 
+COMPILE         FFFF8054           LITERAL         FFFF8070           TYOADDR         FFFF812C           _RANDOPUT       00020437-R 
+COMPILE_BYTE    00000008           LOOKUP          FFFF8050           TYONAME         00021006-R         _RCREATE        000201C5-R 
+COMPILE_ERROR   FFFF8088           LOOKUP_DISPATCH 00000679-R         TYPEADDR        FFFF8130           _READ           0002034B-R 
+COMP_BUF_0      FFFF8058           L_STACK_0       FFFF8024           USER_CODE       FFFF80B0           _REMSTART       00020B3C-R 
+COMP_BUF_PNTR   FFFF805C           MSG_CHANNEL     FFFF8120           USER_DATA       FFFF80C4           _REMTYPE        00020CCF-R 
+COND_CODE       FFFF8084           NADDR           FFFF814C           USER_DICTIONARY FFFF80AC           _RMSTYO         0002091B-R 
+COND_HANDLER    FFFF8008           NLEN            FFFF8148           USER_INIT       FFFF80E4           _RMSTYPE        0002090A-R 
+CONSIZE         0000000B           NSTORE          FFFF8150           UT_END          00000691-R         _ROPEN          000201BC-R 
+CONSOLE         000200FC-R         OUTINIT         0002098C-R         UT_START        000004F9-R         _RWOPEN         00020232-R 
+CRTLGLOB        0000FA53-R         OUT_CONV_STACK  FFFF8038           U_CBP           FFFF805C           _SAVE           000207F3-R 
+CRTL_CRTL       0000FA4F-R         PROMPT          FFFF80DC           U_FLOAT         FFFF8110           _SETMODE        00020B19-R 
+CTRL_C_FLAG     FFFF8014           PROMPT0         0000049A-R         U_IFI           FFFF80E8           _TYI            00020A00-R 
+CTRL_C_HANDLER  FFFF8018           PROTO_FAB       0000026E-R         U_IFM           FFFF80EC           _TYO            00020A8E-R 
+CTRL_C_TEMP     FFFF800C           PROTO_RAB       0000022A-R         U_IFT           FFFF80F0           _TYOPEN         00020935-R 
+CURRENT         FFFF80D4           PROTO_XAB       000002BE-R         U_MAG           FFFF8108           _TYPE           00020AB9-R 
+DATA_0          FFFF80BC           PUSH_THIS_WORD  0000000C           U_RAD           FFFF8114           _TYPE_GETLINE   00020A27-R 
+DATA_END        FFFF80C0           PUSH_VOCAB      00000010           U_SGN           FFFF8104           _TYPE_TYI       00020A5F-R 
+DATE            FFFF808C           P_STACK_0       FFFF801C           VARIABLE_LIST   FFFF80C8           _WOPEN          0002020E-R 
+DATE_ERROR      FFFF8094           RABLEN          00000044           VOCAB_SP        FFFF8034           _WOPEN_FTN      00020279-R 
+DAT_END         00000691-R         RANDOCHAN       FFFF8124           V_STACK_0       FFFF802C           _WOPEN_NCR      00020256-R 
+DAT_FIN         0000F691-R         RDTERM          0000036E-R         WORD_BUFFER     FFFF8100           _WRITE          0002038F-R 
+DAT_START       00000200-R         READLINE        FFFF8078           XABLEN          0000002C           _WRTBLK         00020634-R 
+DICT_0          FFFF80B4           REST_OF_LINE    FFFF80F8           _APPEND         0002029A-R         _XLOAD          00020699-R 
+DICT_BASE       FFFF80A8           RMAST           00020C58-R         _CLOSE          000202C5-R         
+DICT_END        0001FB2F-R         RMBUF           FFFF817C           _DO_MAPOPEN     000201EB-R         
+DICT_PNTR       FFFF80A4           RMICHAN         FFFF815C           _ERASE          00020185-R         
+DICT_START      0000F800-R         RMINAME         FFFF8154           _FCLOSE         0002059E-R         
+DISABLE_CTRL_C  0001FE66-R         RMOCHAN         FFFF8170           _FCREATE        0002049B-R         
+DISPATCH_ADR    FFFF804C           RMONAME         FFFF8168           _FGET           00020558-R         
+DISP_TO_R11     00000014           RMSDATA         0000022A-R         _FIL_EBK        00020137-R         
+ENABLE_CTRL_C   0001FD92-R         R_STACK_0       FFFF8020           _FIL_FFB        00020146-R         
+END_OF_CMND     FFFF8060           SSBYTE          0000001C           _FIL_FSZ        00020155-R         
+END_OF_LINE     FFFF8064           SSDATA          0000020E-R         _FIL_MRS        0002015D-R         
+ENTER           FFFF809C           SSGLOB          000100F8-R         _FIL_RAT        0002016D-R         
+ERRCHK          FFFF8074           SSSIZE          00000001           _FIL_RFM        00020165-R         
+ERROR_PC        FFFF8080           SS_CALLS        000200F8-R         _FOPEN          00020466-R         
+EXECUTE         FFFF806C           SS_KERNEL       000100F4-R         _FPUT           00020586-R         
+FABLEN          00000050           START           00020DD2-RU        _FREAD          000204D0-R         
+FLOAT           FFFF8048           STOIC           FFFF8040           _FWRITE         00020514-R         
+FLOAT_TO_STRING 0001FC40-R         STRING_TO_FLOAT 0001FC4E-R         _GET            00020305-R         
+FRAME_0         FFFF8030           SYSERR          000211C8-R         _GETBLK         00020611-R         
+F_STACK_0       FFFF8028           TIME_STRING     FFFF8098           _GETFAB         0002011A-R         
+GET_BLOCK       0001FC00-R         TTCHAN          FFFF8140           _GETMODE        00020AF6-R         
+GLOBAL          FFFF80D8           TTCHAN0         0000031D-R         _IO_CTRL_C      00020AE4-R         
+HERE_ON_CTRL_C  00021ABE-R         TTIO            FFFF8044           _MAKBLK         000205D0-R         
+IMMEDIATE       00000004           TTIOGLOB        0001046D-R         _MAPCLOSE       000202ED-R         
+
+GP2:[SAOSTOIC.KERNEL]RKERNEL.EXE;6                               4-SEP-1985 17:53        VAX-11 Linker V03-05             Page    3
+
+
+Symbol          Value              Symbol          Value              Symbol          Value              Symbol          Value
+------          -----              ------          -----              ------          -----              ------          -----
+
+
+
+
+	  Key for special characters above:
+		+------------------+
+		! *  - Undefined   !
+		! U  - Universal   !
+		! R  - Relocatable !
+		! X  - External    !
+		+------------------+
+
+GP2:[SAOSTOIC.KERNEL]RKERNEL.EXE;6                               4-SEP-1985 17:53        VAX-11 Linker V03-05             Page    4
+
+                                                 +----------------+
+                                                 ! Image Synopsis !
+                                                 +----------------+
+
+Virtual memory allocated:                         00000200 0002FDFF 0002FC00 (195584. bytes, 382. pages)
+Stack size:                                             20. pages
+Image header virtual block limits:                       1.        1. (    1. block)
+Image binary virtual block limits:                       2.       37. (   36. blocks)
+Image name and identification:                    RKERNEL 0
+Number of files:                                        13.
+Number of modules:                                      13.
+Number of program sections:                             13.
+Number of global symbols:                              856.
+Number of image sections:                               14.
+User transfer address:                            00020DD2
+Number of code references to shareable images:          28.
+Image type:                                       EXECUTABLE.
+Map format:                                       DEFAULT in file GP2:[SAOSTOIC.KERNEL]RKERNEL.MAP;6
+Estimated map length:                             76. blocks
+                                              +---------------------+
+                                              ! Link Run Statistics !
+                                              +---------------------+
+
+Performance Indicators                            Page Faults	CPU Time	Elapsed Time
+----------------------                            -----------	--------	------------
+    Command processing:                                    48	00:00:00.49	00:00:05.69
+    Pass 1:                                               212	00:00:02.27	00:00:20.33
+    Allocation/Relocation:                                 24	00:00:00.08	00:00:01.16
+    Pass 2:                                               138	00:00:03.78	00:00:22.77
+    Map data after object module synopsis:                 41	00:00:00.46	00:00:01.89
+    Symbol table output:                                    6	00:00:00.01	00:00:00.22
+Total run values:                                         469	00:00:07.09	00:00:52.06
+
+Using a working set limited to 500 pages and 320 pages of data storage (excluding image)
+
+Total number object records read (both passes):   1080
+    of which 53 were in libraries and 183 were DEBUG data records containing 75419 bytes
+
+Number of modules extracted explicitly             = 0
+    with 2 extracted to resolve undefined symbols
+
+0 library searches were for symbols not in the library searched
+
+A total of 0 global symbol table records was written
+
+/MAP=RKERNEL.MAP/NOTRACE RKERNEL/OPTIONS

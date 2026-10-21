@@ -1,0 +1,1548 @@
+	.title	KERNEL for SAO VAX/VMS STOIC
+;	*****************************************************************
+;	*								*
+;	*	This is a module of SAO VAX/VMS STOIC			*
+;	*								*
+;	*	It was created by					*
+;	*	Roger Hauck						*
+;	*	Smithsonian Institution					*
+;	*	Astrophysical Observatory				*
+;	*	Cambridge, Massachusetts  02138				*
+;	*	(617)495-7151  (FTS 830-7151)				*
+;	*								*
+;	*	This module may be reproduced				*
+;	*	provided that this title page is retained.		*
+;	*								*
+;	*****************************************************************
+
+ROGER=1
+	.enabl dbg,tbk
+	.dsabl gbl
+	.show	meb
+	.extrn	lib$signal,lib$stop,lib$sig_to_ret,ss$_resignal
+
+	.extrn	channel_list,msg_channel
+	.extrn	prefix_Link		;points to separately MACRO'ed words
+
+.macro	jsbext	parm
+	.extrn	parm
+	jsb	parm
+.endm
+
+
+	.macro newpage title
+	.page
+	.sbttl title
+	.endm
+
+;random conventions
+;true is represented by any odd word
+;and false by any even word,
+;so blbs is branch true
+
+; global register assigments
+; r11 - users table pointer
+; r10 - paramater stack pointer
+; r9 - loop stack pointer
+; r8 - dictionary pointer
+
+
+	.psect kernel,nowrt		;keep the kernel pure
+
+; assembly parameters
+p_stack_size=400			;number of longwords in stack
+l_stack_size=30				;number of longwords in loop stack
+v_stack_size=10				;number of longwords in vocab stack
+f_stack_size=1
+ust_space=30				;free user_table entries
+lkp_dsp_space=30
+line_buf_size=132.
+comp_buf_length=400
+	newpage <Roger's macros>
+	.macro	.errstop	?p1
+	blbs	r0,p1
+	pushl	r0
+	calls	#1,lib$stop
+p1:
+	.endm
+
+;----..if
+	.macro	..if
+	blbc	(r10)+,.		;branch on .FALSE.
+	.=.-1				;pointer to target
+	.save
+.=.+1
+	.endm
+
+;----notif:  i.e. NOT IF
+	.macro	..notif
+	blbs	(r10)+,.		;branch on .TRUE.
+	.=.-1
+	.save
+.=.+1
+	.endm
+
+;----..else
+	.macro	..else	?p1
+	brb	.			;displacement to be supplied
+p1=.
+	.restore
+	.byte	p1-.-1			;insert previous diplacement
+.=p1-1
+	.save
+.=.+1
+	.endm
+
+;----then:  THEN
+	.macro	..then	?p1
+p1=.
+	.restore
+	.byte	p1-.-1
+.=p1
+	.endm
+
+;----begin:  BEGIN
+	.macro	..begin
+	.save
+	.endm
+
+;----end:  logical value, END
+;    transfers to matched BEGIN if value is .FALSE.
+	.macro	..end
+	blbs	-(r10),.
+p1:
+	.restore
+p2=.-p1-1
+.=p1-1
+	.byte	p2
+	.endm
+
+;----succeed:  SUCCEED
+;    pushes .TRUE. onto the parameter stack
+	.macro	..succeed
+	movl	#1,-(r10)
+	.endm
+
+;----fail:  FAIL, 0
+;    pushes .FALSE. onto parameter stack
+	.macro	..fail
+	clrl	-(r10)
+	.endm
+	newpage <Stacks>
+
+	.psect impure,page
+
+;----buffer page
+MOAT_:
+moat1:	.blkl	1
+	.align	page
+
+;----parameter stack
+	.blkl p_stack_size
+	.align	page
+parameter_stack:
+
+;----buffer page
+	.blkl	1
+	.align	page
+
+;----loop stack
+	.blkl l_stack_size
+	.align	page
+loop_stack:
+
+;----buffer page
+	.blkl	1
+	.align	page
+
+;----vocabulary stack
+	.blkl v_stack_size
+	.align	page
+.=.-4
+i_v_stack:
+	.long b_kernel			;kernelinitial on v_stack
+vocab_stack:
+
+;----buffer page
+	.blkl	1
+	.align	page
+
+	newpage <Macros>
+
+.macro	string	strng
+loc=.
+	.blkw	1
+	.ascii	strng
+len=.-loc-2
+.=loc
+	.word	len
+	.blkb	len
+.endm
+
+;----HEADER:  (this macro makes a STOIC word header and links it)
+;stores link,name,lookup atribute
+;----sample header
+	.psect kernel
+	.long	prefix_link
+	kernel=.-4
+	.ascic	/NULL/			;name of this word is "NULL"
+	.byte	jump_to_me		;lookup attribute
+	rsb				;null definition, just returns
+;----end of example
+.macro	header macname,name=<>,lookup_atr=jump_to_me,-
+			branch=kernel
+	.long branch			;linkonto last word of branch
+	branch=.-4			;set branch to point to here
+	.nchr nchr,^!name!
+.if	le,nchr
+	.ascic	/macname/
+.endc
+.if	gt,nchr
+	.ascic	/name/			;store the name and count
+.endc
+	.byte lookup_atr
+macname:
+	.endm
+
+
+	.macro dlte	name,init=0,?p1	;macro to defin a longword
+
+	name=table_offset		;table entry, sets name to
+	foo=.				;remember this address
+	.long init			;name and initial value to init
+	table_offset=table_offset+4
+	.save				;remember where we were
+
+	.psect kernel			;and make a stoic word
+	header p1,name,push_this_word	;that will push the address
+	.long foo
+	.restore
+	.endm
+
+	.macro newtab			;start a new table
+	table_offset=0
+	.endm
+
+.macro	pages	count			;reserve count pages
+	.rept	count
+	.align	page
+	.byte	-1
+	.endr
+.endm
+
+.macro	svariable	sname,length,str=<>
+	.word	length
+	.nchr	len,^"str"
+sname:	.word	len
+	.ascii	"str"
+. = sname
+	.blkw	1
+	.blkb	length
+.endm
+	newpage <Table Definitions>
+
+	.psect impure
+;user table
+user_table:	newtab
+	dlte	COND_HANDLER,i_cond_handler
+	dlte	CTRL_C_TEMP		;terminal channel for control-c
+	.long	1			;temporary for control-c
+	table_offset=table_offset+4	
+	dlte	CTRL_C_FLAG		;flag which is set on control-c
+	dlte	CTRL_C_HANDLER,i_ctrl_c_hndlr
+	dlte	P_STACK_0,parameter_stack	;initial p stack pointer
+	dlte	R_STACK_0		;initial return stack pointer
+	dlte	L_STACK_0,loop_stack	;initial loop stack pointer
+	dlte	V_STACK_0,vocab_stack	;initial vocab stack pointer
+	dlte	VOCAB_SP,i_v_stack	;vocabulary stack pointer
+	dlte	ASSEMBLER		; ASSEMBLER dictionary branch
+	dlte	STOIC			;STOIC branch
+	dlte	FREE_USER_SPACE,ust_space	;number of free words left
+	dlte	FREE_LKP_SPACE,lkp_dsp_space	;dispatch table space
+	dlte	DISPATCH_ADR,lookup_dispatch	;pntr to dispatch table
+	dlte	LOOKUP,i_lookup
+	dlte	COMPILE,i_compile
+	dlte	COMP_BUF_0,comp_buf
+	dlte	COMP_BUF_PNTR		;compile buffer pointer
+	dlte	END_OF_CMND		;compile end of command
+	dlte	END_OF_LINE		;compile end of line
+	dlte	CHECK			;if level
+	dlte	EXECUTE,i_execute	;execute word
+	dlte	LITERAL,i_literal	;literal handler
+	dlte	ERRCHK,i_errchk		;error checker
+	dlte	READLINE,i_readline
+	dlte	ABORT,i_abort
+	dlte	ERROR_PC		;pc saved by condition handler
+	dlte	COND_CODE		;conition code from error handler
+	dlte	COMPILE_ERROR,i_compile_error
+	dlte	ENTER,i_enter
+	dlte	DICT_PNTR,dictionary	;dictionary pointer
+	dlte	CURRENT,b_kernel	;current dictionary branch
+	dlte	PROMPT,prompt0		;address of prompt string
+	dlte	USER_INIT,i_user_init		;user initializer
+
+	dlte	U_IFI			;input fab indexfab number
+	dlte	U_IFM,3			;max. fab #
+	dlte	U_IFT,channel_list ;file access table
+	dlte	LINE_BUFFER,i_line_buffer
+	dlte	REST_OF_LINE
+	.long	i_line_buffer		;(this is a quadword entry)
+table_offset=table_offset+4
+	dlte	WORD_BUFFER,i_word_buffer
+	dlte	U_SGN			;sign for iliteral
+	dlte	U_MAG			;magnitude for iliteral
+	dlte	U_RAD,16		;radix
+	dlte	.D			;next free data location
+	dlte	.M			;first unavailable memory loc.
+
+u_cbp=comp_buf_pntr
+
+	dlte	UST_TEMP		;space for users entries
+	.blkl ust_space
+lookup_dispatch:
+	newtab				;lookup atribute bytes dispatch through here
+	dlte	JUMP_TO_ME,i_jump_to_me	;compiles a jump to its arg
+	dlte	IMMEDIATE,i_immediate	;execute at compile time
+	dlte	COMPILE_BYTE,i_compile_byte	;compiles a byte
+	dlte	PUSH_THIS_WORD,i_push_this_wd	;constant
+	dlte	PUSH_VOCAB,i_push_vocab		;branch
+	dlte	LKP_DSP_TEMP		;temporaries for user use
+	.blkl lkp_dsp_space
+
+
+	newpage <Kernel Code>
+
+	.psect kernel
+
+	.entry	start,^m<r2,r3,r4,r5,r6,r7,r8,r9,r10,r11>
+	moval user_table,r11		;set up users_table to get sp
+	movl sp,r_stack_0(r11)		;save so abort can restore
+	jsb	reset_registers		;setup registers
+
+; Crank up the console.
+	moval	prompt0,-(r10)		;->prompt string
+	bsbw	newprompt		;install prompt in rab
+
+	moval	tyiname,-(r10)		;->"SYS$INPUT"
+	movl	u_ifi(r11),-(r10)	;channel # (0)
+	jsb	open
+;	open console for QIO, i.e. TYI
+	jsbext	_tyopen
+	movl	(r10)+,r0
+	.errstop
+
+;enable ctrl-c interrupt
+	bsbw	enab_ctrl_c
+
+;open message channel
+	moval	tyoname,-(r10)
+	movl	msg_channel,-(r10)
+	jsb	open
+
+;user initialization
+	jsb	@user_init(r11)
+	jmp	top_loop		;take off
+
+header	I_USER_INIT
+	moval welcome,-(r10)
+	bsbw cr
+	bsbw msg
+	rsb
+
+	.list	me
+tyiname:: string	/SYS$INPUT/
+tyoname:: string	/SYS$OUTPUT/
+welcome:  string	</Welcome to the STOIC kernel./>
+	.nlist	me
+
+top_loop:
+;	jsb	@errchk(r11)		;check the stacks
+	movl comp_buf_0(r11),comp_buf_pntr(r11)	;init compile buf pntr
+	clrl check(r11)
+	clrl end_of_cmnd(r11)
+1$:	clrl end_of_line(r11)		;set up some flags
+	jsb @readline(r11)		;read a line
+;eof check
+	blbs	(r10)+,20$		;if not end of file
+	bsbw	semif			;down a level on file stack
+	brb	1$
+20$:
+	jsb @compile(r11)		;compile it
+	blbs end_of_cmnd(r11),1$	;not end of cmnd,read somore
+	tstl check(r11)			;pending ; or then?
+	bneq 1$				;yes read more
+	jsb @execute(r11)		;execute the line
+	brb top_loop			;and go again
+
+
+done:	ret
+
+i_cond_handler:				;default condition handler
+	.word	0			;entry mask
+	movl	4(ap),r0		;0->signal array
+	movl	(r0),r1			;1<# args
+	movl	-4(r0)[r1],error_pc(r11)  ;save user pc
+	movl	4(r0),cond_code(r11)	;save condition code
+	movl	abort(r11),-4(r0)[r1]	;set restart address to abort
+	bicl2	#7,4(r0)		;clear severity code
+	movzwl	#ss$_resignal,r0	;signal resignal
+	ret
+
+header I_ABORT
+	bsbw	reset_registers
+	movl	r_stack_0(r11),sp	;re-initialize return stack
+	brb	top_loop		;take off
+
+header RESET_REGISTERS
+	moval user_table,r11		;initialize user table pointer
+	movl cond_handler(r11),(fp)	;condition handler,
+	movl p_stack_0(r11),r10		;and stack pointers
+	movl l_stack_0(r11),r9
+	moval dictionary,r8		;set up dictionary pointer
+	rsb
+
+;----COMPILE_ERROR:  message pointer, COMPILE_ERROR
+;	types message, returns to console level, aborts
+header I_COMPILE_ERROR
+	bsbw	cr
+	bsbw	msg			;error message
+	moval	comp_err_msg,-(r10)
+	bsbw	msg
+	movl	word_buffer(r11),-(r10)	;word where compilation failed
+	bsbw	msg
+	moval	comp_err_msg1,-(r10)
+	bsbw	msg
+	bsbw	cr
+	movl	line_buffer(r11),-(r10)	;line where compilation failed
+	bsbw	msg
+	bsbw	cr
+	bsbw	load_reset
+	bsbw	i_abort
+
+comp_err_msg:	string	</ error compiling...  />
+comp_err_msg1:	string	</  ...in line/>
+
+;----FATAL:  FATAL
+;	expects message pointer on return stack,
+;	types message and does abort.
+header FATAL
+	movl	(sp)+,-(r10)
+	bsbw	msg
+	jmp	@abort(r11)
+
+;----SYSERR:  condition code, SYSERR
+;	signals condition & aborts if condition code is even
+.LIST	ME
+header SYSERR
+.NLIST	ME
+	blbc	(r10)+,20$		;if error
+	rsb
+20$:	pushl	-(r10)
+	calls	#1,lib$signal
+	halt				;should never get here
+
+	newpage <Compile>
+
+	.psect impure
+comp_buf:
+	.blkl comp_buf_length		;compile buffer
+
+	.psect kernel
+;compile:
+;compile a word from the line buffer
+;by looking it up and if found dispatching
+;through its lookup attribute or calling
+;the literal handler
+header I_COMPILE
+	blbs end_of_line(r11),comp_pop	;check eol flag
+	bsbw word			;get a word from linbuf
+	blbc (r10)+,comp_pop		;no more words so return
+	jsb @lookup(r11)		;lookup the word
+	blbc (r10)+,comp_lit		;not found maybe its a literal
+	movl (r10),r0			;found it so find lookup atr
+	movzbl -1(r0),r0		;and convert to lonword
+	jsb @lookup_dispatch(r0)	;and dispatch off it
+	brb i_compile
+comp_pop:
+	rsb
+
+comp_lit:
+	jsb @literal(r11)		;see if the word is a literal
+	blbs (r10)+,i_compile		;yes,on to next word
+	bsbw type			;no, type word
+	moval undef_msg,-(r10)		;this should be changed when
+	jsb	@compile_error(r11)	;compile_error out
+undef_msg:
+	string	/undefined/
+
+	newpage <Literal Handlers>
+;----digit:  DIGIT, success
+;    looks at present character in present word,
+;    checks that it represents a valid digit under current radix,
+;    if so, converts it and adds it to (radix times current magnitude).
+header DIGIT
+	tstl	r0
+	bleq	not_digit
+	movb	(r1),r2			;2<current character
+	subl2	#^a/0/,r2		;bias is "0"
+	blss	not_digit
+	subl2	#10,r2			;bias is "9" + 1
+	blss	nume
+	subl2	#<^a/A/-^a/0/-10>,r2	;bias is "A"
+	blss	not_digit
+	subl2	#<^a/Z/-^a/A/+1>,r2	;bias is "Z" + 1
+	blss	alph
+not_digit:
+	clrl	-(r10)			;fail
+	rsb
+
+alph:	addl2	#<^a/Z/-^a/A/+1>,r2	;bias is "A"
+nume:	addl2	#10,r2			;bias is "0" for numeral
+					;        "A"+10 for alph.
+					;0 .le. n .le. 35
+	cmpl	r2,u_rad(r11)		;compare to radix
+	bgeq	not_digit
+	mull2	u_rad(r11),u_mag(r11)	;shift left one position
+	addl2	r2,u_mag(r11)		;add current digit
+	decl	r0			;chop current character from word
+	incl	r1
+	movl	#1,-(r10)		;succeed
+	rsb
+
+;----ceq:  ASCII character, CEQ, success
+;    compares character to first byte in current string
+header CEQ
+	cmpb	(r10),(r1)
+	beql	20$			;if equal
+	clrl	(r10)
+	brb	30$
+20$:	movl	#1,(r10)
+30$:	rsb
+	
+;----icompile:  ICOMPILE
+;    compiles converted integer literal
+header ICOMPILE
+	movl	u_cbp(r11),r2		;r2->nenext loc. in compile buf.
+	movw	#^x8fd0,(r2)+		;compile "MOVL #"
+	movl	(r10)+,(r2)+		;push number onto compile buffer
+	movb	#^x7a,(r2)+		;compile "-(r10)"
+	movl	r2,u_cbp(r11)		;restore pointer
+	rsb
+;----scompile:  SCOMPILE
+;    compiles string literal
+header SCOMPILE
+	moval	run_sliteral,-(r10)	;run-time literal handler
+	pushr	#^m<r0,r1>		;save r0 and r1 through call
+	bsbw	i_jump_to_me
+	popr	#^m<r0,r1>		;restore r0 and r1
+	movl	u_cbp(r11),r3		;3->next loc. in compile buf.
+	movw	r0,(r3)+		;length of string
+	movc	r0,(r1),(r3)		;string
+	movl	r3,u_cbp(r11)		;updated compile buffer pointer
+	rsb
+
+;----run_sliteral
+;    run-time string-literal processor
+run_sliteral:
+	movl	(sp)+,r0		;string pointer
+	movl	r0,-(r10)
+	movzwl	(r0)+,r1		;1<length
+	addl2	r0,r1			;skip string
+	jmp	(r1)
+
+;----sign:  SIGN
+;    Stores 0 as current magnitude.
+;    Examines first character in present string:
+;    if "-", stores -1 as current sign;
+;    otherwise, stores +1 as current sign.
+header SIGN
+	clrl	u_mag(r11)		;clear magnitude
+	movl	#^a/-/,-(r10)		;push ASCII -
+	bsbw	ceq			;character equal?
+	..if
+	movl	#-1,u_sgn(r11)
+	decl	r0			;drop "-" from word
+	incl	r1
+	..else
+	movl	#1,u_sgn(r11)
+	..then
+	rsb
+;
+;*************** General input conversion for numbers *************************
+;		               18.XII.81
+;			     W. Wiitanen, GMR
+;
+; This modification handles:
+;	1. Conversions selected by active radix:
+;		a. Hex integer
+;		b. Decimal integer
+;		c. Decimal floating point
+;		d. Octal integer
+;		e. Other radix determined integer
+;	2. Conversions selected by local radix qualifier
+;		a. ^X -- hex integer
+;		b. ^D -- decimal integer or floating point
+;		c. ^O -- octal integer
+;
+; Note that conversion from binary formats can be effected through the
+; programs in the SS module called $FAO (formatted ASCII output), and
+; FOR$CNV_OUT_G (Fortran G-format output for floating-point).
+;
+		.EXTRN	FOR$CNV_IN_Z,FOR$CNV_IN_I
+		.EXTRN	FOR$CNV_IN_O,FOR$CNV_IN_DEFG
+F_iliteral:	MOVQ	(R10),DESCRIPTOR	;GET DESCRIPTOR OF STRING
+		MOVQ	(R10),R0		;PUT INTO R0,R1 ALSO
+		CMPB	#^A/"/,(R1)		;QUOTE MARK? (=STRING)
+		BEQLU	CONV_NG			;YES. EXIT
+		CMPB	#^A/'/,(R1)		;NO. APOSTROPHE? (=STRING)
+		BEQLU	CONV_NG			;YES. EXIT
+		MOVL	#2,ARG_LIST		;NO. SET UP MOST COMMON CASE
+		CMPB	#^A/^/,(R1)		;LOCAL QUALIFIER?
+		BNEQ	1$			;NO. DO RADIX TESTS
+		BRW	LOCAL_QUAL		;YES. TRY IT
+1$:		CMPL	#^X10,U_RAD(R11)	;TEST RADIX FOR HEX
+		BNEQU	TEST_DEC		;NO. TRY DECIMAL
+HEX_CON:	MOVL	#1,U_SGN(R11)		;YES. SET SIGN TO +
+		CMPB	#^A/-/,(R1)		;IS THERE A LEADING "-"?
+		BNEQU	TEST_PLUS		;NO. TRY "+"
+		MOVL	#-1,U_SGN(R11)		;YES. ALTER SIGN
+SET_SGN:	INCL	DESCRIPTOR+4		;BYPASS SIGN
+		DECL	DESCRIPTOR		;ADJUST LENGTH
+		BRB	HEX_CNV			;DO CONVERSION
+TEST_PLUS:	CMPB	#^A/+/,(R1)		;NOT "-". CHECK FOR "+"
+		BEQLU	SET_SGN			;YES. BYPASS IT
+HEX_CNV:	CALLG	ARG_LIST,FOR$CNV_IN_Z	;HEX INTEGER
+		MULL3	U_SGN(R11),TEMP,TEMP	;CORRECT SIGN
+		BLBS	R0,CONV_OK		;CONVERTED OK
+CONV_NG:	..fail
+		RSB
+CONV_OK:	ADDL2	#8,R10			;SCRAP DESCRIPTOR
+		MOVL	TEMP,-(R10)		;STACK RESULT
+		MOVL	(R10),U_MAG(R11)	;SAVE MAGNITUDE
+		..succeed
+		RSB
+
+; Not hex radix. Try decimal
+TEST_DEC:	CMPL	#^X0A,U_RAD(R11) ;RADIX DECIMAL?
+		BNEQU	TEST_OCT	;NO. TRY OCTAL
+DEC_CON:	CALLG	ARG_LIST,FOR$CNV_IN_I ;TRY A DECIMAL INTEGER
+		BLBS	R0,CONV_OK	;OK. EXIT WITH CONVERTED VALUE
+; Not decimal integer. Try floating point
+		MOVL	#4,ARG_LIST	;SET UP ARGUMENT COUNT
+		CALLG	ARG_LIST,FOR$CNV_IN_DEFG ;TRY FLOATING POINT
+		BLBS	R0,CONV_OK	;OK. EXIT WITH FLOATING POINT
+		BRB	CONV_NG		;NO GOOD. EXIT
+; Not decimal radix. Try octal
+TEST_OCT:	CMPL	#^X8,U_RAD(R11)	;RADIX OCTAL?
+		BNEQU	SPECIAL_CASE	;USE STANDARD STOIC INTEGER CONV.
+OCT_CON:	CALLG	ARG_LIST,FOR$CNV_IN_O ;TRY OCTAL INTEGER
+		BLBS	R0,CONV_OK	;OK. EXIT
+		BRB	CONV_NG		;NO GOOD. EXIT
+; Special case of nonstandard radix. Use original STOIC code.
+SPECIAL_CASE:	BSBW	ILITERAL	;CALL ORIGINAL CODE
+		RSB			;AND EXIT TO I_LITERAL (= @LITERAL)
+; Decipher local qualifiers ^X, ^D, ^O
+LOCAL_QUAL:	ADDL2	#2,DESCRIPTOR+4	;SKIP QUALIFIER STUFF
+		SUBL2	#2,DESCRIPTOR	;ADJUST COUNT
+		CMPB	#^A/X/,1(R1)	;IS IT HEX?
+		BNEQU	1$		;NO. TRY DECIMAL
+		BRW	HEX_CON		;YES. CONVERT IT
+1$:		CMPB	#^A/D/,1(R1)	;NO. IS IT DECIMAL?
+		BEQLU	DEC_CON		;YES. CONVERT IT
+		CMPB	#^A/O/,1(R1)	;NO. IS IT OCTAL?
+		BEQLU	OCT_CON		;YES. CONVERT IT
+		BRW	CONV_NG		;NONE OF THE ABOVE. ERROR
+		.PSECT	impure
+DESCRIPTOR:	.QUAD	0		;HOLDS STRING DESCRIPTOR
+ARG_LIST:	.LONG	2		;ARGUMENT LIST FOR CALLG
+		.LONG	DESCRIPTOR	;INPUT STRING DESCRIPTOR ADDRESS
+		.LONG	TEMP		;RESULT ADDRESS
+		.LONG	0		;ASSUMED DECIMALS
+		.LONG	0		;SCALE FACTOR
+TEMP:		.QUAD	0		;WHERE THE ANSWER IS
+		.PSECT	kernel	
+;
+;**********************END OF ADDED CODING*********************************
+;
+;----iliteral:  ILITERAL, success
+;    attempts to compile current word as an integer
+header ILITERAL
+	movq	(r10),r0		;descriptor
+	bsbw	sign
+20$:
+	bsbw	digit			;interpret next digit
+	blbs	(r10)+,20$
+	tstl	r0
+	bleq	30$			;if no invalid digit
+	..fail
+	rsb
+30$:
+	addl2	#8,r10			;drop original descriptor
+	mull3	u_sgn(r11),-
+		u_mag(r11),-(r10)	;put longword literal
+	..succeed
+	rsb
+
+;----sliteral:  SLITERAL, success
+;    attempts to compile current word as a string
+header SLITERAL
+	movq	(r10),r0		;0,1<word descriptor
+					;1->word
+	movl	#^a/"/,-(r10)		;push double quote
+	bsbw	ceq			;compare to first character
+	..if
+	decl	r0			;lop off trailing double quote
+	..succeed
+	..else
+	movl	#^a/'/,-(r10)		;push single quote
+	bsbw	ceq			;compare to first character
+	..then
+	..if
+	decl	r0			;remove leading quote
+	incl	r1
+	bsbw	scompile		;compile string literal
+	addl2	#8,r10			;drop string pointer
+	..succeed
+	..else
+	..fail
+	..then
+	rsb
+
+;----literal:  LITERAL, success
+;    attempts to compile current word as an integer or string
+header I_LITERAL
+	BSBW	F_ILITERAL	;MODIFIED CALL 18.XII.81 -- W.W.
+	..if
+	bsbw	icompile		;compile number (32 bits)
+	..succeed
+	..else
+	bsbw	sliteral
+	..then
+	rsb
+	newpage <Execute>
+	op_rsb=^x05
+;execute the compile buffer
+header I_EXECUTE
+	movb #op_rsb,@comp_buf_pntr(r11);put in a return
+	incl comp_buf_pntr(r11)		;push the compile pntr
+	jmp comp_buf			;and jump into the buffer
+
+	newpage <Colon Definition>
+
+;colon
+;at read time compile a call to int_colon
+;and save a space in the compile buffer for
+;the count of bytes in the definition, that
+;will be filled in by ;
+header COLON,<:>,immediate
+	tstl check(r11)			;check has to be 0
+	bneq syntax_error		;or its a syntax error
+	incl check(r11)			;flag define mode
+	moval int_colon,-(r10)		;compile a call to
+	bsbw i_jump_to_me		;int_colon
+	movl comp_buf_pntr(r11),-(r10)	;save the compile pntr
+	addl2 #2,comp_buf_pntr(r11)	;space for the count
+	rsb
+
+;int_colon
+;called when s colon was found on input
+;copies the compile buffer to te end of the
+;dictionary making a new word
+int_colon:
+	jsb @enter(r11)			;set up the header
+	movb #jump_to_me,@dict_pntr(r11);set up lookup atr
+	incl dict_pntr(r11)		;to jump to me
+	movl (sp),r0			;get a pntr to the code
+	tstw (r0)+			;step past count
+	movc3 @(sp),(r0),@dict_pntr(r11);copy the code
+	movl r1,(sp)			;return to after word
+	movl r3,dict_pntr(r11)		;update end of dict
+	rsb
+
+; ;
+; terminate a colon definition
+; at read time put an rsb in the buffer
+; and set up the count for int_colon
+header SEMI_COLON,<;>,immediate
+	decl check (r11)
+	bneq syntax_error		;check was not 1 so err
+	movb #op_rsb,@comp_buf_pntr(r11);stick in a rsb
+	incl comp_buf_pntr(r11)
+	movl (r10),-(r10)		;dup pointer to count
+	addl2 #2,(r10)			;move to actual code
+	subl2 comp_buf_pntr(r11),(r10)	;compute count
+	mnegl (r10),(r10)
+	cvtlw (r10)+,@(r10)+		;and store it
+	rsb
+
+;give a syntax error message
+syntax_error:
+	moval syntax_msg,-(r10)		;print the msg
+	jmp @compile_error(r11)		;and error out
+
+; (:)
+; deferred colon (do a colon at execute time.)
+header defer_colon,<(:)>,immediate
+	decl	check(r11)
+	bsbw	colon
+	rsb
+
+; (;)
+; deferred semicolon (do a semicolon at execute time)
+header defer_semi,<(;)>,immediate
+	bsbw	semi_colon
+	incl	check(r11)
+	rsb
+
+; enter
+; create a new stoic word setting up the name and the
+; link
+header I_ENTER
+	movl	dict_pntr(r11),r0	;remember where we are
+	movl	@current(r11),(r0)+	;store new link
+	movl	dict_pntr(r11),@current(r11)  ;splice in
+	movl	(r10)+,r1		;r1->name string
+	cvtwb	(r1),(r0)+		;copy count
+	movc3	(r1)+,(r1),(r0)		;copy name
+	movl	r3,dict_pntr(r11)	;move end of dict
+	rsb
+
+syntax_msg:
+	string	</Syntax Error/>
+	newpage <assembler>
+
+;----cpush:  byte, CPUSH  (pushes a byte into the compile buffer)
+header CPUSH
+	cvtlb	(r10)+,@u_cbp(r11)
+	incl	u_cbp(r11)
+	rsb
+
+;----cpop:  CPOP, byte  
+;	pops last byte from copile buffer onto parameter stack
+header CPOP
+	decl	u_cbp(r11)
+	movzbl	@u_cbp(r11),-(r10)
+	rsb
+
+;word to create new assembly constants
+;given a name on the top and a number at top-1
+;makes the name into a word that will compile
+;the number (as a byte) into the compile
+;buffer at read time
+;
+;example
+;	d0 'movl ac
+;will make movl be a word that compiles a d0
+header AC
+	jsb @enter(r11)			;enter the new name
+	movb #compile_byte,@dict_pntr(r11)  ;set lookup atr to
+	incl dict_pntr(r11)		;compile byte
+	cvtlb (r10)+,@dict_pntr(r11)	;write the byte on the
+	incl dict_pntr(r11)		;stack into the def
+	rsb
+
+;----LOOKUP_ATTRIBUTE:  LOOKUP_ATTRIBUTE, address
+header LKP_ATTR,<LOOKUP_ATTRIBUTE>
+	addl3	#5,@current(r11),r0	;0->first byte of name of entry
+	movzbw	-1(r0),r1		;1<length of name
+	addl3	r0,r1,-(r10)		;address of attribute byte
+	rsb
+
+	newpage <Lookup>
+
+;given a string descriptor on the top of
+;the stack, lookup searches the branches of the vocabulary
+;stack and returns either true on top and the address
+;of the definition at top-1 or false at top and
+;the original string descriptor at top-1
+
+header I_LOOKUP
+	movq	(r10)+,r4		;descriptor of word to be found
+	pushl r6			;get a free register
+	movl vocab_sp(r11),r6		;get the vocabulary stack pointer
+1$:	cmpl r6,v_stack_0(r11)		;is the vstack empty
+	beql lookup_lose		;if so weve lost
+	movl (r6)+,-(r10)		;otherwise check the branch
+	bsbb try_branch
+	blbc (r10)+,1$			;not found try again
+push_true:
+	movl #1,-(r10)			;push a true
+	popl r6
+	rsb				;found it,pass it back
+lookup_lose:
+	movq	r4,-(r10)		;push original string descriptor
+	clrl -(r10)			;push a false
+	popl r6
+	rsb
+
+;given a pointer to a dictionary branch at top and a string descriptor
+;in r4-r5, search the branch for the string and return
+;either true and the address of the word found
+;or false
+try_branch:
+	movl @(r10),(r10)		;move down the link
+	beql branch_empty		;0 means the end
+	bsbb match			;match the two strings
+	blbc (r10)+,try_branch		;no match so try again
+	mnegl #1,-(r10)			;and push a true
+	rsb
+branch_empty:
+	clrl (r10)			;clobber top of stack to false
+	rsb
+
+;match
+;given address of entry at top
+;and a pattern descriptor in r4-r5
+;and an entry-name descriptor in r0-r1,
+;returns address of code in entry and true on match
+;otherwise address of entry and false
+header MATCH
+	addl3	#4,(r10),r1		;r1->entry name
+	cvtbl	(r1)+,r0		;ro-r1>entry-name descriptor
+	cmpl	r0,r4			;are strings of equal length?
+	bneq	nomatch			;if not equal
+	cmpc3	r0,(r1),(r5)		;compare the words
+	bneq	nomatch
+	moval	1(r1),(r10)		;clobber stack with pointer to code
+	mnegl	#1,-(r10)		;succeed
+	rsb
+
+nomatch:	clrl	-(r10)
+	rsb
+	newpage <Lookup Attribute Handlers>
+
+	op_jsb=^x16
+	op_movl=^xd0
+	op_absolute=^x9f
+	op_auto_dec=^x7a
+	word_disp=^xc8
+;compile a jump to the address
+;and the top of the stack
+header I_JUMP_TO_ME
+	movl comp_buf_pntr(r11),r0	;get pointer to compile buffer
+	movb #op_jsb,(r0)+		;put in a jsb
+	movb #word_disp,(r0)+		;adr mode of word displacement
+	subl r8,(r10)			;get offset from dictionary
+	cvtlw (r10)+,(r0)+		;push in word displacement
+	movl r0,comp_buf_pntr(r11)	;restore pointer
+	rsb
+
+;execute at compile time
+i_immediate:
+	jmp @(r10)+			;jump through the p stack
+
+;directly compile the byte in the definition
+;into the compile buffer
+header I_COMPILE_BYTE
+	movzbl @(r10)+,@comp_buf_pntr(r11)  ;move the byte into
+	incl comp_buf_pntr(r11)		;the buffer and inc the pntr
+	rsb
+
+;push the word following the lookup atr
+header I_PUSH_THIS_WD
+	movl comp_buf_pntr(r11),r0
+	movb #op_movl,(r0)+		;compile a movl #foo,-(r10)
+	movb #op_absolute,(r0)+		;@# mode
+	movl (r10)+,(r0)+		;the address of the word
+	movb #op_auto_dec,(r0)+		;and a destination of -(r10)
+	movl r0,comp_buf_pntr(r11)	;restore pointer
+	rsb
+
+;----<INLINE>  (used in support of inline code facility)
+header	INT_INLINE,^/<INLINE>/
+	movl	(sp)+,r1		;r1->count of command string
+	movl	comp_buf_pntr(r11),r3	;r3 is compile buffer pointer
+	movc3	(r1)+,(r1),(r3)		;move command string
+	movl	r3,comp_buf_pntr(r11)	;restore pointer
+	jmp	(r1)			;rsb
+	newpage <Error Stuff>
+
+;error check routine
+i_errchk:
+	rsb				;to be written
+
+	newpage <File input, RMS interface>
+;buffers & control blocks
+	.psect	impure
+	svariable	i_line_buffer,line_buf_size
+	svariable	i_word_buffer,line_buf_size
+
+out_conv_stack:
+	.address	ocsb,ocse,ocse
+ocsb:	.blkb	40
+ocse:
+
+	.list	me
+prompt0:: string	^$<^x20><^x0D><^x0A><^x30><^x3E><^x20>$
+					;BL,CR,LF,0,>,BL
+	.nlist	me
+
+	.psect kernel
+	.page
+;----PREOPEN:  filename, channel, PREOPEN, strptr., len., channel
+;	(does an XCOUNT on the file name)
+preopen:
+	movl	(r10)+,r0		;save channel number
+	movzbl	@(r10),-(r10)		;push count
+	incl	4(r10)			;bump pointer
+	tstb	@4(r10)			;first byte zero?
+	bneq	20$			;no
+	incl	4(r10)			;yes, bump pointer again
+20$:
+	movl	r0,-(r10)		;restore channel #
+	rsb
+
+;----OPEN:  filename, channel, OPEN
+header OPEN
+	bsbb	preopen
+	jsbext	_open
+	movl	(r10)+,r0
+	.errstop
+	rsb
+
+;----.OPEN: filename descriptor, channel, .OPEN, condition code
+header .OPEN
+	jsbext	_open
+	rsb
+
+;----.WOPEN: filename ptr., filename len., channel, WOPEN, cond. code
+header .WOPEN
+	jsbext	_wopen
+	rsb
+
+;----WOPEN:  filename, channel, WOPEN
+header WOPEN
+	bsb	preopen
+	bsb	.wopen
+	movl	(r10)+,r0
+	.errstop
+	rsb
+
+;----.APPEND: filename ptr., filename len., channel, APPEND, cond. code
+header .APPEND
+	jsbext	_append
+	rsb
+
+;----APPEND:  filename, channel, APPEND
+header APPEND
+	bsbw	preopen
+	bsb	.append
+	movl	(r10)+,r0
+	.errstop
+	rsb
+
+;----ROPEN:  filename, channel, ROPEN
+header ROPEN
+	bsbw	preopen
+	jsbext	_ropen
+	movl	(r10)+,r0
+	.errstop
+	rsb
+
+;----inch:  inch, pointer to current input channel
+header INCH
+	movl	u_ifi(r11),-(r10)
+	rsb
+
+;----NEXTINCH:  NEXTINCH
+;	increments input channel #
+header NEXTINCH
+	movq	u_ifi(r11),r0
+	incl	r0
+	cmpl	r0,r1
+	bgtr	20$			;if table overflow
+	movl	r0,u_ifi(r11)
+	movl	r0,-(r10)
+	rsb
+20$:	jsb	fatal
+	string	</Input file table overflow./>
+
+;----LASTINCH:  LASTINCH, inch
+header LASTINCH
+	decl	u_ifi(r11)		;decrement input file #
+	blss	20$			;if index underflow
+	brb	inch
+20$:
+	ret				;normal exit from STOIC
+
+;----LOAD: file name, LOAD
+header LOAD
+	bsbw	nextinch
+	bsbw	open
+	rsb
+
+;----CLOSE:  STOIC channel #, CLOSE
+header CLOSE
+	.extrn	_close
+	jsb	_close
+	movl	(r10)+,r0		;condition code
+	.errstop
+	rsb
+
+;----;F
+header SEMIF,<;F>
+	jsb	inch
+	jsb	close
+	jsb	lastinch
+	tstl	(r10)+			;drop channel #
+	rsb
+
+;----LOAD_reset:  LOAD_reset
+;	cancels all active LOAD's, forcing input from console
+header LOAD_RESET
+	brb	20$
+30$:
+;...loop, closing out input files
+	jsb	semif
+20$:	tstl	u_ifi(r11)		;input file index
+	bgtr	30$			;if not yet at console level
+	rsb
+
+;----.GET:  buffer, len, chan, GET, ret. len, condition code
+header .GET
+	jsbext	_get
+	rsb
+
+;----GET:  buffer, maxlen, chan, GET,
+;	[ret. len., -1 (if not EOF)] or [0 (if EOF)]
+header GET
+	jsb	.get
+	jsb	syserr
+	blbs	(r10),20$		;if not EOF
+	movl	(r10)+,(r10)		;EOF, don't return count
+20$:	rsb
+
+;----GET_STRING:  string, chan, GETSTRING
+header	GET_STRING
+	movq	(r10),r2
+	addl3	s^#2,r3,(r10)		;buffer address
+	movzwl	-2(r3),-(r10)		;buffer length
+	movl	r2,-(r10)		;channel
+	jsb	.get
+	jsb	syserr
+	movq	(r10)+,r0
+	cvtlw	r1,@(r10)+		;return count
+	movl	r0,-(r10)		;eof code
+	rsb
+
+;----PUT:  buffer, maxlen, chan, PUT
+header PUT
+	jsbext	_put
+	jsb	syserr
+	rsb
+
+;----RANDOGET: record #, buffer, length, chan., RANDOGET,-
+;	returned length, condition code
+	.extrn	_randoget
+header RANDOGET
+	jsb	_randoget
+	rsb
+
+;----RANDOPUT: record #, buffer, length, RANDOPUT,condition code
+header RANDOPUT
+	.extrn	_randoput
+	jsb	_randoput
+	rsb
+
+newpage <READLINE, PROMPT>
+;----READLINE:  % READLINE, not(eof)
+;    reads a line into line buffer from current input device
+header	I_READLINE
+	addb3	#^a/0/,check(r11),prompt0+5 ;put check in prompt msg.
+	movl	line_buffer(R11),-(R10)	;line buffer
+	jsb	inch			;input channel
+	jsb	get_string
+	movl	line_buffer(r11),-(r10)
+	bsbw	count
+	movq	(r10)+,rest_of_line(r11);initial count
+	clrl	@word_buffer(R11)	;null current word
+	rsb
+
+;----NEWPROMPT:  string pointer, NEWPROMPT
+;	install console prompt string
+header NEWPROMPT
+	movl	(r10),prompt(r11)	;install in user table
+	jsb	count
+	jsbext	_prompt			;install in FAB
+	rsb
+
+;	start remote listener
+header	REMSTART
+	jsbext	_remstart
+	jsb	syserr
+	rsb
+
+;	type to remote port
+header	REMTYPE
+	jsbext	_remtype
+	jsb	syserr
+	rsb
+
+newpage <WORD>
+;----WORD:  WORD, pointer to next word, success (fails if no more words)
+header WORD
+	movq	rest_of_line(r11),r0	;descriptor of rest of line
+20$:
+;...skip leading blanks, tabs, and form feeds
+	movq	r0,r2			;save current position
+	skpc	#^a/ /,r0,(r1)		;skip blanks
+	skpc	#^x9,r0,(r1)		;skip tabs
+	skpc	#^xC,r0,(r1)		;skip form feeds
+	cmpl	r0,r2			;get any this time?
+	bneq	20$			;yes, try to get more
+					;2<length of line with word
+					;3->beginning of word
+
+;...leading double quote indicates string literal
+	skpc	#^a/"/,r0,(r1)
+	cmpl	r0,r2			;was there a leading /"/
+	beql	30$			;no
+	locc	#^a/"/,r0,(r1)
+	skpc	#^a/"/,r0,(r1)
+	brb	40$			;resume normal processing
+30$:
+;...leading percent sign indicates comment
+	skpc	#^a/%/,r0,(r1)
+	cmpl	r0,r2			;was there a leading /%/
+	beql	35$			;no
+	locc	#^a/%/,r0,(r1)
+	skpc	#^a/%/,r0,(r1)
+	brb	20$			;ignore comment
+35$:
+;...find end of normal word
+	locc	#^a/ /,r0,(r1)		;find trailing space
+	movq	r0,r4			;save result
+	locc	#9,r2,(r3)		;find trailing tab
+	cmpl	r0,r4			;which came first
+	bgtr	40$			;if tab won
+	movq	r4,r0			;restore
+40$:
+					;0,1>descriptor of rest of line
+	movq	r0,rest_of_line(r11)
+	subw2	r0,r2			;length of word
+	bneq	50$			;if not end of line
+	clrl	-(r10)			;signal failure
+	rsb
+50$:
+
+;make word a STOIC string, place results on p-stack
+	movl	word_buffer(r11),r4	;address of word buffer
+	movw	r2,(r4)+		;length of word
+	movl	r4,-(r10)
+	movl	r2,-(r10)		;push string descriptor
+	movc3	r2,(r3),(r4)		;move string
+	movl	#1,-(r10)		;push true
+	rsb
+newpage <COUNT, TYPE, MSG, TYI, TYO>
+;----COUNT:  string pointer, COUNT, string address, string length
+header COUNT
+	movzwl	@(r10),-(r10)		;push count
+	addl2	#2,4(r10)		;bump pointer
+	rsb
+
+;----TYPE:  string address, string length, TYPE
+;	outputs string to console
+header TYPE
+	.extrn	_type
+	jmp	_type
+	rsb
+
+;----MSG:  string pointer, MSG
+;    outputs string to console
+header MSG
+	jsb	count
+	jsb	type
+	rsb
+
+;----TYI:  TYI, byte
+;	reads byte from console
+header TYI
+	.extrn	_tyi
+	jsb	_tyi
+	jsb	syserr
+	rsb
+
+;----TYO:  byte, TYO
+;    outputs byte to console
+header TYO
+	.extrn	_tyo
+	jsb	_tyo
+	jsb	syserr
+	rsb
+
+;----CR:  CR
+;    outputs a carriage return to console
+header CR
+	movl	#^xd,-(r10)		;push ASCII carriage return
+	jsb	tyo			;output it
+	movl	#^xA,-(r10)		;push ASCII line feed
+	jsb	tyo			;output it
+	rsb
+
+;----SPACE:  SPACE
+;    outputs a space character to console
+header SPACE
+	movl	#^a/ /,-(r10)		;push ASCII space
+	jsb	tyo			;output it
+	rsb
+
+;----equal:  integer, EQUAL
+;    converts integer to output string and types it.
+header EQ_SGN,<=>
+;	r0 - magnitude of number
+;	r1 - 0 (high order part of dividend)
+;	r2 - extracted digit
+;	r3 - signed number
+;	r4 - radix
+;	r5 - string pointer
+	jsb	space
+	movl	u_rad(r11),r4
+	movl	r9,r5			;5<string pointer
+;
+;*********************** New coding ****************************************
+;			  18.XII.81
+;			W. Wiitanen, GMR
+;
+	CMPL	R10,P_STACK_0(R11)	;CHECK FOR EMPTY STACK
+	BNEQ	A_OK			;NOT EMPTY BRANCH
+	MOVAB	EMPTY_MSG,-(R10)	;EMPTY. STACK POINTER TO MESSAGE
+	JSB	MSG			;EMIT MESSAGE
+	JSB	CR
+	RSB				;EXIT
+EMPTY_MSG:	STRING	<"Parameter stack empty">
+;
+;*********************** End of new coding ********************************
+;
+A_OK:	movl	(r10)+,r3		;3<signed #
+	clrl	r1			;clear high part of dividend
+	movl	r3,r0
+	bgeq	20$			;if #<0
+	mnegl	r3,r0			;0<abs(#)
+20$:
+	ediv	r4,r0,r0,r2		;0<quotient
+					;2<raw digit
+	cmpl	r2,#10			;convert to num. of alph.?
+	bgeq	30$			;if alph.
+	addb3	#^a/0/,r2,-(r5)		;convert & prefix to string
+	brb	40$
+30$:					;here on alph.
+	addb3	#^a/A/-10,r2,-(r5)	;convert and prefix to string
+40$:					;any more digits?
+	tstl	r0			;any more digits?
+	bgtr	20$			;if more digits
+	tstl	r3			;test sign
+	bgeq	50$			;if not negative
+	movl	#^a/-/,-(r5)		;prefix minus
+50$:
+	movl	r5,-(r10)		;push string location
+	subl3	r5,R9,-(r10)		;push length
+	jsb	type			;output #
+	rsb
+
+;
+;********************** Floating-point output conversion ***************
+;			W. Wiitanen, GMR
+;			4.I.82
+;
+; Convert floating-point number on TOP of stack to ASCII string under
+; rules for Fortran "G" format conversion. Returns address of STOIC
+; string on TOP of stack.
+;
+		.EXTRN	FOR$CNV_OUT_G	;DECLARE CONVERSION ROUTINE
+		header	NRSGN_F,<#F>
+		MOVL	(R10)+,DP_VAL	;SAVE TOP OF STACK
+		MOVQ	G_STRING_0,G_STRING	;INITIALIZE DESCRIPTOR
+		CALLG	OUT_G_ARGS,FOR$CNV_OUT_G ;CONVERT THE NUMBER
+		BLBS	R0,1$		;TEST FOR ERROR
+		RSB			;YES. EXIT
+1$:		MOVQ	G_STRING_0,R0	;SET UP DESCRIPTOR
+		SKPC	#^A/ /,R0,(R1)	;SEARCH FOR FIRST NON-BLANK
+		SUBL2	#2,R1		;BACK UP 2 BYTES FOR LENGTH INSERTION
+		MOVW	R0,(R1)		;ENTER LENGTH WORD
+		MOVL	R1,-(R10)	;STACK STRING ADDRESS
+		LOCC	#^A/ /,R0,2(R1) ;LOOK FOR TRAILING BLANKS
+		BEQLU	2$		;NONE. EXIT
+		SUBW2	R0,@(R10)	;SOME. ADJUST LENGTH OF STOIC STRING
+2$:		RSB			;EXIT
+		.psect	impure
+OUT_G_ARGS:	.LONG	4		;ARGUMENT LIST
+		.LONG	DP_VAL		;ADDRESS OF VALUE
+		.LONG	G_STRING	;ADDRESS OF DESTINATION STRING DESCRIPTOR
+		.LONG	6		;NUMBER OF DIGITS TO RIGHT OF POINT
+		.LONG	0		;SCALE FACTOR
+DP_VAL:		.QUAD	0		;VALUE TO BE CONVERTED
+G_STRING_0:	.LONG	32,GS_BYTES	;INITIALIZING DESCRIPTOR
+G_STRING:	.LONG	32,GS_BYTES	;DESCRIPTOR
+GS_BYTES:	.BLKB	32		;STRING SPACE
+		.psect	kernel
+;
+;************************ END OF NEW CODING *******************************
+;
+;----ENABLE_CTRL_C
+
+enab_ctrl_c:
+	pushal	ctrl_c_temp(r11)
+	pushal	here_on_ctrl_c
+	.extrn	enable_ctrl_c
+	calls	#2,enable_ctrl_c
+	rsb
+
+	.entry	here_on_ctrl_c,^m<r2,r3,r4,r5,r6,r7,r8,r9,r10,r11>
+	mnegl	#1,ctrl_c_flag+user_table
+	movl	ctrl_c_handler+user_table,r0  ;address of handler
+	beql	10$			;if no handler
+	jsb	(r0)
+10$:
+	ret
+
+header	I_CTRL_C_HNDLR			;initial control_c handler
+;	causes an abort on control_c
+	movl	fp,r0			;get frame pointer
+20$:	cmpl	^xc(r0),r_stack_0+user_table
+	beql	40$			;found stoic frame
+	bgtr	60$			;if cannot find STOIC frame
+	movl	^x0c(r0),r0		;get next frame
+	brb	20$			;go try it
+40$:					;here on frame found
+	moval	i_abort,^x10(r0)	;force abort
+60$:
+	rsb
+
+;----OCONSTACK:  OCONSTACK, pointer to output conversion stack
+header OCONSTACK
+	moval	out_conv_stack,-(r10)
+	rsb
+newpage <Constant>
+;----CONSTANT: value, name, CONSTANT
+;	compiles longword constant
+header CONSTANT
+	jsb	@enter(r11)
+	movl	dict_pntr(r11),r0	;r0<dictionary pointer
+	movb	#push_this_word,(r0)+
+	movl	(r10)+,(r0)+		;push value onto dictionary
+	movl	r0,dict_pntr(r11)
+	rsb
+newpage <System stuff>
+;----SYSTEM_SERVICES:  SYSTEM_SERVICES,
+;	pointer to system services dictionary branch
+header SYSTEM_SERVICES
+	.extrn ss_calls
+	movl	ss_calls,-(r10)
+	rsb
+
+;-----MOAT:  MOAT, address of moat before parameter stack
+header MOAT
+	moval	moat_,-(R10)
+	rsb
+
+;----P_STACK:  P_STACK, address of parameter stack
+;	(also address of moat between P-stack & L-stack)
+header P_STACK
+	moval	parameter_stack,-(r10)
+	rsb
+
+;----L_STACK:  L_STACK, address of loop stack
+;	(also address of moat between P-stack & L-stack)
+header L_STACK
+	moval	loop_stack,-(r10)
+	rsb
+
+;----V_STACK:  V_STACK, address of vocabulary stack
+;	(also address of moat after V-stack)
+header V_STACK
+	moval	vocab_stack,-(r10)
+	rsb
+
+	newpage <Memory Management>
+;----B,:  byte, B,
+;    append byte to end of dictionery
+header BCOMMA,<B,>
+	movl	dict_pntr(r11),r0	;r0->end of dictionary
+	cvtlb	(r10)+,(r0)+		;append byte to dictionary
+	movl	r0,dict_pntr(r11)	;restore pointer
+	rsb
+
+;----,:  value, ,
+;    append value to end of dictionery
+header COMMA,<,>
+	movl	dict_pntr(r11),r0	;r0->end of dictionary
+	movl	(r10)+,(r0)+		;append to dictionary
+	movl	r0,dict_pntr(r11)	;restore pointer
+	rsb
+	newpage <Vocabulary Branches>
+
+;----BRANCH:  pointer to branch header, name, BRANCH
+;	creates a new vocabulary branch
+header	BRANCH
+	jsb	i_enter
+	movzbl	#push_vocab,-(r10)	;set branch attribute
+	jsb	bcomma
+	jsb	comma			;literal pointing to branch pointer
+	rsb
+
+header	I_PUSH_VOCAB
+	jsb	i_push_this_wd
+	movl	#v_push,-(r10)
+	jsb	i_jump_to_me
+	rsb
+
+;----V_PUSH:
+header V_PUSH
+	movl	vocab_sp(r11),r0	;r0<vocabulary stack pointer
+	movl	(r10)+,-(r0)		;push branch onto V-stack
+	movl	r0,vocab_sp(r11)	;restore vocabulary-stack pointer
+	rsb
+
+;---->:  pops the top off the V-stack
+header LEFT_ANGLE,^!>!
+;
+;**************************** New coding **********************************
+;			      18.XII.81
+;			    W. Wiitanen, GMR
+;
+	MOVL	V_STACK_0(R11),R0
+	SUBL2	#4,R0
+	CMPL	VOCAB_SP(R11),R0
+	BNEQ	B_OK
+	MOVAB	V_EMPTY_MSG,-(R10)	;STACK EMPTY
+	JSB	MSG
+	JSB	CR
+	RSB
+V_EMPTY_MSG:	STRING	<"Operation not honored -- would empty stack">
+;
+;*************************** End of new coding ***************************
+;
+B_OK:	addl2	#4,vocab_sp(r11)
+	rsb
+
+;----DEFINITIONS:  makes current the branch at top of V-stack
+header DEFINITIONS
+	movl	@vocab_sp(r11),current(r11)
+	rsb
+
+;----ASSEMBLER<:  pushes pointer to ASSEMBLER branch onto V-stack
+header ASSEMBLER_LA,^!ASSEMBLER<!
+	movl	vocab_sp(r11),r0
+	moval	assembler(r11),-(r0)
+	movl	r0,vocab_sp(r11)
+	rsb
+
+;----STOIC<:  pushes pointer to STOIC branch onto V-stack
+STOIC_PUSH:	.LONG	.+4	;DUMMY LINK FOR EMPTY STACK INIT
+header STOIC_LA,^!STOIC<!
+	movl	vocab_sp(r11),r0
+	moval	stoic(r11),-(r0)
+	movl	r0,vocab_sp(r11)
+	rsb
+newpage	<FINIS>
+	.psect impure
+;this has to be at the end to work
+header B_KERNEL
+	.long kernel			;head of the kernel branch
+
+	
+
+dictionary:
+	pages	60			;reserve 60 pages
+	.blkl	^x2000			;reserve 16 blank pages
+	.end start

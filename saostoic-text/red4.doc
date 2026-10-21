@@ -1,0 +1,42 @@
+				April 19, 1985
+
+	In going to version 4 of VMS, DEC has removed a feature
+	of the LINKER and IMAGE ACTIVATOR which causes the
+	current versions of STOIC and RED to fail with a BADISD
+	message upon startup.
+
+	To make STOIC & RED work under VMS Ver. 4, edit the file,
+	[SAOSTOIC.STOIC]IMAGE.
+	After the line:
+'IMAGE_WRT : -1 .IMAGE ;  % also allow for writable images
+	insert the following lines
+'IMAGE :
+  "Creating writable image." MSG CR
+  "If installing in system, do not use /SHARE switch." MSG CR
+  IMAGE
+  ;
+	Then execute the procedure [SAOSTOIC]STOBUILD.
+	This will result in a version of STOIC & RED which is not
+	"sharable".  The only effect is a reduction in efficiency
+	in heavily loaded systems with multiple RED users.  I will
+	create a working sharable version when we bring up VMS Ver. 4
+	at the CfA.
+
+	If this version is to be installed by the system manager
+	of a VMS system as a known image using the procedure,
+	[SAOSTOIC]INSTALL.COM, the last line of that procedure
+	should have "/SHARE" deleted.
+
+	I have successfully (but briefly) used this version of RED/STOIC
+	on the Faculty VAX at Northeastern University where they are
+	using VMS 4.1.  I have not tried installing it because I do
+	not have the privilege to do so on that machine.
+
+	I am interested in immediate feedback if problems are encountered.
+	I will respond quickly to such reports.
+
+				Roger Hauck
+				Center for Astrophysics
+				(Smithsonian Astrophysical Observatory)
+				(617)495-7151 (or leave msg. at 495-7302)
+				 FTS 830-7151 (or leave msg. at 830-7302)

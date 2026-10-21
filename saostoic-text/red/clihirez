@@ -1,0 +1,1689 @@
+% Modified:
+% Roger Hauck, SAO, 5/21/84: Special version for Selanar HIREX
+%	TF command modified for 48-line screen.
+%	*****************************************************************
+%	*								*
+%	*	This module is a part of the SAO VAX/VMS		*
+%	*	RED full-screen text editor				*
+%	*								*
+%	*	It was created by					*
+%	*	Roger Hauck						*
+%	*	Smithsonian Institution					*
+%	*	Astrophysical Observatory				*
+%	*	Cambridge, Massachusetts  02138				*
+%	*	(617)495-7151  (FTS 830-7151)				*
+%	*								*
+%	*	Modifications by Jonathan Mark				*
+%	*	Summer 1981						*
+%	*								*
+%	*	This module may be reproduced				*
+%	*	provided that this header is retained.			*
+%	*								*
+%	*****************************************************************
+
+% Command-line Interpretter
+
+%  Utilities used by CLI
+
+'CLI.GNB :  % CLI.GNB, success  (fails if no more bytes in command line)
+  CURKBUF @ 8+ RBB  % get a byte from the bottom half of the key buffer
+  DUP IF  % have we got one?
+    OVER CURKBUF @ ABE  % yes; put it on the top
+  THEN
+  ;
+
+'CLI.BACK :  % CLI.BACK (moves byte from bototop to topobot in kbuf)
+  % (no error check--should only be used after CLI.GNB)
+  CURKBUF @ RBE DROP  % get the byte
+  CURKBUF @ 8+ ABB  % and put it on the bottom
+  ;
+
+'CLI.POS :  % CLI.POS, number of bytes in top key buffer
+  CURKBUF @ D@-  % get difference between pointers
+  ;
+
+'CLI.MOVE_DOWN :  % same as MOVE_DOWN but for the keyboard buffer
+  CURKBUF @ 4+ @ OVER - SWAP  % go to beginning of buffer
+  OVER CURKBUF @ 4+ !
+  CURKBUF @ 8+ @ OVER -
+  DUP CURKBUF @ 8+ !
+  MOVE_BYTES
+  ;
+
+'CLI.MOVE_UP :
+  CURKBUF @ 8+ @ CURKBUF @ C+ @ OVER -  % BOT_COUNT for key buffer
+  DDUP + CURKBUF @ 8+ !
+  CURKBUF @ 4+ @
+  DDUP + CURKBUF @ 4+ !
+  MOVE_BYTES
+  ;
+
+'CLI.MOVE :  % moves forward (.UP) if positive, else backward (.DOWN) 
+  DUP GEZ_IF
+    CLI.MOVE_UP
+  ELSE
+    MINUS CLI.MOVE_DOWN
+  THEN
+  ;
+
+'CLI.LOAD_ARG :  % argument, CLI.LOAD_ARG--sets up arg, mag, and sign
+  DUP C.ARG !  % put it in the signed argument
+  DUP GEZ_IF
+    C.MAG ! C.SIGN 1<-  % just load it in magnitude if >=0
+  ELSE
+    MINUS C.MAG ! C.SIGN -1<-
+  THEN
+  ;
+
+'CLI.MOVE_ERROR :  % checks for an out-of-buffer error
+  DUP GEZ_IF TOPOBOT ELSE MINUS TOPOTOP THEN  % find which region to use
+  D@- LT ERR_FLAG !  % minor error if not enough room in region
+  ;
+
+'CONVERT_TO_UPPER :  % byte, CONVERT_TO_UPPER, converted byte
+  DUP ASCII a LE IF
+    DUP ASCII z GE IF  % is it lower-case?
+      20 - THEN THEN
+  ;
+
+% 'CLI.SYMBARG :   CLI.SYMBARG, [value, -1] or [0] (not debugged)
+%   C.COMCUR @   save current position in command line
+%   CLI.GNB IF   get next byte, anything there?
+%     ASCII ` EQ_IF   yes, is it accent grave
+%       CLI.GNB IF   yes, get search byte, is it there?
+%         BOT_COUNT SBF GEZ_IF   search for byte, is it there?
+%           TOPOBOT @ - UNDER -1 ELSE
+%           3 (DROP) ERR.NOBYTE THEN ELSE   byte not found, fail
+%         ERR.INVARG THEN ELSE   no search byte, fail
+%       C.COMCUR ! 0 THEN ELSE   invalid symbolic parameter, fail
+%     DROP 0 THEN   nothing there, drop saved position, fail
+%  ;
+
+'INCLUDE_DIGIT :
+  DUP ASCII 0 LE OVER ASCII 9 GE AND
+  IF  % is it a number
+    ASCII 0 - C.MAG @ A * + C.MAG ! CLI.GNB DUP NOT  % yes; fix the total
+    C.ARGLEN 1+!
+  ELSE
+    DROP CLI.BACK 0 -1  % no; put it back and signal exit
+  THEN
+  ;
+
+'CLI.READ_DIGIT :
+  IF
+    INCLUDE_DIGIT
+  ELSE  0 -1  % signal exit if no bytes there
+  THEN
+  ;
+
+'CLI.NUMARG :  % CLI.NUMARG, value of integer argument
+%	(extracts integer as next item on command line)
+  1 C.SIGN ! C.MAG 0<- C.ARGLEN 0<-  % reset values
+  CLI.GNB DUP
+  IF  % is there a byte
+    OVER ASCII - EQ_IF
+      C.SIGN -1<- C.ARGLEN 1+! 2DROP CLI.GNB  % yes, check for minus
+    THEN
+    OVER ASCII + EQ_IF
+      C.SIGN 1<- C.ARGLEN 1+! 2DROP CLI.GNB  % check for plus
+    THEN
+  THEN
+  BEGIN
+    CLI.READ_DIGIT
+  END DROP
+  C.ARG_EXISTS C.ARGLEN @ EQZ_IF 0<- ELSE -1<- THEN  % maybe preserve
+  C.SIGN @ C.MAG @ * C.ARG !  % sign the number
+  C.ARG @ EQZ_IF  % special interpretation of zero
+    C.SIGN @ LTZ_IF C.ARG -1<- ELSE  % "-" by itself => -1
+      C.ARGLEN @ EQZ_IF
+        C.ARG 1 <- C.DEFAULT? -1<-  % null => +1
+      THEN
+    THEN
+  THEN
+  ;
+
+'CLI.INIT :  % initialization done once per command line
+  C.ARG_EXISTS 0<-  % no argument exists initially
+  CURKBUF @ D@-  % get number of bytes in top
+  CLI.MOVE_DOWN  % and go to the top of the key buffer
+  ;
+
+%  More CLI Utilities
+
+ASSEMBLER<
+
+'CLI.SUBSTRING :  % pattern descriptor, source descriptor,-
+%	CLI.SUBSTRING, remaining source descriptor, pattern descriptor
+  MOVQ (P)+ R2  MOVQ (P) R0  % load descriptors
+  MATCHC R0 (R1) R2 (R3)  % do match operation
+  MOVQ R2 -(P)  % return rest-of-source descriptor
+  MOVL R0 -(P) EQZ  % return success code
+  ;
+
+>
+
+'CLI.REMVER :  % descriptor, CLI.REMVER, revised descriptor
+%	(revised descriptor is of string with ";" and all after removed)
+  ( DUP I + B@ ASCII ; EQ_IF EXIT THEN ) LAST_I
+  ;
+
+  ASSEMBLER<
+'L_STACK_EMPTY? :  % L_STACK_EMPTY?, truth value
+  MOVL L -(P) L_STACK_0 @ LE
+  ;
+
+'CLEAR_L_STACK :  % CLEAR_L_STACK, resets loop stack
+  L_STACK_0 @ MOVL (P)+ L ;
+>
+
+'SFSEP :  % n, string descriptor, SFSEP,
+%	descriptor of string passed over to find nth separator
+%	(If there are not n in string, full string descriptor is returned)
+  -ROT NOTE  % save count
+  OVER SWAP  % save string location
+  REC_SEP @ +ROT  % setup to search for separator
+  RECALL (  % do it n times
+    SBF LTZ_IF  % search, anything left?
+      1- -1 EXIT ELSE  % no, correct position, exit
+      UNDROP THEN )  % yes, continue
+  DROP UNDER  % drop remaining string length & search byte
+  OVER -  % descriptor of string passed over
+  ;
+
+'CLI.FIND_LABEL :  % label byte, CLI.FIND_LABEL, success (moves in KBUF)
+  BEGIN  % loop until we find the label or run out of bytes
+    CLI.GNB  % get one
+    IF  % have we run out?
+      ASCII \ EQ_IF  % have we a label?
+        CLI.GNB  % get another byte
+        IF  % did we find one?
+          CONVERT_TO_UPPER
+          OVER EQ_IF DROP -1 -1 ELSE 0 THEN  % maybe signal exit, found
+        ELSE
+          DROP 0 -1  % no byte; signal exit, not found (drop label byte)
+        THEN
+      ELSE 0  % it's not a label; signal to continue
+      THEN
+    ELSE
+      DROP 0 -1  % no bytes left here; signal exit, not found
+    THEN
+  END
+  ;
+
+% Support words for file operations
+
+'O.K._TO_OPEN? :
+  FILE_NAME W@ NEZ_IF  % is a file active?
+    ERR.ACTIVE ELSE  % yes
+    BUFFER# @ NEZ_IF  % no, wrong buffer?
+      ERR.X0ONLY ELSE  % yes
+      -1 THEN THEN  % it's O.K. to open
+  ;
+
+'O.K._TO_CLOSE? :
+  FILE_NAME W@ EQZ_IF  % is a file active?
+    ERR.NOTACT ELSE  % no, error
+    BUFFER# @ NEZ_IF  % no, wrong buffer?
+      ERR.X0ONLY ELSE  % yes
+      -1 THEN THEN  % it's O.K. to close
+  ;
+
+'F.DIAG :
+        DDUP SWAP @ SWAP = = CR  % diagnostic
+  ;
+
+'SIMULATE_GET :  % does GET but expands buffer if record doesn't fit
+  BEGIN  % start loop to try to fit it
+    DUP @ MAXLINE 3 .GET  % read a record, get error code
+    NOT IF  % was there an error?
+      2DROP DUP 800 D.EXPAND 0  % yes, expand dynast, signal continue
+    ELSE -1 THEN  % exit begin if no problem
+  END
+  DUP NOT IF UNDER THEN  % don't return a length if EOF
+  ;
+
+'MOVE_RECORD :
+  4+ BEGIN  % open successful, point to expansion area, read lines
+  DUP D@- MAXLINE - LTZ_IF  % any room?
+    DUP 800 D.EXPAND THEN  % no, expand
+  SIMULATE_GET IF  % read, success?
+%     F.DIAG
+    OVER +!  % log count
+    DUP @ REC_SEP @ B<- DUP 1+!  % append CR
+    REPEAT DROP
+  ;
+
+'F.LOAD :  % ptr. to buffer descriptor, filename descriptor, F.LOAD, success
+  3 .OPEN IF
+    3 FIL_RAT DUP REC_ATT ! 2 AND  % is rec. attr. CR or FORTRAN?
+    NEZ_IF CRET ELSE USEP THEN  % determine separator
+    REC_SEP !  % store value in variable
+      MOVE_RECORD
+    3 CLOSE -1 ELSE  % finished, close file
+    UNDROP UNDER THEN  % open unsuccessful, return error code
+  ;
+
+'C.P/R_LOOP_BODY :
+  DUP W@ FSIZE @ -  % get number of bytes in this record
+  SWAP 2+ FSIZE @ + SWAP DDUP  % omit control field; get source descriptor
+  BOTOTOP @  % get a destination address
+  MOVE_BYTES  % move the string
+  DUP BOTOTOP +! +  % add count to bototop, address
+  DUP FIRST_BYTE @ XOR IF 1+ THEN  % fix pointer to point to next place
+  REC_SEP @ TOPOTOP ABE  % add separator to end of top buffer
+  DDUP GE  % and continue if we're not at the end
+  ;
+
+'C.PROCESS_RECORDS :  % end address, start address, C.PROCESS_RECORDS
+  C.REC_LENGTH @ EQZ_IF
+    BEGIN  % loop until top pointer reaches end
+      C.P/R_LOOP_BODY
+    END 2DROP  % clear stack
+  ELSE  % fixed length records here
+    BEGIN
+      DUP C.REC_LENGTH @ BOTOTOP @ MOVE_BYTES  % move the string
+      C.REC_LENGTH @ +  % increment the start pointer by the record size
+      C.REC_LENGTH @ BOTOTOP +!  % adjust the destination pointer
+      REC_SEP @ TOPOTOP ABE  % add on a separator
+      DDUP GE  % see if we're there yet
+    END 2DROP  % stop and clear stack
+  THEN
+  ;
+
+'CLI.READ_FILE :  % number of bytes, CLI.READ_FILE
+  BOTOTOP OVER D.EXPAND  % make the gap that big
+%  TOPOBOT @ OVER - TOPOBOT !
+  BOTOTOP @ OVER 6 READ  % read file into gap
+  IF  % success?
+    6 CLOSE  % close the file
+    BOTOTOP @ + BOTOTOP @ DUP FIRST_BYTE !  % push end address, start address
+    C.PROCESS_RECORDS  % get rid of the record length words
+    -1  % succeed
+  ELSE UNDROP UNDER THEN  % if error, return code
+  ;
+
+'CLI.MAP_FILE :  % number of bytes, CLI.MAP_FILE
+  DUP C.REC_LENGTH @ NEZ_IF  % if fixed records ...
+    DUP C.REC_LENGTH @ / 1+ +  % then add the size of all the terminators
+  THEN
+  BOTOTOP SWAP D.EXPAND  % enlarge the gap so that the file will fit
+  .M @  % get page address of end of memory
+  DUP NOTE + RECALL SWAP CHAN @ MAP  % map the file into the end of memory
+  IF  % did it work?
+    DDUP  % save the addresses
+    DROP 7 FIL_EBK 1- 200 * 7 FIL_FFB + OVER + SWAP  % provide an end address
+    DUP FIRST_BYTE !  % save the first byte address
+    C.PROCESS_RECORDS  % addresses are on stack
+    DELTVA  % delete the space
+    MAPCLOSE  % and deassign the I/O channel
+  ELSE
+    UNDROP 1CC EQ_IF  % is it a not-structured-for-mapping error?
+      MAPCLOSE DROP  % close file and assume success
+      TOPOTOP FILE_NAME COUNT F.LOAD  % forward operation to F.LOAD
+    ELSE  % if it's not that, we've failed completely
+      UNDROP  % get the error code back
+    THEN
+  THEN  % return code if error
+  ;
+
+% Note: this next word is rather hasty in deciding that it can't map
+% certain types of files.  Stream formats could be mapped easily;
+% this is just a quick fix becuse RED doesn't work with them right
+% now.  I don't think there's any better excuse for excluding the
+% BLK record attribute either; this could be figured out somehow.
+
+% First look for indicators that we can't map it.
+
+'F.MAP_CHECK :
+  7 FIL_RAT 8 AND NEZ  % BLK record attribute is not implemented for mapping
+  7 FIL_RFM DUP 4 EQ  % we can't map stream formats right now
+  OVER 6 EQ OR  % including CR types of streams
+  SWAP 5 EQ OR  % or LF types of streams
+  OR  % were any of these true?
+  ;
+
+'F.GET_FILE_DATA_AUX :
+    7 FIL_RAT DUP REC_ATT !  % get record attributes
+    OK_TO_MAP -1<-  % signal that it's OK to map
+    3 AND NEZ  % returns true if rec. attr. = CR or FORTRAN
+    REC_SEP SWAP IF CRET <- ELSE USEP <- THEN  % determine separator
+    7 FIL_EBK 1-  % get number of full blocks
+    200 * 7 FIL_FFB +  % get size necessary
+    7 FIL_FSZ DUP FSIZE !  % get size of control field so we can omit it
+    GTZ_IF 0D REC_SEP ! THEN  % if cr. control, specify CR
+    7 FIL_RFM 1 EQ_IF  % is the record format fixed?
+      7 FIL_MRS C.REC_LENGTH !  % if so, find out what it is
+    ELSE C.REC_LENGTH 0<-
+    THEN
+  ;
+
+'F.GET_FILE_DATA :
+  F.MAP_CHECK IF
+    OK_TO_MAP 0<-
+  ELSE
+    F.GET_FILE_DATA_AUX
+  THEN
+  ;
+
+'F.BLK_LOAD :
+  6 .OPEN IF
+    F.GET_FILE_DATA
+    DUP GEZ IF  % is there anything at all in the file?
+      CLI.READ_FILE
+    ELSE
+      DROP 6 CLOSE -1  % nothing in file; close it again and succeed
+    THEN
+  ELSE
+    UNDROP  % error opening file
+  THEN
+  ;
+
+'F.PUT :  %  string descr., .PUT, condition code
+%	(outputs string to channel 2)
+%	 (on extend error, pauses with a RED error message and retries)
+  DDUP 2 .PUT IF  % save string descriptor, write, successful?
+    2DROP -1 ELSE  % yes, drop descriptor
+    UNDROP 1C022 EQ_IF  % is it a file_extend error?
+      ERR.EXTEND ERR.MSG  % pause with message
+      2 .PUT ELSE  % yes, try one more time
+      UNDROP NOTE 2DROP RECALL THEN  % no, drop string descriptor, save code
+    THEN
+  ;
+
+'DUMP_RECORD :
+  1 BOT_COUNT NEZ_IF  % anything left?
+    UNDROP SFSEP DUP NOTE % yes, get next line, save length
+    1-  % remove its separator
+     F.PUT IF  % write, successful
+      RECALL MOVE_UP 0 ELSE  % yes, move line up, continue looping
+      UNDROP ERR.IOERR  % no, retrieve RMS error, add RED error
+      -1 THEN ELSE  % stop looping
+    2DROP -1 -1 THEN  % end of file, stop looping, success
+  ;
+
+'F.DUMP :  % filename descriptor, F.DUMP, (success) or (RMS error, RED error)
+  TOPOTOP D@- MOVE_DOWN  % put entire file in bottom
+  TOPOBOT RBE IF  % get last byte
+    DUP TOPOBOT ABE  % succeded, put it back
+    REC_SEP @ NE_IF  % was it a CR?
+      REC_SEP @ TOPOBOT ABE THEN THEN  % no, add one
+  REC_ATT @ 1 EQ_IF 2 .WOPEN_FTN  % if Fortran, use special routine
+  ELSE
+    2 REC_SEP @ CRET EQ_IF .WOPEN ELSE .WOPEN_NCR THEN  % open the file
+  THEN
+  IF
+    BEGIN  % loop, writing lines
+      DUMP_RECORD
+      CTRL_C_FLAG @ OR  % also end if control-C
+    END
+    2 CLOSE 
+  ELSE
+    UNDROP ERR.OPFAIL  % open error, retrieve RMS error, add RED error
+  THEN
+  DUP NOT IF  % error?
+    SWAP SYSMSG TYPE  % yes, output RMS message
+  ELSE
+    CTRL_C_FLAG @ IF DROP ERR.NOTWRT THEN  % replace with error if ^C
+  THEN CTRL_C_FLAG 0<-  % clear flag anyway
+  ;
+
+'F.MAP_LOAD :
+  DDUP C.NEWSTR .MOVE_STRING  % save the file name in an unused buffer
+  MAPOPEN IF
+    CHAN !  % store channel number
+    F.GET_FILE_DATA
+    OK_TO_MAP @ IF  % has get_file_data signaled it can't handle it?
+      DUP GEZ_IF
+        CLI.MAP_FILE
+      ELSE
+        DROP MAPCLOSE
+      THEN
+    ELSE
+      MAPCLOSE DROP  % close file immediately; assume success
+      TOPOTOP C.NEWSTR COUNT F.LOAD  % use normal F.LOAD routine
+    THEN
+  ELSE
+    UNDROP  % get error code
+    1C144 EQ_IF  % is it a not-supported-over-network error?
+      TOPOTOP C.NEWSTR COUNT F.LOAD  % if so, forward operation to F.LOAD
+    ELSE UNDROP  % otherwise simply return the error
+    THEN
+  THEN
+  ;
+
+'F.OPEN_FILE :  % used for OPEN command
+  F.MAP_LOAD  % get the file
+  TOPOTOP D@- MOVE_DOWN  % put file in bottom buffer
+  REC_SEP @ MAIN_SEP !  % and remember the main separator
+  REC_ATT @ MAIN_ATT !  % and record attribute
+  ;
+
+'F.WRITE :  % performs F.DUMP with main record separator
+  MAIN_SEP @ REC_SEP !  % get the separator
+  MAIN_ATT @ REC_ATT !  % and attribute
+  F.DUMP
+  ;
+
+% Support words for "X" commands
+
+0 'X.BYTES VARIABLE  % true means interpret count as a byte count
+0 'X.INSERT VARIABLE  % true means don't kill buffer before transfer
+
+'X.GNB :  % X.GNB, [byte, -1] or [error code]
+%	(gets command subcode, also interprets B and I options)
+  X.INSERT 0<- X.BYTES 0<- BEGIN
+    CLI.GNB IF
+      CONVERT_TO_UPPER
+      ASCII B EQ_IF X.BYTES -1<- 0 ELSE
+        UNDROP ASCII I EQ_IF X.INSERT -1<- 0 ELSE
+          UNDROP -1 -1 THEN THEN ELSE
+      0 -1 THEN
+    END
+  ;
+
+'X.PUSH :  % buffer #, X.PUSH (old buffer # saved on L stack)
+  BUFFER# @ SWAP  % save present buffer #
+  DDUP NE IF  % are they equal?
+  DUP BUFFER# ! 10 * X0 + CURBUF ! NOTE -1 ELSE  % no, push
+  2DROP ERR.INVARG THEN  % yes, error
+  ;
+
+'X.POP :  % XPOP
+  RECALL DUP BUFFER# ! 10 * X0 + CURBUF !
+  ;
+
+'X.KILL :  % X.KILL  (kills current buffer)
+  TOPOTOP BOTOTOP MOVE
+  BOTOBOT TOPOBOT MOVE
+  ;
+
+'X.PRECOPY :  % PRECOPY, [string descriptor, -1 or error code]
+  C.ARG @ BUFFER# @ EQ_IF ERR.INVARG ELSE  % not to same buffer
+    C.XARG @ LEZ_IF ERR.INVARG ELSE  % only forward for now
+      C.XARG @  X.BYTES @ NOT IF  % lines or bytes?
+        BOT_COUNT SFCR UNDER THEN  % lines, convert to bytes
+      -1 THEN THEN  % success
+  ;
+
+% Arguments
+
+'C.@A :  % return value of most recent numeric macro argument
+  MSTACK DUP W@ + 1+ B@  % get the return buffer number
+  77 EQ_IF  % is it the original value?
+    ERR.NOTMAC  % yes, return error
+  ELSE
+    MSTACK DUP W@ + 4- @  % get the argument
+    DUP C.ARG !  % put it in the argument
+    LTZ_IF  % is it negative?
+      C.SIGN -1<- C.ARG @ MINUS C.MAG !  % set it up
+    ELSE
+      C.SIGN 1<- C.ARG @ C.MAG !  % else just copy it
+    THEN C.ARG_EXISTS -1<-  % preserve it
+    -1  % and return a success value
+  THEN
+  ;
+
+'C.@C :  % return value of current character number (starts at 0)
+  TOPOTOP D@-  % get number of characters above cursor
+  DUP C.ARG ! C.MAG ! C.SIGN 1<-  % set it up in the variables
+  -1  % always succeed
+  ;
+
+'C.@K :  % get a byte from the keyboard (with prompt)
+  DISP_FLUSH FLUSH
+  TYPEKEY_MSG S.CUP FLUSH  % display prompt
+  TYI DUP 08 EQ_IF  % accept backspace
+    DROP TYI 40 -  % adjust next character
+  THEN
+  CLI.LOAD_ARG  % fix the arguments
+  DRAW_DIVIDER TIME_FLAG @ IF S.CPU_TIME THEN FLUSH  % fix divider
+  -1  % always succeed
+  ;
+
+'C.@L :  % return current line number
+  0 TOP_COUNT (  % loop through top
+    DUP I + B@ CRET EQ_IF  % is the character CR?
+      SWAP 1+ SWAP  % yes, increment count
+    THEN
+  ) DROP CLI.LOAD_ARG  % argument is @ of cr's
+  -1  % return success
+  ;
+
+'C.@N :  % input a number from the keyboard
+  DISP_FLUSH FLUSH
+  NUMBER_MSG 0  % type message and initialize value
+  C.SIGN 1<-  % initialize sign to 1
+  TYI DUP ASCII - EQ_IF  % get a byte, is it a minus?
+    ASCII - TYO C.SIGN -1<- DROP TYI  % yes, set sign to -1 and get another
+  THEN
+  BEGIN  % loop until non-number key hit
+    DUP ASCII 0 LE OVER ASCII 9 GE AND
+    IF  % is it a number?
+      DUP TYO ASCII 0 - SWAP 0A * + TYI 0  % adjust total, get byte, continue
+    ELSE
+      DROP -1  % otherwise end
+    THEN
+  END C.SIGN @ * CLI.LOAD_ARG  % fix sign, set up the argument
+  DRAW_DIVIDER TIME_FLAG @ IF S.CPU_TIME THEN FLUSH  % fix divider
+  -1  % always succeed
+  ;
+
+'C.@P :  % pop top of user stack into argument
+  USER_STACK W@ EQZ_IF  % nothing on stack?
+    ERR.STKUDF  % yes; return error
+  ELSE
+    USER_STACK DUP W@ + 2- @ CLI.LOAD_ARG  % get the value
+    USER_STACK DUP W@ 4- W<-  % and adjust the count
+    -1  % succeed
+  THEN
+  ;
+
+'C.@Q :  % return top of user stack without popping
+  USER_STACK W@ EQZ_IF
+    ERR.STKUDF
+  ELSE
+    USER_STACK DUP W@ + 2- @ CLI.LOAD_ARG  % just get value
+    -1  % succeed
+  THEN
+  ;
+
+'C.@T :  % return ASCII value of current character
+  TOPOBOT D@-  % get number of characters in bottom
+  NEZ_IF
+    TOPOBOT @ B@  % get the value
+    DUP C.ARG ! C.MAG ! C.SIGN 1<-  % fill the variables
+    -1  % and succeed
+  ELSE
+    ERR.@TEND  % @T illegal at end of buffer
+  THEN
+  ;
+
+% Definition of new argument reader that checks for symbolic args
+
+'CLI.RLOAD :
+  CONVERT_TO_UPPER DUP
+  ASCII A LE OVER ASCII Z GE AND
+  IF  % is it a letter?
+    ASCII A - 4 * NUM_REGS + @ CLI.LOAD_ARG  % yes, get the register
+    -1  % and succeed
+  ELSE
+    DROP ERR.INVREG  % invalid register
+  THEN
+  ;
+
+'CLI.# :  % retrieve contents of a number register
+  C.ARG_EXISTS -1<-
+  CLI.GNB  % get the register-name byte
+  IF  % is there one?
+    CLI.RLOAD
+  ELSE ERR.INVREG
+  THEN
+  ;
+
+'CLI.ARG_BYTE :
+  C.ARG_EXISTS -1<-
+  CONVERT_TO_UPPER
+  ;
+
+'CLI.@ :  % process an argument starting with @
+  CLI.GNB IF
+    CLI.ARG_BYTE
+    DISPATCH 'A C.@A
+    DISPATCH 'C C.@C
+    DISPATCH 'K C.@K
+    DISPATCH 'L C.@L
+    DISPATCH 'N C.@N
+    DISPATCH 'P C.@P
+    DISPATCH 'Q C.@Q
+    DISPATCH 'T C.@T
+    DROP ERR.NOARG  % error if unrecognized
+  ELSE
+    ERR.NOARG  % return error if just @
+  THEN
+  ;
+
+'C.DBL_QUOTE :  % make following ASCII character into argument
+  CLI.GNB  % get the next byte
+  IF
+    DUP C.ARG ! C.MAG ! C.SIGN 1<-  % put it in the variables
+    C.ARG_EXISTS -1<-  % don't let CLI replace it
+    -1  % and succeed
+  ELSE
+    ERR.INVARG  % no character there; invalid argument
+  THEN
+  ;
+
+'CLI.GETARG :
+  C.DEFAULT? 0<-  % argument will want to be preserved
+  CLI.GNB  % get a byte from the command line
+  IF
+    DISPATCH '# CLI.#
+    DISPATCH '@ CLI.@
+    DISPATCH 22 C.DBL_QUOTE
+    DROP CLI.BACK CLI.NUMARG -1  % not symbolic; read an integer & succeed
+  ELSE
+    C.MAG 1<- C.ARG 1<- C.SIGN 1<- -1  % default argument is +1; succeed
+  THEN
+  ;
+
+'CLI.READ_STRING :
+  CLI.POS 0
+  BEGIN
+    CLI.GNB IF
+      A EQ_IF  % terminator?
+        -1
+      ELSE
+        1+ 0
+      THEN
+    ELSE -1
+    THEN
+  END
+  DUP C.ARGLEN !
+  SWAP KBUF @ + SWAP  % make a descriptor
+  ;
+
+'CLI.GET_STR_ARG :
+  CURKBUF @  % push the current kbuf pointer
+  MSTACK DUP W@ + 1+ B@ 10 * K0 + CURKBUF !  % switch to old buffer
+  CLI.POS  % push the current position
+  C.ARG @ (  % loop to discard non-useful stuff
+    BEGIN
+      CLI.GNB IF  % is there another byte?
+        LFEED EQ  % exit if it's a line feed
+      ELSE -1  % also exit if nothing left
+      THEN
+    END
+  )
+  CLI.READ_STRING  % read the useful string descriptor
+  -ROT CLI.POS SWAP - CLI.MOVE_DOWN  % restore key buffer
+  -ROT CURKBUF !  % get the old key buffer back
+  ;
+
+'CLI.REFARG :  % return an argument from calling command line
+  CLI.GETARG IF  % get an argument for the number
+    MSTACK DUP W@ + B@ 1- C.ARG @ LE_IF  % not exceeded declared #?
+      CLI.GET_STR_ARG
+    ELSE
+      ERR.STRWRN ERR.MSG CURKBUF @ 8+ @ 0  % display warning
+    THEN
+  ELSE ERR.STRWRN ERR.MSG CURKBUF @ 8+ @ 0
+  THEN C.ARG_EXISTS 0<-
+  ;
+
+'CLI.INPUT_BUFFER :
+  DUP ASCII 0 LE OVER ASCII 9 GE AND IF  % is it a legal buffer
+    ASCII 0 - X.PUSH IF  % can we push to it?
+      TOPOTOP D@- MOVE_DOWN  % go to top
+      TOPOBOT DUP @ SWAP D@-  % make a descriptor for it
+      X.POP  % and come back
+    ELSE ERR.STRWRN ERR.MSG CURKBUF @ 8+ @ 0  % X.PUSH failed
+    THEN
+  ELSE
+    DROP ERR.STRWRN ERR.MSG CURKBUF @ 8+ @ 0  % illegal buffer
+  THEN
+  ;
+
+'CLI.LOAD_BUFFER :
+  CLI.GNB IF  % get a byte for the buffer number
+    CLI.INPUT_BUFFER
+  ELSE
+    ERR.STRWRN ERR.MSG CURKBUF @ 8+ @ 0  % no byte for buffer number
+  THEN
+  ;
+
+'CLI.SARG :  % process string after control-G found
+  CLI.GNB IF  % get another byte, ok?
+    ASCII @ EQ_IF  % is it a signal to use a buffer?
+      CLI.LOAD_BUFFER
+    ELSE
+      CLI.BACK MSTACK W@ 1 NE_IF  % are we a macro?
+        CLI.REFARG  % yes, get the string argument
+      ELSE
+        ERR.STRWRN ERR.MSG CURKBUF @ 8+ @ 0  % else type warning
+      THEN
+    THEN
+  ELSE ERR.STRWRN ERR.MSG CURKBUF @ 8+ @ 0  % no byte after ^G
+  THEN
+  ;
+
+'CLI.GETSTRING :  % CLI.GETSTRING, string descr.
+  C.ARG @  % save the command argument
+  CLI.GNB IF
+    07 EQ_IF  % is the first byte ^G?
+      CLI.SARG  % yes, do something special
+    ELSE
+      CLI.BACK CLI.READ_STRING  % read the string
+    THEN
+  ELSE
+    KBUF @ CLI.POS + 0  % make a null descriptor
+    C.ARGLEN 0<-  % and zero the arg length
+  THEN -ROT C.ARG !  % restore the argument
+  ;
+
+% Execution of 2-letter commands
+
+'C.GW :  % Open new file
+  O.K._TO_OPEN? IF
+    REC_SEP CRET <- MAIN_SEP CRET <-
+    CLI.GETSTRING  % get new file name
+    FILE_NAME .MOVE_STRING  % "open" new file
+    SETSCREEN DISP -1 ELSE  % initialize buffer and screen
+    UNDROP THEN  % retrieve error
+  ;
+
+'C.GX :  % Discard current file
+  BUFFER# @ EQZ_IF  % buffer 0?
+    0 FILE_NAME W!  % yes, discard name
+    X.KILL  % discard buffer
+    SETSCREEN DISP  % redraw screen
+    -1 ELSE  % fix screen, succeed
+    ERR.X0ONLY THEN  % wrong buffer, error
+  ;
+
+'C.T# :  % set number register to value
+  C.ARG @  % save the argument
+  CLI.GNB  % get a byte
+  IF  % was there one?
+    CONVERT_TO_UPPER DUP  % get the ascii number
+    ASCII A LE OVER ASCII Z GE AND  % is it a letter?
+    IF
+      ASCII A - 4 * NUM_REGS + !  % yes, load the argument
+      C.ARG_EXISTS 0<-  % and don't hang onto it
+      -1  % succeed
+    ELSE
+      DROP ERR.INVREG  % drop argument, fail if illegal register
+    THEN
+  ELSE
+    DROP ERR.INVREG  % no register name; type error
+  THEN
+  ;
+
+'C.T	 :  % toggle tab mode
+  TAB_MODE @ NOT TAB_MODE ! DISP -1
+  ;
+
+'C.TB :  % output bell
+  BELL -1  % ring bell, succeed
+  ;
+
+'C.TC :  % replace character at cursor
+  TOPOBOT D@- NEZ_IF  % at end of buffer?
+    1 C..D DROP  % delete one character
+    C.ARG @ MARK RECALL 1 C.I+ DROP  % make string & insert
+    1 C.M-  % move back to be on top of it
+    -1  % return success
+  ELSE
+    ERR.TC@END  % TC illegal at end/buffer
+  THEN
+  ;
+
+'C.TF :  % set display window
+  C.ARGLEN @ EQZ_IF  % default?
+    14 ELSE  % yes, make it 8
+  C.ARG @ 1C MIN 1 MAX THEN  % keep it within bounds
+  TF ! SELECT_COMMAND  % reset command scrolling region
+  SETSCREEN DISP -1
+  ;
+
+'C.TI :  % set radix
+  ERR.NOTIMP
+  ;
+
+'C.TP :  % push value of argument on stack
+  USER_STACK W@ USER_STACKSIZE EQ_IF  % stack full?
+    ERR.STKOVF  % yes, return error
+  ELSE
+    USER_STACK DUP W@ + 2+  % get the address
+    C.ARG @ <-  % load the value
+    USER_STACK DUP W@ 4+ W<-  % and adjust the count
+    -1  % succeed
+  THEN
+  ;
+
+% F commands
+
+'C.FI :  % file insert
+%  TOPOTOP CLI.GETSTRING F.LOAD IF
+  CLI.GETSTRING F.MAP_LOAD IF
+    DISP -1 ELSE
+    UNDROP CR SYSMSG TYPE
+    ERR.OPFAIL THEN
+  ;
+
+'C.FO :  % file output
+  CLI.GETSTRING F.DUMP
+  DISP
+  ;
+
+% Arithmetic commands
+
+'C.ADD :  % add current argument to next
+  C.ARG @  % save our argument
+  CLI.GETARG  % and get another
+  IF
+    C.ARG @ + CLI.LOAD_ARG
+    -1  % return success
+  ELSE
+    UNDROP SWAP DROP  % save the error code
+  THEN C.ARG_EXISTS -1<-
+  ;
+
+
+'C.SUBTRACT :
+  C.ARG @  % save our argument
+  CLI.GETARG  % and get another
+  IF
+    C.ARG @ - CLI.LOAD_ARG
+    -1  % return success
+  ELSE
+    UNDROP SWAP DROP  % save the error code
+  THEN C.ARG_EXISTS -1<-
+  ;
+
+
+'C.MULTIPLY :
+  C.ARG @  % save our argument
+  CLI.GETARG  % and get another
+  IF
+    C.ARG @ * CLI.LOAD_ARG
+    -1  % return success
+  ELSE
+    UNDROP SWAP DROP  % save the error code
+  THEN C.ARG_EXISTS -1<-
+  ;
+
+
+'C.DIVIDE :
+  C.ARG @  % save our argument
+  CLI.GETARG  % and get another
+  IF
+    C.ARG @ / CLI.LOAD_ARG
+    -1  % return success
+  ELSE
+    UNDROP SWAP DROP  % save the error code
+  THEN C.ARG_EXISTS -1<-
+  ;
+
+'C.AND :
+  C.ARG @  % save our argument
+  CLI.GETARG  % and get another
+  IF
+    C.ARG @ AND CLI.LOAD_ARG
+    -1  % return success
+  ELSE
+    UNDROP SWAP DROP  % save the error code
+  THEN C.ARG_EXISTS -1<-
+  ;
+
+'C.IOR :
+  C.ARG @  % save our argument
+  CLI.GETARG  % and get another
+  IF
+    C.ARG @ OR CLI.LOAD_ARG
+    -1  % return success
+  ELSE
+    UNDROP SWAP DROP  % save the error code
+  THEN C.ARG_EXISTS -1<-
+  ;
+
+'C.XOR :
+  C.ARG @  % save our argument
+  CLI.GETARG  % and get another
+  IF
+    C.ARG @ XOR CLI.LOAD_ARG
+    -1  % return success
+  ELSE
+    UNDROP SWAP DROP  % save the error code
+  THEN C.ARG_EXISTS -1<-
+  ;
+
+'C.< :
+  C.ARG @  % save our argument
+  CLI.GETARG  % and get another
+  IF
+    C.ARG @ SWAP LT CLI.LOAD_ARG
+    -1  % return success
+  ELSE
+    UNDROP SWAP DROP  % save the error code
+  THEN C.ARG_EXISTS -1<-
+  ;
+
+'C.> :
+  C.ARG @  % save our argument
+  CLI.GETARG  % and get another
+  IF
+    C.ARG @ SWAP GT CLI.LOAD_ARG
+    -1  % return success
+  ELSE
+    UNDROP SWAP DROP  % save the error code
+  THEN C.ARG_EXISTS -1<-
+  ;
+
+'C.? :  % return value of error flag
+  ERR_FLAG @ CLI.LOAD_ARG  % load the value
+  C.ARG_EXISTS -1<-  % preserve it
+  -1  % succeed
+  ;
+
+'C.= :
+  C.ARG @  % save our argument
+  CLI.GETARG  % and get another
+  IF
+    C.ARG @ EQ CLI.LOAD_ARG
+    -1  % return success
+  ELSE
+    UNDROP SWAP DROP  % save the error code
+  THEN C.ARG_EXISTS -1<-
+  ;
+
+% Execution of "X" commands
+
+'C.XC :  % copy lines to special buffer
+  X.PRECOPY IF  % get length of string, success?
+    C.ARG @ X.PUSH DROP  % make other buffer current
+    X.INSERT @ NOT IF X.KILL THEN  % kill unless insert is specified
+    BOTOTOP OVER D.EXPAND  % make sure there is enough room
+    X.POP TOPOBOT @ OVER  % string descriptor
+    C.ARG @ X.PUSH DROP TOPOTOP ASE  % move string
+    X.POP C.M+ -1 ELSE  % revert to original buffer, succeed
+    UNDROP THEN  % failure, return code
+  ;
+
+'C.XD :  % display special buffers
+  TF @ 8 TF ! SETSCREEN DISP_FLUSH  % save TF, erase text pane
+  1 1 CUP D.DISP  % display info
+  ERR.TYPCR ERR.MSG  % wait for signal
+  TF ! SETSCREEN DISP -1  % redraw text
+  ;
+
+'C.GET_XG_INFO :
+  TOPOTOP D@- MOVE_DOWN  % consolidate in bottom
+  TOPOBOT D@-  % length of string to be moved
+  C.XARG @ *  % multiply by number of copies to be made
+  DUP MINUS C.STRLEN !  % save the count in C.STRLEN
+  X.POP  % back to original buffer
+  ;
+
+'C.XG :  % get from special buffer
+  C.ARG @ X.PUSH IF  % go to other buffer
+    C.GET_XG_INFO
+    BOTOTOP SWAP D.EXPAND  % make sure there is enough room
+    C.ARG @ X.PUSH DROP BOT_COUNT X.POP  % descriptor of string to be moved
+    DDUP CR_COUNT C.XARG @ * CHECK_INSERT_STRING  % check for screen refresh
+    C.XARG @ (  % do it n times
+      DDUP C.I+ ) 2DROP  % move the string
+    -1 ELSE
+    ERR.INVARG THEN
+  ;
+
+'C.XK :  % kill special buffer
+  C.ARG @ X.PUSH IF
+    X.KILL X.POP -1 SETSCREEN DISP ELSE
+  ERR.INVARG THEN  % fails if same buffer #
+  ;
+
+'C.XM :  % copy lines to special buffer
+  X.PRECOPY IF  % get length of string, success?
+    C.ARG @ X.PUSH DROP  % make other buffer current
+    X.INSERT @ NOT IF X.KILL THEN  % kill unless insert is specified
+    BOTOTOP OVER D.EXPAND  % make sure there is enough room
+    X.POP TOPOBOT @ OVER  % string descriptor
+    C.ARG @ X.PUSH DROP TOPOTOP ASE  % move string
+    X.POP C.D+ -1 ELSE  % revert to original buffer, succeed
+    UNDROP THEN  % failure, return code
+  ;
+
+'C.XS :  % switch to buffer #
+  C.ARGLEN @ EQZ_IF 0 ELSE  % default is zero for XS
+    C.ARG @ THEN
+  SET_BUFFER#  % yes, switch buffers
+  ASCII ~ TOPUSH TOPOP 2DROP  % force materialization of gap
+  DISP -1
+  ;
+
+
+% Execution of 1-letter commands or dispatch on second letter
+
+'CLI.SKIP_SARGS :  % number/args, CLI.SKIP_SARGS: throws away that many
+  ( BEGIN  % loop to get rid of arguments
+      CLI.GNB IF
+        LFEED EQ_IF
+          -1  % exit if line feed
+        ELSE 0 THEN
+      ELSE -1 THEN  % exit if no string
+    END
+  )
+  ;
+
+'POP_KBUF :  % return from executing buffer
+  MSTACK DUP W@ + 1+ B@  % look at the return buffer number
+  DUP 77 NE_IF  % is it the original value?
+    DUP KBUF# ! 10 * K0 + CURKBUF !  % no, start executing there
+    MSTACK DUP W@ + B@  % get the number of arguments
+    MSTACK DUP W@ 6 - W<-  % pop the buffer stack
+    CLI.SKIP_SARGS  % and skip over the arguments
+    -1  % and return success
+  ELSE
+    DROP 0  % pop was done from K0; return fail
+  THEN
+  ;
+
+'C.CTRL/E :
+  C.ARG @ NEZ_IF
+    POP_KBUF  % pop the key buffer; get our success value from its error code
+  ELSE
+    -1  % just succeed if we're not supposed to do anything
+  THEN
+  ;
+
+'C.CTRL/G :  % declare number of string arguments
+  MSTACK W@ 1 EQ_IF  % only one thing on macro stack?
+    ERR.^GFKBD  % yes, fail
+  ELSE
+    MSTACK DUP W@ + C.ARG @ B<-  % store argument otherwise
+    -1  % succeed
+  THEN
+  ;
+
+'C.TAB :  % insert
+  SPACE_FLAG @ IF
+    CLI.GETSTRING 1+ SWAP 1- SWAP  % include leading tab
+    -1 C..I  % insert string
+  ELSE
+    -1
+  THEN
+  ;
+
+'C.CTRL/W :  % insert argument as a number
+  RADIX @ NOTE DECIMAL  % save the radix and switch to decimal
+  C.ARG @ <#>  % convert the number
+  -1 C..I  % insert it
+  RECALL RADIX !  % get the old radix back
+  ;
+
+'C.LINE_FEED :  % no action
+  -1
+  ;
+
+'C.CAR_RET :  % no action
+  -1
+  ;
+
+'C.SPACE :  % insert
+  SPACE_FLAG @ IF  % should we do an insert?
+    CLI.GETSTRING 1+ SWAP 1- SWAP  % include leading blank
+    -1 C..I  % insert string
+  ELSE
+    -1  % if no insert, do nothing and succeed
+  THEN
+  ;
+
+% Comma command: high-efficiency QIO input
+
+% The next word is the basic input routine.  It accepts up to ^x100
+% bytes of text, inserts them into the buffer, updates the TOPWINDOW
+% variable, and returns the terminator byte on the stack.  If the
+% input stops because the buffer is full, -1 is returned.
+
+'INPUT_TEXT :
+  C.NEWSTR 2+ 100 GETLINE  % read text into buffer
+  DUP TOPWINDOW +!  % fix window extent variable
+  C.NEWSTR W!  % save count of string read in
+  C.NEWSTR COUNT E.I+  % silently insert text into text buffer
+  C.NEWSTR W@ 100 EQ_IF  % was the buffer filled up?
+    -1  % if so, return -1 as the terminator
+  ELSE
+    C.NEWSTR COUNT + B@  % otherwise pick up the terminator
+  THEN FIND_CURSOR  % and we need to look up the cursor
+  ;
+
+% A routine using INPUT_TEXT must know what action it wants to take
+% given various possible terminators.  These are the terminator
+% dispatches for "INPUT MODE".  They return values indicating whether
+% to leave input mode.
+
+'C.INPUT_CR :
+  CRET MARK RECALL 1 C.I+ DROP  % insert a CR, with screen update
+  0  % signal to INPUT_TEXT again
+  ;
+
+'C.INPUT_LF :
+  -1  % don't insert anything, but exit the input loop
+  ;
+
+'C.INPUT_DEL :  % delete
+  BOTOTOP @ 1- B@  % get the character to be deleted
+  DUP 09 EQ SWAP CRET EQ OR IF  % is it a tab or carriage return?
+    1 C.D-  % for either of those, do a regular delete
+  ELSE
+    1 E.D-  % it's not; invisibly delete the last byte inserted
+    TOPWINDOW 1-!  % fix the window variable
+    08 TYO 20 TYO 08 TYO  % and rub out the last character
+  THEN
+  0  % stay in the input loop
+  ;
+
+'C.INPUT_BACK :  % backspace
+  TYI 1F AND  % get the next character and make it control
+  MARK RECALL 1 C.I+ DROP  % insert it
+  0  % stay in the input loop
+  ;
+
+'C.INPUT_OVF :  % input filled the input buffer
+  0  % doesn't matter ... go do it again
+  ;
+
+'C.INP_DISPATCH :  % input terminator, C.INP_DISPATCH, halt code
+  DISPATCH 08 C.INPUT_BACK
+  DISPATCH 0A C.INPUT_LF
+  DISPATCH 0D C.INPUT_CR
+  DISPATCH 7F C.INPUT_DEL
+  DISPATCH -1 C.INPUT_OVF
+  MARK RECALL 1 C.I+ DROP  % insert the control character typed
+  0  % signal not to end the input
+  ;
+
+% End of input mode dispatches.  This next word makes sure the cursor
+% is on the end of a line so INPUT MODE can begin.
+
+'C.INPUT_POS :  % a comma command has been typed; position the cursor
+  BOPOP IF  % are we not at the end of the file?
+    DUP BOPUSH  % put the first byte back
+    0D NE_IF  % is this already the end of a line?
+      CRET MARK RECALL 1 C.I+ DROP  % if not, end a line here
+      1 C.M-  % and move back to be at the end of the last line
+    THEN
+  THEN  % if end of buffer, treat it as end of line: do nothing
+  ;
+
+% Input mode access word
+
+'C.COMMA :  % high-efficiency input
+  ERASE_COMMAND "INPUT MODE" MSG S.CUP
+  C.INPUT_POS  % position the cursor properly
+  DISP_FLUSH  % update the screen
+  BEGIN  % loop until someone says to terminate
+    INPUT_TEXT  % read a line until control char or gets too long
+    C.INP_DISPATCH  % decide what to do based on the terminator
+  END  % end input mode loop
+  FIND_CURSOR DRAW_COMMAND  % fix the command area
+  -1
+  ;
+
+'REPL_NY : 0 0 ;
+'REPL_YY : 0 -1 ;
+'REPL_NN : -1 -1 0 ;  % (if exiting, return success)
+
+'REPL_DISP :
+  BEGIN
+    TYI  % get a key
+    DISPATCH 0A REPL_NY  % line feed: no replace, yes continue
+    DISPATCH 0D REPL_YY  % carriage return: yes replace, yes continue
+    DISPATCH 1B REPL_YY  % escape: yes replace, yes continue
+    DISPATCH 20 REPL_NN  % space: don't replace or continue
+    DROP BELL 0  % otherwise beep and loop
+  END
+  ;
+
+'GET_REPLACE_OPTION :
+  DISP_FLUSH FLUSH
+  COND_REPLACE_MSG  % say "type a key"
+  S.CUP FLUSH
+  REPL_DISP
+  ;
+
+'CLI.COND_REPLACE :
+  CLI.GETSTRING C.OLDSTR .MOVE_STRING
+  CLI.GETSTRING C.NEWSTR .MOVE_STRING
+  BEGIN  % loop until finished
+    C.OLDSTR COUNT 1 C..S  % search for the string
+    IF  % did we find it?
+      GET_REPLACE_OPTION
+    ELSE
+      ERR.NOSTRN -1 0  % no replace, exit, fail if no string
+    THEN
+    IF  % replace?
+      C.STRLEN @ DUP C..D DROP  % do deletion with count
+      C.NEWSTR COUNT  % get the replacement
+      -ROT C..I DROP  % and replace
+    THEN
+  END  % exit or continue loop
+  DRAW_COMMAND DRAW_DIVIDER
+  TIME_FLAG @ IF S.CPU_TIME THEN CR FLUSH  % fix divider
+  ;
+
+'SWITCH_KBUF :  % argument, (buffer # in C.ARG), SWITCH_KBUF, success
+  MSTACK DUP W@ + 2+ !  % push the numeric argument
+  MSTACK DUP W@ 4+ W<-  % and change the count
+  0 MSTACK STAB  % push a 0 for the number of string arguments
+  KBUF# @ MSTACK STAB  % push the current buffer on the macro stack
+  C.ARG @ 2+ DUP KBUF# ! 10 * K0 + CURKBUF !  % set up the pointers
+  CLI.INIT  % initialize this buffer for command reading
+  -1  % return success
+  ;
+
+'C.: :  % execute special buffer
+  C.ARG @  % hang onto the argument
+  CLI.GETARG  % get the buffer number
+  C.ARG_EXISTS 0<-  % don't save the argument
+  IF
+    C.ARG @ DUP 9 GE SWAP 0 LE AND  % is it a legal buffer?
+    IF
+      MACRO_STACKSIZE MSTACK W@ GE  % macro stack full?
+      IF
+        DROP ERR.MACOVF
+      ELSE
+        SWITCH_KBUF
+      THEN
+    ELSE
+      DROP ERR.INVARG  % illegal buffer; fail
+    THEN
+  ELSE
+    UNDROP SWAP DROP  % save the error code if GETARG failed
+  THEN
+  ;
+
+'C.; :  % branch
+  CLI.GNB  % get a byte for the label name
+  IF
+    CONVERT_TO_UPPER
+    C.ARG @ NEZ_IF  % should we do anything?
+      CLI.INIT  % go to beginning of this buffer
+      CLI.FIND_LABEL
+      IF  % did we find it?
+        -1  % yes; signal success and start from here
+      ELSE
+        ERR.NOLAB  % no; signal failure
+      THEN
+    ELSE DROP -1  % argument is 0; return success
+    THEN
+  ELSE
+    ERR.INVBRN  % no label byte so say invalid branch
+  THEN
+  ;
+
+'C.B :  % go to beginning of buffer
+  TOPOTOP D@- MOVE_DOWN
+  DISP -1
+  ;
+
+'C.C :  % change
+  CLI.GETSTRING C.ARG @ C..S IF  % search successful?
+    C.STRLEN @ DUP C..D DROP  % yes, do deletion
+    CLI.GETSTRING  % get a string from the input line
+    DUP C.SIGN @ * C.STRLEN !  % save the new string length
+    -ROT C..I ELSE  % do replacement
+    UNDROP CLI.GETSTRING 2DROP THEN  % no, retain error code, skip string
+  ;
+
+'C.D :  % delete characters
+  C.ARG @ DUP CLI.MOVE_ERROR  % check for minor error
+  C..D
+  ;
+
+'C.E :  % set error suppress flag
+  ERR_SUPPRESS -1<-
+  -1
+  ;
+
+'C.F :  % F-command, needs second character
+  CLI.GNB IF
+    CONVERT_TO_UPPER
+    DISPATCH 'I C.FI
+    DISPATCH 'O C.FO
+    THEN DROP ERR.INVCOM
+  ;
+
+'C.G :  % G-command, needs second character
+  CLI.GNB IF  % any more characters?
+    CONVERT_TO_UPPER
+    DISPATCH 'W C.GW
+    DISPATCH 'X C.GX
+    THEN ERR.INVCOM
+  ;
+
+'C.H :  % home
+  FILE_NAME W@ EQZ_IF  % file active?
+%    RESET_TERMINAL
+%    WAIT_FOR_RESET
+    RESTORE_VT100 1 1 CUP ERASE_SCREEN FLUSH
+    LOAD_RESET E.RESET_CHARS ;F -1 ELSE  % no, reset screen, exit big
+    ERR.ACTIVE THEN
+  ;
+
+'C.I :  % insert text
+  C.DEFAULT? @ IF  % is there an explicit argument?
+    CLI.GETSTRING -1 C..I  % no; add the string arg
+  ELSE
+    C.ARG @ MARK RECALL 1 -1 C..I  % else make a string arg of the numeric
+    UNDER  % and clear out the number
+  THEN
+  ;
+
+'C.J :  % journal
+  O.K._TO_CLOSE? IF
+    TOPOBOT D@- NOTE  % remember cursor position
+    FILE_NAME COUNT CLI.REMVER  % file name without version #
+    F.WRITE
+    RECALL MOVE_DOWN DISP ELSE  % reset cursor position
+    UNDROP THEN  % retrieve error code
+  ;
+
+'C..J :  % delete latest version and journal
+  O.K._TO_CLOSE? IF
+    FILE_NAME COUNT 7 ERASE  % delete the file
+    IF
+      TOPOBOT D@- NOTE
+      FILE_NAME COUNT CLI.REMVER
+      F.WRITE
+      IF
+        RECALL MOVE_DOWN DISP -1
+      ELSE UNDROP RECALL DROP
+      THEN
+    ELSE
+      UNDROP SYSMSG TYPE ERR.OPFAIL  % if error, type and add RED error
+    THEN
+  ELSE
+    UNDROP
+  THEN
+  ;
+
+'C.K :  % kill n lines
+  C.ARG @ GTZ_IF  % get count
+  UNDROP DUP CLI.MOVE_ERROR  % check for minor error
+  BOT_COUNT SFCR DUP E.D+ D.D+ ELSE  % delete n lines forward
+  UNDROP MINUS 1+
+  TOP_COUNT SRCR DUP E.D- D.D- THEN  % delete 1-n lines backward
+  -1  % always succeed
+  ;
+
+% Execution of 1-letter commands (continued)
+
+'C.L :  % move n lines
+  C.ARG @ GTZ_IF  % get count
+    UNDROP DUP CLI.MOVE_ERROR  % check for minor error
+    C.L+ ELSE  % move n lines forward
+    UNDROP MINUS 1+ C.L- THEN  % move 1-n lines backward
+    -1  % always succeed
+  ;
+
+'C.M :  % move n characters
+  C.ARG @ DUP NEZ_IF  % get count, ignore command if count is zero
+    DUP CLI.MOVE_ERROR  % see if there will be a minor error
+    GTZ_IF
+      UNDROP C.M+ ELSE  % move n characters forward
+      UNDROP MINUS C.M- THEN  % move -n characters backwards
+    ELSE DROP
+    THEN
+  -1  % always succeed
+  ;
+
+'C.O :  % open file
+  O.K._TO_OPEN? IF
+    CLI.GETSTRING FILE_NAME .MOVE_STRING  % yes, install file name
+    X.KILL  % get rid of previous contents
+    FILE_NAME COUNT F.OPEN_FILE IF
+      SETSCREEN DISP -1
+    ELSE  % success
+      UNDROP 18292 EQ_IF  % is it file-not-found?
+        SETSCREEN DISP ERR.NEWFIL  % if so, flash "new file"
+      ELSE
+        UNDROP SELECT_COMMAND SYSMSG TYPE ERR.OPFAIL  % open failure
+        FILE_NAME 0W<-
+      THEN
+    THEN
+  ELSE
+    UNDROP  % retrieve error
+  THEN
+  ;
+
+%  Execution of 1-letter commands (continued)
+
+'C.S :  % search
+  CLI.GETSTRING C.ARG @ C..S
+  ;
+
+'C.T :  % T-command, needs second character
+  CLI.GNB IF
+    CONVERT_TO_UPPER
+    DISPATCH '# C.T#
+    DISPATCH 09 C.T	
+    DISPATCH 'B C.TB
+    DISPATCH 'C C.TC
+    DISPATCH 'F C.TF
+    DISPATCH 'I C.TI
+    DISPATCH 'P C.TP
+    THEN DROP ERR.INVCOM
+  ;
+
+'C.U :  % string replace
+  C.STRLEN @ DUP LTZ_IF  % forward or backward?
+    MINUS C.D-  % backward, delete string
+    CLI.GETSTRING C.I- ELSE  % insert string
+    NEZ_IF  % anything there?
+      UNDROP C.D+  % yes, delete string
+      CLI.GETSTRING C.I+ THEN THEN  % insert string
+  -1  % always succeed
+  ;
+
+'C.W :  % write current file
+  O.K._TO_CLOSE? IF
+    FILE_NAME COUNT CLI.REMVER
+    F.WRITE DUP IF  % write file, success?
+      X.KILL  % yes, delete from buffer
+      FILE_NAME 0W<- SETSCREEN THEN  % null-out file name
+    DISP ELSE
+    UNDROP THEN  % retrieve error code
+  ;
+
+% Execution of 1-letter commands (continued)
+
+'C.XDISP :
+  C.ARG @ DUP GEZ SWAP 9 GE AND IF  % is buffer # in range?
+    X.GNB IF  % get second argument and command byte
+      DISPATCH 'C C.XC
+      DISPATCH 'D C.XD
+      DISPATCH 'G C.XG
+      DISPATCH 'K C.XK
+      DISPATCH 'M C.XM
+      DISPATCH 'S C.XS
+      THEN DROP ERR.NOTIMP ELSE
+    ERR.INVARG THEN  % buffer # out of range
+  ;
+
+'C.X :  % special-buffer command, needs second character
+  C.ARG C.XARG MOVE  % save first argument
+  CLI.GETARG
+  C.ARG_EXISTS 0<-  % don't save the argument
+  IF
+    C.XDISP
+  ELSE
+    ERR.NOARG
+  THEN
+  ;
+
+'C.Z :  % move to end of text buffer
+  TOPOBOT D@- GTZ_IF  % already at end?
+    UNDROP C.M+ THEN  % no, do move
+  -1  % always succeed
+  ;
+
+'C.[ :  % opening iteration bracket
+  C.LOOP_COUNT @ 20 GE_IF  % is there a huge number of nested loops?
+    ERR_SUPPRESS @ NOTE  % save state of error suppress flag
+    CURKBUF @ D@- NOTE  % save position in command line
+    C.DEFAULT? @ IF  % explicit argument?
+      FFFF ELSE  % no, substitute a large number
+      C.ARG @ THEN  % yes, use it
+    NOTE  % save iteration count
+    CURKBUF @ NOTE  % save key buffer for verification
+    C.LOOP_COUNT 1+!  % add 1 to the loop count
+    -1  % always succeed
+  ELSE
+    ERR.LUPOVF
+  THEN
+  ;
+
+'C.\ :  % label definition
+  CLI.GNB  % read a byte for the label name
+  IF
+    LFEED EQ_IF  % was the byte a line feed?
+      ERR.INVLAB  % yes; invalid
+    ELSE
+      -1  % return success otherwise
+    THEN
+  ELSE
+    ERR.INVLAB  % invalid if no byte there
+  THEN  % just ignore it if one was found
+  ;
+
+'CLI.RESET_LOOP :
+  RECALL 1- DUP  % iteration count
+  GTZ C.ARG @ NEZ AND IF  % all done or drop out?
+    RECALL RECALL  % get position, error suppress flag
+    DUP NOTE ERR_SUPPRESS ! DUP NOTE  % set flag, put back position
+    CURKBUF @ D@- SWAP -  % and get the distance to back up
+    MINUS CLI.MOVE  % move to the loop beginning
+    NOTE  % restore iteration count
+    CURKBUF @ NOTE  % restore buffer pointer for verification
+  ELSE
+    DROP  % we don't need the iteration count
+    RECALL RECALL 2DROP  % all done, clean loop stack
+    C.LOOP_COUNT 1-!  % decrement the loop count
+  THEN
+  ;
+
+'C.] :  % closing iteration bracket
+  L_STACK_EMPTY? IF  % anything on the loop stack?
+    ERR.ITER
+  ELSE  % no, iteration error
+    RECALL CURKBUF @ EQ_IF  % same buffer now as then?
+      CLI.RESET_LOOP
+    ELSE
+      ERR.INVSTR  % iterations not nested within macros, return error
+    THEN
+  -1 THEN  % succeed
+  ;
+
+'C.^ :  % replace counted character string
+  CLI.GETSTRING  % get the string argument
+  C.ARGLEN @ C..D DROP  % delete the old string
+  1 C..I  % insert string, use success value from C..I
+  C.ARGLEN @ C.M+  % move past the new string
+  ;
+  
+'C.NOT :  % logical NOT
+  C.ARG @ NOT  % get the value
+  CLI.LOAD_ARG  % load it into C.ARG, etc.
+  C.ARG_EXISTS -1<-  % keep it from being erased
+  -1  % always succeed
+  ;
+
+'C.` :
+  CLI.GNB IF
+    CONVERT_TO_UPPER
+    DISPATCH 'C CLI.COND_REPLACE
+    DISPATCH 'J C..J
+    DROP ERR.INVCOM
+  ELSE
+    ERR.INVCOM
+  THEN
+  ;
+
+'CLI.DISP1 :  % dispatch first character
+    DISPATCH 0A C.LINE_FEED
+    DISPATCH 0D C.CAR_RET
+    C.ARG_EXISTS 0<-  % not LF or CR; signal not to preserve argument
+    DISPATCH '? C.?
+    DISPATCH 05 C.CTRL/E
+    DISPATCH 07 C.CTRL/G
+    DISPATCH 09 C.TAB
+    DISPATCH 17 C.CTRL/W
+    DISPATCH 20 C.SPACE
+    DISPATCH 2C C.COMMA
+    DISPATCH '! C.IOR
+    DISPATCH '% C.XOR
+    DISPATCH '& C.AND
+    DISPATCH '+ C.ADD
+    DISPATCH '- C.SUBTRACT
+    DISPATCH '* C.MULTIPLY
+    DISPATCH '/ C.DIVIDE
+    DISPATCH '` C.`
+    DISPATCH ': C.:
+    DISPATCH '; C.;
+    DISPATCH '< C.<
+    DISPATCH '= C.=
+    DISPATCH '> C.>
+    DISPATCH 'B C.B
+    DISPATCH 'C C.C
+    DISPATCH 'D C.D
+    DISPATCH 'E C.E
+    DISPATCH 'F C.F
+    DISPATCH 'G C.G
+    DISPATCH 'H C.H
+    DISPATCH 'I C.I
+    DISPATCH 'J C.J
+    DISPATCH 'K C.K
+    DISPATCH 'L C.L
+    DISPATCH 'M C.M
+    DISPATCH 'O C.O
+    DISPATCH 'S C.S
+    DISPATCH 'T C.T
+    DISPATCH 'U C.U
+    DISPATCH 'X C.X
+    DISPATCH 'W C.W
+    DISPATCH 'Z C.Z
+    DISPATCH '[ C.[
+    DISPATCH '\ C.\
+    DISPATCH '] C.]
+    DISPATCH '^ C.^
+    DISPATCH 27 C.NOT
+    DROP ERR.INVCOM  % here if command does not exist
+  ;
+
+'PROCESS_BYTE :
+  CONVERT_TO_UPPER  % got one, convert it
+  CLI.DISP1  % interpret & execute next command
+  DUP IF  % command error?
+    CTRL_C_FLAG @ IF  % no, terminal interrupt?
+      DROP ERR.ABORT SETSCREEN DISP  % yes, abort, redraw screen
+    THEN
+  THEN  % no error or interrupt
+  ;
+
+'C.READ_BYTE :
+    CLI.GNB IF  % any more bytes in command line?
+      PROCESS_BYTE  % read a byte and act on it
+    ELSE
+      POP_KBUF  % no more bytes, exit signal depends on KBUF
+    THEN
+    IF  % any problems?
+      0 ELSE  % no, loop to pick up next command
+      UNDROP NEZ_IF  % yes, error or end of command line?
+        UNDROP ERR.MSG  % error, alert operator
+        BEGIN POP_KBUF NOT END  % pop back to K0
+        CTRL_C_FLAG 0<- THEN
+    -1 THEN  % signal exit
+  ;
+
+'CLI :  % CLI, success  (failure indicates error)
+  CLI.INIT
+  CLEAR_L_STACK
+  USER_STACK 0W<-  % reset user stack
+  BEGIN  % loop until failure
+    C.ARG_EXISTS @ NOT IF  % do we need an argument?
+      CLI.GETARG  % yes; read one
+    ELSE -1  % remember success otherwise
+    THEN
+    IF  % check the error code
+      C.READ_BYTE
+    ELSE
+      UNDROP ERR.MSG
+      BEGIN POP_KBUF NOT END
+      CTRL_C_FLAG 0<-
+      -1  % succeed
+    THEN
+  END
+  CLI.MOVE_UP ERR_SUPPRESS 0<-  % make all of command visible
+  E.DRAW_ARG  % maybe draw the last command argument
+  ;

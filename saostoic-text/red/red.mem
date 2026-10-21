@@ -1,0 +1,2760 @@
+
+
+
+
+
+
+          1.0  INTRODUCTION
+
+
+
+          1.1  Conventions
+
+
+
+               ^X represents control X for any key X.
+
+
+
+               ~ usually represents the LINE FEED key.  It  is  echoed
+
+          on the display as a tilde.
+
+
+
+               Parentheses are used in command descriptions  only  for
+
+          clarity  and  form  no part of any command.  (i.e.  (STRING)
+
+          means any string, (CR) means carriage return)
+
+
+
+               CP denotes the Character Pointer which  is  the  origin
+
+          point  of  many Editor commands (e.g.  Insert, Search).  The
+
+          position of the  CP  is  displayed  by  the  blinking  of  a
+
+          character.   The  CP  may  be thought of as being positioned
+
+          between the blinking character and the  one  which  precedes
+
+          it.
+
+
+
+               Commands may be typed in either UPPER or lower case  or
+
+          may  be  MIxeD.   In this manual commands are shown in upper
+
+          case.
+
+
+
+
+
+
+
+          1.2  The Display
+
+
+
+               On the first line of the screen is displayed  the  name
+
+          of  the  file currently being edited and the number (0-9) of
+
+          the text buffer currently in use.  The filename is drawn  in
+
+          reverse  video and with double-width characters;  the buffer
+
+          number is in standard video and preceded by an (X).   If  no
+
+          file is currently open, the filename field is left blank.
+
+
+
+               The editor next displays 8 lines of text on either side
+
+          of  the  CP.   A  cursor is displayed at the CP.  The last 4
+
+          lines of the command string are displayed at the  bottom  of
+
+          the screen below a solid horizontal line.
+
+
+
+               If desired, the user may change the format of the  text
+
+          display with the following command:
+
+
+
+          nTF     set the number of lines displayed on either side  of
+
+                  the  cursor  to  n.   illegal  if n < 1 or n > 10 no
+
+                  argument is treated as n = 8.
+
+
+
+
+
+               Tabs may be displayed either as bright capital I's,  or
+
+          as  real  tabs.   To toggle between the two modes, enter the
+
+          command Ttab (where tab means pressing the tab key).
+
+
+
+               When a line is too long  to  be  displayed  across  the
+
+          screen, it is truncated.
+
+          RED Users Manual                                      Page 2
+
+
+
+
+
+          1.3  Error Conditions
+
+
+
+               If an error occurs during the execution  of  a  command
+
+          string,  a  prominent  error message will be displayed.  The
+
+          keyboard is locked until a (CR) is typed.
+
+          RED Users Manual                                      Page 3
+
+
+
+
+
+          2.0  INSTANT COMMANDS
+
+
+
+               The following commands each require only one  keystroke
+
+          and  are  executed as soon as they are typed.  They need not
+
+          be followed by ~~.  They do not become a part of the command
+
+          line.
+
+
+
+          ( )       (cursor down key) MOVE CURSOR TO BEGINNING OF NEXT
+
+                    LINE
+
+
+
+          ( )       (cursor  up  key)  MOVE  CURSOR  TO  BEGINNING  OF
+
+                    PREVIOUS LINE
+
+
+
+          ( )       (cursor right key) MOVE CURSOR AHEAD 1 CHARACTER
+
+
+
+          ( )       (cursor left key) MOVE CURSOR BACK 1 CHARACTER
+
+
+
+          (PF4)     MOVE CURSOR AHEAD TO END OF THIS OR NEXT WORD
+
+
+
+          (PF3)     MOVE CURSOR BACK TO BEGINNING OF THIS OR  PREVIOUS
+
+                    WORD
+
+
+
+          (PF2)     MOVE CURSOR TO BOTTOM OF DISPLAY AND SCROLL  UNTIL
+
+                    CURSOR IS CENTERED
+
+
+
+          (PF1)     MOVE CURSOR TO TOP OF  DISPLAY  AND  SCROLL  UNTIL
+
+                    CURSOR IS CENTERED
+
+
+
+          The following commands are also acted upon instantly:
+
+
+
+          (0)       Toggle between immediate mode and  normal  command
+
+                    mode
+
+
+
+          (.)       Toggle between light and dark screen background
+
+
+
+          (-)       (on numeric keypad) Open or  close  a  cut  region
+
+                    (see Cutting and Pasting)
+
+
+
+          (,)       (on numeric keypad) Insert the contents of the cut
+
+                    buffer (buffer 9) into the current buffer.
+
+
+
+          ^U        Delete command string
+
+
+
+          ^R        Refresh the entire screen.  This  is  useful  when
+
+                    the  screen becomes garbled due to line noise from
+
+                    a dialup terminal, to  remove  broadcast  messages
+
+                    from  the  operator  or  "NEW  MAIL"  messages, to
+
+                    re-initialize the VT100 after a power failure,  or
+
+                    when  you  change  the  screen size from 80 to 132
+
+                    characters, or vice-versa.
+
+
+
+          ^C        Halt the command currently being processed.   This
+
+                    is   useful  if  a  string  search  is  taking  an
+
+                    intolerably long time, or if you have  erroneously
+
+                    entered  an  iterating command sequence which will
+
+          RED Users Manual                                      Page 4
+
+
+
+
+
+                    not terminate.
+
+
+
+          ^F        Edit the command string.  The command string  will
+
+                    appear  in the text area, the command area will be
+
+                    cleared, and the buffer display  will  read  "K0".
+
+                    After command string editing is finished, press ^F
+
+                    again to restore the command.
+
+
+
+          ^B        Move the cursor to the beginning of the buffer.
+
+
+
+          ^Z        Move the cursor to the end of the buffer.
+
+
+
+          (DELETE)  Delete last character of command string
+
+          RED Users Manual                                      Page 5
+
+
+
+
+
+          3.0  IMMEDIATE MODE
+
+
+
+               Pressing the big (0) key on the bottom of  the  numeric
+
+          keypad  places  the editor in IMMEDIATE mode.  In this mode,
+
+          typing   any   character   other   than   (ESC),   (DELETE),
+
+          (BACKSPACE),   or  instant  command  keys  will  cause  that
+
+          character to be inserted before the (CP) in the text buffer.
+
+          Pressing  the  (DELETE)  key will cause the character before
+
+          the (CP) to be deleted.  Pressing  an  instant  command  key
+
+          causes   the  instant  command  to  be  performed  normally.
+
+          Pressing (ESC) is a legal operation ONLY when it immediately
+
+          follows  (BACKSPACE).   Pressing  the big (0) key again will
+
+          cause the editor to  leave  IMMEDIATE  mode  and  revert  to
+
+          normal command mode.
+
+
+
+
+
+
+
+          3.1  Entering Control Characters
+
+
+
+          Some control characters cannot normally be entered from  the
+
+          keyboard  because  they  have a special significance to VMS;
+
+          e.g., CTRL-Y, CTRL-C, NULL, CTRL-O, CTRL-S, CTRL-Q.
+
+
+
+               Use the BACKSPACE  key  to  enter  control  characters,
+
+          either  into  the  command  line in command mode or into the
+
+          text in immediate mode.  For example,  to  enter  a  CTRL-Y,
+
+          press  the BACKSPACE key followed by the Y key;  to enter an
+
+          ESCAPE (CTRL-[) press the BACKSPACE key followed  by  the  [
+
+          key  (or  the ESCAPE key, which is the only legal use of the
+
+          ESCAPE key);  to enter a backspace, press the BACKSPACE  key
+
+          twice.   Control  characters  are  displayed  as highlighted
+
+          characters if your VT100  has  the  advanced  video  option;
+
+          e.g., a CTRL-Y is displayed as a bright Y ().
+
+          RED Users Manual                                      Page 6
+
+
+
+
+
+          4.0  COMMAND STRUCTURE
+
+
+
+          4.1  Command Syntax
+
+
+
+               A  command  string  consists  of  a  list  of  commands
+
+          terminated  by two (LF)s.  Any command which requires string
+
+          arguments must terminate those arguments with an (LF).   Any
+
+          command  not requiring a string need not be terminated by an
+
+          (LF).
+
+
+
+
+
+          EXAMPLE:
+
+
+
+          SABC~-2M5D~~    Search for "ABC" then move  the  CP  back  2
+
+                          characters  and  delete 5 characters forward
+
+                          from the CP.
+
+
+
+          Note that the string "ABC"  requires  the  terminating  (LF)
+
+          while the M and D commands do not.
+
+
+
+
+
+
+
+          4.2  Re-executing A Command
+
+
+
+               Typing (LF) as the first charcter of a  command  string
+
+          will  cause  the  previous  command  string  (if  any) to be
+
+          re-executed.  The  previous  command  string  is,  for  this
+
+          reason, still displayed after the command has been executed.
+
+          Typing (DELETE) as the first character of a  command  string
+
+          will  retain  the  previous  command,  but  delete  its last
+
+          character.  typing any character other than (LF) or (DELETE)
+
+          will  delete the previous command and enter the character as
+
+          the first letter of a new command.
+
+
+
+
+
+
+
+          4.3  Iteration Of Commands
+
+
+
+          Iteration brackets have been added.   This  means  that  any
+
+          command  or sequence of commands may be enclosed in brackets
+
+          and preceded by an iteration count, In the following form:
+
+
+
+          n[...]
+
+
+
+               The command enclosed in  brackets  will  be  repeatedly
+
+          executed n times or until an error or ^C causes execution to
+
+          terminate.  If n  is  absent  or  0,  the  command  will  be
+
+          executed  65,536  times  or until an error occurs.  Brackets
+
+          may be nested.
+
+
+
+          EXAMPLE:
+
+
+
+                  The   command   [CABC~XYZ~]~~   will   change    all
+
+                  occurrences,  from the CP to the end of the file, of
+
+                  the string ABC to the string XYZ, and terminate with
+
+          RED Users Manual                                      Page 7
+
+
+
+
+
+                  the error indication STRING NOT FOUND.
+
+
+
+
+
+
+
+          4.4  Arguments
+
+
+
+               Arguments may be any expression involving the operators
+
+          given below, numbers interpreted in the current input radix,
+
+          and special character sequences given below.  All  operators
+
+          have equal precedence and operations are performed from left
+
+          to right.  See the TP command for how to override the normal
+
+          order  of  operations by storing intermediate results on the
+
+          stack.
+
+
+
+          If no argument is present at all, the argument used defaults
+
+          to  1.  If a single minus sign is present, the argument used
+
+          is -1.  Exceptions to this are noted  under  the  individual
+
+          command description.
+
+
+
+          If the last  thing  in  the  command  string  is  a  numeric
+
+          argument  and  not a command, the value of the argument will
+
+          be displayed on the line at the  top  of  the  screen  until
+
+          another command line is executed.
+
+          EXAMPLE:
+
+                   D~~ is the same as  1D~~
+
+                  -D~~ is the same as -1D~~
+
+
+
+                   5+5*3+3          evaluates to 33
+
+                   1+1=1            evaluates to 0
+
+
+
+
+
+
+
+
+
+          4.4.1  Operators -
+
+
+
+          +       signed integer addition
+
+
+
+          -       signed integer subtraction
+
+
+
+          *       signed integer multiplication
+
+
+
+          /       signed integer division
+
+
+
+          &       logical AND
+
+
+
+          !       logical inclusive OR
+
+
+
+          %       logical exclusive OR
+
+
+
+          '       logical NOT (complementation)
+
+
+
+          <       less than;  result = -1 (true)  if  operand  1  less
+
+                  than operand 2;  result = 0 (false) otherwise.
+
+
+
+          >       greater than;  result  =  -1  (true)  if  operand  1
+
+          RED Users Manual                                      Page 8
+
+
+
+
+
+                  greater than operand 2;  0 (false) otherwise
+
+
+
+          =       equal to;  result = -1 if operand 1 equal to operand
+
+                  2;  0 otherwise
+
+
+
+
+
+
+
+
+
+          4.4.2  Numeric Arguments -
+
+
+
+
+
+
+
+
+
+          4.4.2.1  @ Characters -
+
+
+
+          @L      Has the value of the current line  number  (starting
+
+                  at 0)
+
+
+
+          @C      Has  the  value  of  the  current  character  number
+
+                  (starting at 0)
+
+
+
+          @T      Has the value of the ASCII code of the current  text
+
+                  character (i.e.  the one immediately to the right of
+
+                  the cursor and directly under  the  blinking  screen
+
+                  cursor)
+
+
+
+          @K      The appearance of this character within an  argument
+
+                  expression  causes  the  current  text  window to be
+
+                  displayed, with the prompt message "Type a key:"  on
+
+                  the  divider line.  The ASCII code of the key struck
+
+                  by the operator is returned as the value.
+
+
+
+          @N      This is similar to @K except that the message  "Type
+
+                  a  number:"  is given and the number is echoed as it
+
+                  is typed.  Carriage return terminates the number and
+
+                  the  value of the number (in decimal) is returned as
+
+                  the argument.
+
+
+
+          @A      Has the value of the most  recent  macro  call  (see
+
+                  MACROS).
+
+
+
+          @P      Pops the top of the stack and  returns  its  numeric
+
+                  value.   Note  that before executing any new command
+
+                  string, the stack is reset.
+
+
+
+          @Q      Has the numeric value of the top of the stack.  Note
+
+                  that  before  executing  any new command string, the
+
+                  stack is reset.
+
+
+
+          RED Users Manual                                      Page 9
+
+
+
+
+
+          4.4.2.2  The ? Argument -
+
+
+
+               The ?  argument references the  current  value  of  the
+
+          error  flag.   The  error  flag  is set to -1 if a search or
+
+          change command failed to find  its  string  or  if  a  move,
+
+          delete,  or  kill command attempted to reference text beyond
+
+          the end of the text buffer, and reset  to  0  if  a  search,
+
+          change,  move,  delete, or kill command was executed without
+
+          any of these  conditions  occurring.   For  example,  the  ?
+
+          argument  could be used to stop a long iterated command when
+
+          the command attempted to move off the end of the buffer.
+
+
+
+          NOTE:  In the case of search  and  change  commands,  the  ?
+
+          argument   is   not  normally  useful  because  the  command
+
+          immediately  generates  an  error  if  the   search   fails.
+
+          However,   the  ?   argument  can  be  used  to  trap  these
+
+          conditions if the E command  is  given  to  suppress  errors
+
+          before  the  search  or  change command is given;  see below
+
+          under E for details.
+
+
+
+
+
+
+
+          4.4.2.3  The " Argument -
+
+
+
+               The " argument takes the character immediately after it
+
+          in  the  command  string  and  uses it as the argument.  For
+
+          example, "A returns the ASCII value for the  letter  A  (65)
+
+          and uses it as the argument.
+
+
+
+
+
+
+
+
+
+          4.4.2.4  Number Registers -
+
+
+
+               Twenty-six number registers have been implemented which
+
+          can  be  used  to  store  numbers.  The contents of a number
+
+          register may be used as an argument with the expression  #x,
+
+          where  x  is  the  name of the number register.  X must be a
+
+          single letter from A to Z.  A number register may be set  to
+
+          a value with the following command:
+
+
+
+          nT#k    set number register k to the value of  the  argument
+
+                  (n).   Note  that  the argument may be an expression
+
+                  involving the same or other  number  registers,  and
+
+                  that k must be a letter from A to Z.  For example:
+
+
+
+          #A+1T#A~~               increments number register A
+
+
+
+          1T#A50[#A[IX~]I         inserts 50 lines into the text
+
+          ~#A+1T#A]~~             buffer; the first line consisting
+
+                                  of "X",  the  second  consisting  of
+
+                                  "XX", etc.
+
+          RED Users Manual                                     Page 10
+
+
+
+
+
+          4.5  String Arguments
+
+
+
+               String arguments may be used within any  command  which
+
+          accepts  a  string  as  argument,  such  as  insert, search,
+
+          change, etc.  By using a string argument,  the  command  may
+
+          reference   the   contents  of  a  special  buffer.   String
+
+          arguments may  also  be  used  within  macros  to  reference
+
+          strings  passed by the calling command (See MACROS below for
+
+          a full description).  A string argument must  be  terminated
+
+          by  at  least  one  line  feed  to  distinguish  it from the
+
+          commands following it on the line.
+
+          RED Users Manual                                     Page 11
+
+
+
+
+
+          5.0  COMMAND DESCRIPTIONS
+
+
+
+          5.1  Insert Commands
+
+
+
+               The following commands may be used to insert text  from
+
+          the command string directly into the text buffer.  Insertion
+
+          takes place at the current cursor location.
+
+
+
+          I(STRING)~              insert STRING.
+
+
+
+          (TAB)(STRING)~          insert a  tab  followed  by  STRING.
+
+                                  >TAB is control-I (^I)
+
+
+
+          (SPACE)(STRING)~        insert a space followed by STRING.
+
+
+
+          nI                      Insert the  single  character  whose
+
+                                  ASCII code is n.
+
+
+
+          To insert the contents of another text buffer,  see  the  XG
+
+          and ^G@ commands.
+
+
+
+          To insert the contents of a file, see the FI command.
+
+
+
+
+
+
+
+          5.2  Delete Commands
+
+
+
+          The following commands my be used to delete  text  from  the
+
+          text buffer:
+
+
+
+          nD      Delete n characters starting at the  current  cursor
+
+                                  location
+
+
+
+                          if n > 0, the  n  characters  following  the
+
+                                  cursor are deleted
+
+
+
+                          if n = 0, no action is taken
+
+
+
+                          if n < 0, the  n  characters  preceding  the
+
+                                  cursor are deleted
+
+
+
+                          if n is not specified, a default value of  1
+
+                                  is assumed
+
+
+
+          nK      Delete  n  lines  starting  at  the  current  cursor
+
+                                  location
+
+
+
+                          if n > 0, the  characters  starting  at  the
+
+                                  cursor  up  to and including the nth
+
+                                  following   carriage   return    are
+
+                                  deleted
+
+
+
+                          if n = 0, the characters before  the  cursor
+
+                                  and  back  to  but not including the
+
+                                  preceding   carriage   return    are
+
+          RED Users Manual                                     Page 12
+
+
+
+
+
+                                  deleted
+
+
+
+                          if n < 0, the characters before  the  cursor
+
+                                  and  back  to  but not including the
+
+                                  n+1st preceding carriage return  are
+
+                                  deleted
+
+
+
+                          if n is not specified, a default value of  1
+
+                                  is assumed
+
+
+
+
+
+
+
+          5.3  Cursor Control Commands
+
+
+
+          The following commands are used to move the cursor;  they do
+
+          not affect the contents of the text buffer.
+
+
+
+          nM      move n characters
+
+
+
+                          if n > 0, move the cursor ahead n characters
+
+
+
+                          if n = 0, no action is taken
+
+
+
+                          if n < 0, move the cursor back n characters
+
+
+
+                          if n is not specified, a default value of  1
+
+                                  is assumed
+
+
+
+          nL      move n lines
+
+
+
+                          if n > 0, move the cursor to  the  beginning
+
+                                  of the nth following line
+
+
+
+                          if n = 0, move the cursor to  the  beginning
+
+                                  of the current line
+
+
+
+                          if n < 0, move the cursor to  the  beginning
+
+                                  of the nth preceding line
+
+
+
+                          if n is not specified, a default value of  1
+
+                                  is assumed
+
+
+
+          B       Move the cursor to the beginning of the text buffer
+
+
+
+          Z       Move the cursor to the end of the text buffer
+
+
+
+
+
+
+
+          5.4  SEARCH And CHANGE Commands
+
+
+
+          The general form of the SEARCH command is:
+
+
+
+          nS(STRING)~     the n-th occurrence of (STRING) is located.
+
+
+
+          NOTE:  If n is zero, no search is done but the text  on  the
+
+          RED Users Manual                                     Page 13
+
+
+
+
+
+          screen  is  re-drawn.   This  is  useful for complex command
+
+          strings that make many changes to the current place  in  the
+
+          text  buffer.   By  itself, such a command string might take
+
+          several minutes to display all the changes, one by  one,  on
+
+          the  screen.   If the command string is preceded by "0S~" on
+
+          the command  line,  however,  the  screen  refresh  will  be
+
+          delayed  until  the command is finished and RED is ready for
+
+          the user to input the next command line.
+
+
+
+          The general form of the CHANGE command is:
+
+
+
+          nC(STRING1)~(STRING2)~  Performs the command:   nS(STRING1);
+
+                                  if   succesful   then  (STRING1)  is
+
+                                  replaced by (STRING2)
+
+
+
+
+
+
+
+          5.5  String Replace Command - U
+
+
+
+
+
+          A string replace command has  also  been  implemented  which
+
+          takes the following form:
+
+
+
+          U(STRING)
+
+
+
+          This command is normally used immediately after  the  S,  I,
+
+          XG,  or  C, commands;  It deletes the string just located or
+
+          inserted and inserts its argument string.
+
+
+
+          EXAMPLES:
+
+
+
+          SABC~UDEF~~             EQUIVALENT TO CABC~DEF~~
+
+
+
+          CABC~DEF~~              after doing a change of "ABC" to
+
+
+
+                                  "DEF",
+
+
+
+          UGHIJK~~                "DEF" is then changed to "GHIJK"
+
+
+
+          IABCDEFG~~              after inserting "ABCDEFG",
+
+          U~~                     the insert is deleted
+
+
+
+
+
+
+
+          5.5.1  The ^ Command -
+
+
+
+               A special change command  has  been  implemented  which
+
+          counts  the  number  of  characters  in its string argument,
+
+          deletes that  many  characters  from  the  current  CP,  and
+
+          inserts  its  argument string.  For example:  ^ABCDE~~ would
+
+          replace the next five characters in the text buffer with the
+
+          string  "ABCDE".   The cursor is positioned after the end of
+
+          the string that was inserted.
+
+
+
+          RED Users Manual                                     Page 14
+
+
+
+
+
+          5.6  Conditional Change Command
+
+
+
+               Note that  enclosing  a  change  command  in  iteration
+
+          brackets  will  cause  all  occurrences  of  (STRING1) to be
+
+          replaced by (STRING2).   It  may  be  desired,  however,  to
+
+          change   only   selected   occurrences  of  (STRING1).   The
+
+          following command makes this possible:
+
+
+
+          `C(STRING1)~(STRING2)~~    Conditional change
+
+
+
+          The  `C  command  is  identical  to  C  with  the  following
+
+          exception:  after successfully locating an occurrence of the
+
+          first  argument  string,  the  editor   will   display   the
+
+          surrounding text, with the prompt message "Type a key:", and
+
+          will wait for one of three responses:
+
+
+
+          ESCAPE          Perform string replacement  and  search  for
+
+                          next occurrence of first argument string
+
+
+
+          LINE FEED       Do not perform string replacement;  continue
+
+                          search
+
+
+
+          Other           Exit to normal command mode
+
+
+
+
+
+
+
+          5.7  File Handling Commands
+
+
+
+          GW(file name)~        This command is used to create  a  new
+
+                          file.   It  initializes  the text buffer and
+
+                          assigns the file name to it.  A subsequent W
+
+                          command  will create a file of this name and
+
+                          write the text buffer to it.   This  command
+
+                          will not execute if there is a current file.
+
+                          This command may only be executed  while  in
+
+                          buffer 0.
+
+
+
+          GX              This command kills the current text  buffer.
+
+                          This  command can be used to abandon editing
+
+                          operations on the current file.  Nothing  is
+
+                          written  to  disk.  This command may only be
+
+                          used in buffer 0.
+
+
+
+          O(file name)~   This command reads the specified  file  into
+
+                          the  text  buffer and makes it available for
+
+                          editing.  This command may only be  used  in
+
+                          buffer 0.
+
+
+
+          W               This command creates a new  version  of  the
+
+                          current  file,  writes  the text buffer into
+
+                          it, and kills the text buffer.  This command
+
+                          may only be used in buffer 0.
+
+
+
+          J               This command creates a new  version  of  the
+
+                          current  file,  writes  the text buffer into
+
+          RED Users Manual                                     Page 15
+
+
+
+
+
+                          it, maintaining the text buffer and the  CP.
+
+                          The  net  result  is  to  save  on  disk the
+
+                          changes which have been made  to  the  file.
+
+                          This command may only be used in buffer 0.
+
+
+
+          `J              This command (the J is preceded by an accent
+
+                          grave)  has the same effect as the J command
+
+                          with the exception that the last version  of
+
+                          the  file  is  deleted  before the buffer is
+
+                          saved on disk.  This command  is  useful  if
+
+                          you  would like to save the current state of
+
+                          the buffer to protect against system crashes
+
+                          but  you  are  low  on disk space and do not
+
+                          want to accumulate an extra version  of  the
+
+                          file.
+
+
+
+          The normal usage of the above commands is as follows:
+
+
+
+                        1) Read the file into text buffer 0 using  the
+
+                      O  command  If  there  is  no  input file (as in
+
+                      entering a file  the  first  time)  use  the  GW
+
+                      command to assign a file name.
+
+
+
+                        2) Make whatever modifications are necessary.
+
+
+
+                        3) Terminate with W~H~~ which  will  create  a
+
+                      new, modified version of the file being edited.
+
+
+
+                        4)  To  abort  an  editing  operation  without
+
+                      creating  a  new version of the file, use the GX
+
+                      command.
+
+
+
+                        5) To "journal" the changes  which  have  been
+
+                      made  so far, to protect from loss due to system
+
+                      crashes or other disasters, use the J command.
+
+
+
+          FI(file name)~  Insert named file at the CP.
+
+
+
+          FO(file name)~  Create a new  file  and  fill  it  with  the
+
+                          contents  of  the current buffer.  The CP is
+
+                          left positioned at the end of the buffer.
+
+
+
+
+
+
+
+          5.8  Special Buffer Commands
+
+
+
+               The editor has ten buffers numbered 0-9.   The  buffers
+
+          are  dynamically  allocated and may be of any length subject
+
+          to limitations of available virtual memory.
+
+
+
+               There is always a  "current"  buffer;   i.e.   the  one
+
+          which is being manipulated and displayed on the screen.  The
+
+          current buffer number is displayed in the upper right corner
+
+          of  the  screen.  Buffer 0 is the default current buffer and
+
+          is the only buffer which can have an open file  attached  to
+
+          RED Users Manual                                     Page 16
+
+
+
+
+
+          it.   Any  of  the buffers can have a file inserted by using
+
+          the FI command.  Lines of text may be  "Copied"  or  "Moved"
+
+          from  the current buffer into any of the other buffers.  The
+
+          entire contents of any non-current buffer  may  be  "Gotten"
+
+          and inserted in the current buffer.  Buffer 1 is the default
+
+          buffer for Copying, Moving, Inserting, or Getting.
+
+
+
+          nXmC    Copy n lines of text starting at the CP into  buffer
+
+                  m.  Only positive values for n are allowed.  If m is
+
+                  not specified buffer 1 will be used.  At termination
+
+                  of  the command the CP of the current buffer will be
+
+                  positioned after the  last  character  copied.   The
+
+                  prior contents of the specified buffer are lost.
+
+
+
+          nXmM    Move n lines of text starting at the CP into  buffer
+
+                  m.   The  lines which are moved are deleted from the
+
+                  current buffer;  otherwise operation is the same  as
+
+                  for the XC command.
+
+
+
+          Note:  There are two modifiers which may be applied  to  the
+
+          XM  and  XC commands.  These are B, the byte modifier and I,
+
+          the  insert  modifier.   These  modifiers  must  immediately
+
+          precede  the  M  or C.  The B modifier causes n bytes rather
+
+          than n lines to be moved.  The I modifier  causes  the  text
+
+          which is moved to be inserted in the specified buffer rather
+
+          than replacing its previous contents.
+
+
+
+          nXmG    Insert the contents of buffer m at the CP n times at
+
+                  termination  of  the  command,  the  CP  points just
+
+                  beyond the inserted text.
+
+
+
+          XD      Display  the  status  of  the  text  buffers.   Type
+
+                  carriage return to resume normal command execution.
+
+
+
+          XmK     Delete the contents of buffer m.  XK may not be used
+
+                  to kill the current buffer.
+
+
+
+          XmS     Switch to buffer m.  Buffer m  becomes  the  default
+
+                  buffer.   If  m  is  omitted  buffer  0  becomes the
+
+                  default.  This is the only X command for  which  the
+
+                  default buffer   is 0.
+
+
+
+
+
+
+
+
+
+          5.9  Macros
+
+
+
+               Special buffers may be used as the source  of  commands
+
+          to  be  executed.   In  this  way  complicated or often used
+
+          command  sequences  may  be  executed   repeatedly   without
+
+          retyping the entire command sequence.
+
+          RED Users Manual                                     Page 17
+
+
+
+
+
+          5.9.1  Execute A Macro -
+
+
+
+               Macros can be executed immediately from the keyboard or
+
+          by  a  command in an executing command string.  To execute a
+
+          macro from the keyboard, simply press the  numbered  key  on
+
+          the numeric keypad corresponding to the number of the buffer
+
+          containing the macro (NOTE:  this feature is  currently  not
+
+          implemented  on  the  INFOTON-200  version of RED).  A macro
+
+          called this way is  not  allowed  to  reference  numeric  or
+
+          string  macro  arguments  passed  by  the  caller,  since no
+
+          arguments can be passed.  To execute a macro during  command
+
+          string execution, use the following command:
+
+
+
+          n:k     Execute the contents of special buffer k as a macro.
+
+
+
+                  The command contained in the  buffer  may  terminate
+
+                  either  by  reaching  the end of the buffer in which
+
+                  the command is contained, by executing a ^E  command
+
+                  (see  below),  or by causing an error.  The executed
+
+                  command may execute other macros to a nesting  depth
+
+                  of 16.
+
+
+
+                  The argument,  n,  is  accessible  to  the  executed
+
+                  command via the argument "@A".
+
+
+
+                  One convenient way to enter a command into a special
+
+                  buffer  is  to  type  the  command  into the command
+
+                  string, type ^F, and use the XM  or  XC  command  to
+
+                  move  or  copy  the  command  into a special buffer.
+
+                  Finally, type  ^F  a  second  time  to  restore  the
+
+                  original text buffer.
+
+
+
+
+
+
+
+          5.9.2  Terminate A Macro -
+
+
+
+          n^E     Terminate execution of a macro.  Control  passes  to
+
+                  the command immediately following the call.  If n is
+
+                  non-zero or missing, termination is performed;  if n
+
+                  is  zero,  termination  is not performed and control
+
+                  passes to the next command.  If no  macro  is  being
+
+                  executed,  the  current command is aborted as if the
+
+                  ~~ at the end of the command had been reached.
+
+
+
+
+
+
+
+          5.9.3  String Arguments In Macros -
+
+
+
+               String arguments may be used within any  command  which
+
+          accepts  a  string  as  argument,  such  as  insert, search,
+
+          change, etc.  By using a string argument,  the  command  may
+
+          reference   the   contents  of  a  special  buffer.   String
+
+          arguments may  also  be  used  within  macros  to  reference
+
+          strings passed by the calling command.
+
+          RED Users Manual                                     Page 18
+
+
+
+
+
+               Before referencing any string arguments passed from the
+
+          calling  command,  the  macro  must  declare  the  number of
+
+          arguments is requires with the following command:
+
+
+
+          n^G     set the  number  of  passed  arguments  to  n;   the
+
+                  default  value is zero.  Note that a string argument
+
+                  which references the contents of  a  special  buffer
+
+                  should  not be declared;  only those arguments which
+
+                  refer  to  the   calling   command   string.    This
+
+                  information  permits the editor to check for illegal
+
+                  argument  numbers  and  to  skip  over  the   string
+
+                  arguments on returning from the macro call.
+
+
+
+               String arguments appear within the macro as ^Gn,  where
+
+          n  is  an  argument number from 0-9, or as ^G@n where n is a
+
+          special buffer number from 0-9.
+
+
+
+          EXAMPLES:
+
+
+
+          CASE 1:  ^Gn
+
+
+
+          This refers to the nth string argument following  the  call.
+
+          The   call  must  be  followed  immediately  by  the  string
+
+          arguments, each one terminated by ~.
+
+
+
+          Example:
+
+
+
+          :9AAA~BBB~~
+
+
+
+          where special buffer 9 contains:
+
+
+
+          2^GC^G0^G1^E
+
+
+
+          The above command is equivalend to "CAAA~BBB~~".
+
+
+
+          CASE 2:  ^G@n
+
+
+
+          This refers to end contents of the nth special buffer.
+
+
+
+          The contents of the referenced special buffer will  be  used
+
+          as  the  string argument.  This type of argument may be used
+
+          within any command;  not just within a macro.
+
+
+
+          Example:
+
+
+
+          S^G@2~~
+
+
+
+          where special buffer 2 contains:
+
+
+
+          ABC
+
+
+
+          is equivalent to "SABC~~".
+
+          RED Users Manual                                     Page 19
+
+
+
+
+
+          5.10  Conditionals And Labels
+
+
+
+          5.10.1  Defining A Label -
+
+
+
+               A label is a two-character expression of the form  "\x"
+
+          where  x  is  any letter from A to Z.  Labels should only be
+
+          placed between commands, not within commands.   Executing  a
+
+          label  has  no  effect.  Labels must be contained within the
+
+          same command or special  buffer  as  the  conditional  which
+
+          references  them.   If  more  than  one  label with the same
+
+          character exists, the second one is ignored.   Note  that  a
+
+          label  can  have  the  same  name as a number register;  the
+
+          editor can tell them apart since they are used in  different
+
+          ways.
+
+
+
+
+
+
+
+          5.10.2  Branch Command -
+
+
+
+               The conditional command evaluates its argument and,  if
+
+          the  result is non-zero or the argument is missing, jumps to
+
+          a  specified  label.   If  the  result  is  zero,  execution
+
+          continues at the next command.
+
+
+
+          n;x     if n is missing or non-zero, branch  to  X.   If  no
+
+                  label  X  exists,  the  message  "No such label." is
+
+                  given.
+
+
+
+          EXAMPLES:
+
+
+
+          #Z;ATB\A        sounds  the  bell  if  number   register   Z
+
+                          contains 0
+
+
+
+          Display factorial of number
+
+
+
+          @NT#A           get number from user;  put in register A
+
+
+
+          1T#B            set register B to 1
+
+
+
+          \A#A=1;B        define label "A";  if number register  A  is
+
+                          equal to 1, go to B
+
+
+
+          #A*#BT#B        set register B to register A * register B
+
+
+
+          #A-1T#A         decrement register A
+
+
+
+          ;A              go to A
+
+
+
+          \B#B~~          define  label  "B",  end  with  contents  of
+
+                          register B to be displayed
+
+
+
+          RED Users Manual                                     Page 20
+
+
+
+
+
+          5.11  Miscellaneous Commands
+
+
+
+          E       Set error suppress  flag.   This  command  has  been
+
+                  added  to  allow  the  user  to temporarily suppress
+
+                  error messages resulting  from  failed  searches  in
+
+                  search  and change commands.  The flag is cleared by
+
+                  all search and change commands, and must be set each
+
+                  time before calling the command for which errors are
+
+                  to be suppressed.  The error suppress flag is  saved
+
+                  upon entering iteration brackets and restored before
+
+                  each iteration.
+
+
+
+          H       Return to operating system.  If an input  or  output
+
+                  file  is  active  then  the command is illegal.  The
+
+                  contents of the text buffers are lost.
+
+
+
+          nTF     Sets the number of lines displayed in the window, on
+
+                  each side of the cursor, to n.
+
+
+
+          TB      Sound the bell on the terminal.  This  is  sometimes
+
+                  useful  when  executing  an  iterated  command which
+
+                  requires a long time to complete.  the bell may then
+
+                  be used to signify termination of the command.
+
+
+
+          nTP     Push n on the stack.  Note that the stack  is  reset
+
+                  before executing each new command string.
+
+
+
+          nTC     Stores the character whose ASCII code is  n  at  the
+
+                  current  cursor  location  (the  character  position
+
+                  immediately above the  cursor).   An  error  results
+
+                  from  attempting  to  store  at  the end of the text
+
+                  buffer.
+
+
+
+          T(tab)  Toggles the way tabs are output between  bright  I's
+
+                  and actual tabs.
+
+          RED Users Manual                                     Page 21
+
+
+
+
+
+          6.0  CUTTING AND PASTING
+
+
+
+               RED now has a facility for  quickly  moving  blocks  of
+
+          text from place to place in one buffer or from one buffer to
+
+          another.  To enclose a region to be moved, press the "-" key
+
+          on  the  numeric  keypad  to the right of the main keyboard.
+
+          The message "CUT MODE" will  be  displayed  in  the  command
+
+          area, and the editor will respond only to keys that move the
+
+          cursor;  i.e.  the four arrow keys and  the  four  PF  keys.
+
+          Move  the  cursor  to  the  end of the region to be enclosed
+
+          (remember that the actual cursor is  between  the  character
+
+          under  the blinking terminal cursor and the character before
+
+          it), and press the "-" key again.  The block  of  characters
+
+          between  the cursor and the beginning of the cut region will
+
+          be removed from the current buffer  and  placed  in  special
+
+          buffer  9 (see Special Buffer Commands), and the editor will
+
+          return to command or immediate mode.
+
+
+
+               To insert the contents of buffer  9  into  the  current
+
+          buffer,  press  the  ","  key on the numeric keypad (PASTE).
+
+          The contents of buffer 9 will be immediately copied into the
+
+          current  buffer.   Pasting  can  be  done  as  many times as
+
+          desired;  the contents of buffer 9 are not changed.
+
+
+
+               If, after a region has been  enclosed  and  moved  into
+
+          buffer  9,  the  "-" key is pressed to enclose a new cut but
+
+          the old cut has  not  been  pasted  back  into  the  current
+
+          buffer,  the  message  "2nd cut without paste;  type a key:"
+
+          will appear and a list of  options  and  short  descriptions
+
+          will  be  shown  in  the command area.  The possible options
+
+          are:
+
+
+
+          RETURN  (the RETURN key on the main keyboard) will erase the
+
+                  contents  of  the  previous  cut  and enter cut mode
+
+                  normally.  When  the  new  cut  is  terminated,  its
+
+                  contents will be the only thing in buffer 9.
+
+
+
+          A       enters cut  mode  normally,  except  that  when  the
+
+                  current cut is closed, its contents will be appended
+
+                  onto the contents of the  previous  cut  instead  of
+
+                  replacing  them.  A subsequent paste would then load
+
+                  the contents of both cuts into the text.
+
+
+
+          Q       aborts the  cut  and  leaves  the  contents  of  the
+
+                  previous cut unchanged.  Does not enter cut mode.
+
+
+
+               The contents of a cut can be altered by giving the  X9S
+
+          command  (to  switch  to buffer 9) and altering the contents
+
+          normally.   However,  if  any  subsequent  cuts  are  to  be
+
+          appended  to the contents, the cursor for buffer 9 should be
+
+          returned to the end of the buffer before switching  back  to
+
+          the original buffer.  If this is not done, further cuts will
+
+          be moved into buffer 9 wherever the  cursor  is  instead  of
+
+          being appended to the end.
+
+          RED Users Manual                                     Page 22
+
+
+
+
+
+               A cut region cannot be opened if the current buffer  is
+
+          buffer 9.
+
+
+
+
+
+
+
+          6.1  Searches Within Cut Mode
+
+
+
+               A feature has now been implemented enabling the user to
+
+          use  a  modified  SEARCH  command  to move the cursor around
+
+          while in cut mode.  The  S  and  -S  commands  can  be  used
+
+          normally  in cut mode except that only one search is allowed
+
+          per command;  a structure such as SABC~SDEF~~ would work  in
+
+          normal  command  mode  but  not in cut mode.  The command is
+
+          displayed below the "CUT MODE" message  and  must  still  be
+
+          terminated with two line-feeds.  Also note that, to keep the
+
+          user from forgetting that cut mode is active, RED  will  not
+
+          allow  a  command  other  than a search command to be typed;
+
+          the first characters must be either S or  -S.   The  command
+
+          line is restored when the user leaves cut mode.
+
+
+
+               If the string is not  found,  the  normal  "string  not
+
+          found" message will be displayed and must be acknowledged by
+
+          pressing RETURN.
+
+          RED Users Manual                                     Page 23
+
+
+
+
+
+          7.0  SUMMARIES
+
+
+
+          7.1  Summary Of Instant Commands
+
+
+
+
+
+          ( )       (cursor down key) move cursor to beginning of next
+
+                    line
+
+
+
+          ( )       (cursor  up  key)  move  cursor  to  beginning  of
+
+                    previous line
+
+
+
+          ( )       (cursor right key) move cursor ahead 1 character
+
+
+
+          ( )       (cursor left key) move cursor back 1 character
+
+
+
+          (PF4)     move cursor ahead to end of this or next word
+
+
+
+          (PF3)     move cursor back to beginning of this or next word
+
+
+
+          (PF2)     move cursor to bottom of display and scroll  until
+
+                    cursor is centered
+
+
+
+          (PF1)     move cursor to top of  display  and  scroll  until
+
+                    cursor is centered
+
+
+
+
+
+          (0)       toggle between immediate mode and  normal  command
+
+                    mode
+
+
+
+          (.)       toggle between light and dark screen background
+
+
+
+          ^U        delete command string
+
+
+
+          ^R        refresh the entire screen.
+
+
+
+          ^C        abandon the currently executing command.
+
+
+
+          ^F        edit the current command string.
+
+
+
+          ^B        move the cursor to the beginning of the file.
+
+
+
+          ^Z        move the cursor to the end of the file
+
+
+
+          (DELETE)  delete last character of command string
+
+
+
+          (-)       (on numeric keypad) open or close a cut region
+
+
+
+          (,)       (on numeric keypad) insert the contents of  buffer
+
+                    9 into the current buffer (paste)
+
+
+
+          1 - 9     (on keypad) execute macro immediately
+
+          RED Users Manual                                     Page 24
+
+
+
+
+
+          8.0  SUMMARY OF COMMANDS BY FUNCTION
+
+
+
+          INSERTION COMMANDS
+
+           
+
+                  TAB(^I)       Insert tab and following text
+
+                  space Insert space and following text
+
+                  I     Insert text
+
+                  nI    Insert character
+
+                  FI    Insert file
+
+                   
+
+          DELETION COMMANDS
+
+           
+
+                  D     Delete n characters
+
+                  K     Delete n lines
+
+                   
+
+          SEARCH and CHANGE COMMANDS
+
+           
+
+                  C     Change 
+
+                  `C    Conditional change
+
+                  ^     Count characters and replace
+
+                  S     Search
+
+                   
+
+          CURSOR CONTROL COMMANDS
+
+           
+
+                  L     Move n lines
+
+                  M     Move n characters
+
+                  B     Move to top of text buffer
+
+                  Z     Move to end of text buffer
+
+                   
+
+          INPUT/OUTPUT FILE CONTROL
+
+           
+
+                  O     Open file
+
+                  W     Close file 
+
+                  J     Save state of file
+
+                  `J    Replace last version of file
+
+                  GX    Close input and output files
+
+                  GW    Open new file
+
+                  FI    Insert file
+
+                  FO    Output file 
+
+                   
+
+          SPECIAL BUFFER COMMANDS
+
+           
+
+                  XC    Copy into buffer
+
+                  XD    Display buffer status
+
+                  XG    Get from buffer
+
+                  XK    Kill buffer
+
+                  XM    Move to buffer
+
+                  XS    Switch current buffer
+
+                   I    Insert modifier
+
+                   B    Byte-count modifier 
+
+                   
+
+          MACRO COMMANDS
+
+           
+
+                  a:n   execute buffer n with argument a
+
+                  n^G   declare n string arguments
+
+          RED Users Manual                                     Page 25
+
+
+
+
+
+                  ^E    return from macro
+
+                   
+
+          MISCELLANEOUS COMMANDS
+
+           
+
+                  H     Return from editor
+
+                  E     Set error suppress flag
+
+                  TF    Set display window
+
+                  Ttab  Set (TAB) display style
+
+                  TB    Sound bell on terminal
+
+                  T#x   Set number register x
+
+                   
+
+          NUMERIC ARGUMENTS
+
+           
+
+                   x    Return contents of number register x
+
+                  "c    Return ASCII value of character C
+
+                  ?     Return value of error flag
+
+                  @L    Return value of current line number
+
+                  @C    Return value of current character number
+
+                  @T    Return ASCII code for current character
+
+                  @K    Input key from terminal
+
+                  @N    Input number from terminal
+
+                  @A    Return most recent macro argument
+
+                  @P    Pop top of stack
+
+                  @Q    Return value on top of stack without popping
+
+                   
+
+          SPECIAL STRING ARGUMENTS
+
+           
+
+                  ^G@n  Use contents of buffer n
+
+                  ^Gn   Use passed argument number n
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                              APPENDIX A
+
+
+
+                  IMPLEMENTATION ON THE INFOTON-200          
+
+
+
+
+
+
+
+               RED has now been implemented on the Infoton-200 display
+
+          terminal  as  well  as  on  the VT100.  The two versions are
+
+          basically quite similar  (although  the  Infoton  lacks  the
+
+          advanced  scrolling capability of the VT100);  however, most
+
+          of the cursor control keys are different.
+
+
+
+               Control characters on the Infoton-200 will be  preceded
+
+          by  a ^ sign (up-arrow) rather than being in bold type.  The
+
+          entire control character, including the ^, will  be  treated
+
+          as  one  character  by  the  cursor.   The boundary of a cut
+
+          region will be marked by a # sign in the text,  rather  than
+
+          by a blinking character.
+
+
+
+               The arrow keys at the far right on the Infoton keyboard
+
+          are  used  to  move the cursor up, down, and left.  The HOME
+
+          key must be used  to  move  the  cursor  to  the  right  one
+
+          character,  as  the  right-arrow  key generates a control-Y,
+
+          which has the effect of immediately  interrupting  execution
+
+          of RED and returning the user to VAX command level.
+
+
+
+          NOTE:  To recover from accidental  use  of  the  right-arrow
+
+          key,  type  the  command  "CONTINUE", press ENTER, and press
+
+          control-R to refresh the screen after RED restarts.
+
+
+
+               The other keys  that  move  the  cursor  are  the  keys
+
+          labeled  F9,  F10, F11, and F12 on the row of keys above the
+
+          main keyboard.  These keys are in the same order as the ones
+
+          used  on the VT100 keyboard:  F9 moves the cursor to the top
+
+          of the screen and centers it, F10 moves  it  to  the  bottom
+
+          (also  centering  it),  F11  moves  it  backward to the last
+
+          space, and F12 moves it forward to the next space.
+
+
+
+               The other special function keys are at the other end of
+
+          the  row  of  keys  above  the  main  keyboard:   F1 toggles
+
+          IMMEDIATE MODE, F2 marks either end of a cut region,  F3  is
+
+          the  PASTE key, and F5 produces the same effect as BACKSPACE
+
+          on the VT100:  it converts the next letter  typed  into  the
+
+          equivalent control character.
+
+          IMPLEMENTATION ON THE INFOTON-200                   Page A-2
+
+
+
+
+
+               The character to delete the entire command line on  the
+
+          Infoton  is  control-K  rather  than  control-U, the instant
+
+          character  to  move  to  the  beginning  of  the  buffer  is
+
+          control-T  rather  than control-B, and the instant character
+
+          to move to the end of the buffer is  control-X  rather  than
+
+          control-Z.
+
+          IMPLEMENTATION ON THE INFOTON-200                   Page A-3
+
+
+
+
+
+               SUMMARY OF INFOTON INSTANT COMMAND KEYS
+
+
+
+          This table summarizes the  instant  command  keys  that  are
+
+          different  on  the  VT100 and INFOTON-200 implementations of
+
+          RED.
+
+
+
+          Key           VT100 Equivalent        Action
+
+
+
+          (up-arrow)    (up-arrow)              moves cursor up
+
+          (down-arrow)  (down-arrow)            moves cursor down
+
+          (left-arrow)  (left-arrow)            moves cursor left
+
+          HOME          (right-arrow)           moves cursor right
+
+
+
+          F9            PF1                     moves cursor to top of
+
+          page
+
+          F10           PF1                     moves to bottom of
+
+          page
+
+          F11           PF3                     moves to next space
+
+          F12           PF4                     moves to last space
+
+
+
+          F1            0 (on small keypad)     toggles IMMEDIATE MODE
+
+          F2            - (on small keypad)     defines a cut region
+
+          F3            , (on small keypad)     restores cut text
+
+          (PASTE)
+
+          F5            BACKSPACE               makes next character
+
+                                                into control
+
+          ^K            ^U                      erases the entire
+
+          command line
+
+          ^T            ^B                      moves to the top of
+
+          the buffer
+
+          ^W            ^Z                      moves to the end of
+
+          the buffer
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                              APPENDIX B
+
+
+
+                          INDEX OF COMMANDS          
+
+
+
+
+
+
+
+
+
+          (,)  . . . . . . . . . . . . . 21
+
+          (-)  . . . . . . . . . . . . . 21
+
+          (.)  . . . . . . . . . . . . . 3
+
+          (0)  . . . . . . . . . . . . . 3
+
+          (delete) . . . . . . . . . . . 4
+
+          (pf1)  . . . . . . . . . . . . 3
+
+          (pf2)  . . . . . . . . . . . . 3
+
+          (pf3)  . . . . . . . . . . . . 3
+
+          (pf4)  . . . . . . . . . . . . 3
+
+          :  . . . . . . . . . . . . . . 17
+
+          ;  . . . . . . . . . . . . . . 19
+
+          [...]  . . . . . . . . . . . . 6
+
+          \  . . . . . . . . . . . . . . 19
+
+          ^  . . . . . . . . . . . . . . 13
+
+          ^b . . . . . . . . . . . . . . 4
+
+          ^c . . . . . . . . . . . . . . 3
+
+          ^e . . . . . . . . . . . . . . 17
+
+          ^f . . . . . . . . . . . . . . 4
+
+          ^g . . . . . . . . . . . . . . 18
+
+          ^u . . . . . . . . . . . . . . 3
+
+          ^z . . . . . . . . . . . . . . 4
+
+          `c . . . . . . . . . . . . . . 13
+
+          `j . . . . . . . . . . . . . . 15
+
+
+
+          B  . . . . . . . . . . . . . . 12
+
+
+
+          C  . . . . . . . . . . . . . . 13
+
+
+
+          D  . . . . . . . . . . . . . . 11
+
+
+
+          E  . . . . . . . . . . . . . . 20
+
+
+
+          Fi . . . . . . . . . . . . . . 15
+
+          Fo . . . . . . . . . . . . . . 15
+
+
+
+          Gw . . . . . . . . . . . . . . 14
+
+          Gx . . . . . . . . . . . . . . 14
+
+
+
+          H  . . . . . . . . . . . . . . 20
+
+          INDEX OF COMMANDS                                   Page B-2
+
+
+
+
+
+          I  . . . . . . . . . . . . . . 11
+
+
+
+          J  . . . . . . . . . . . . . . 14
+
+
+
+          K  . . . . . . . . . . . . . . 11
+
+
+
+          L  . . . . . . . . . . . . . . 12
+
+
+
+          M  . . . . . . . . . . . . . . 12
+
+
+
+          O  . . . . . . . . . . . . . . 14
+
+
+
+          S  . . . . . . . . . . . . . . 12
+
+          Space  . . . . . . . . . . . . 11
+
+
+
+          Tb . . . . . . . . . . . . . . 20
+
+          Tf . . . . . . . . . . . . . . 1
+
+          Ttab . . . . . . . . . . . . . 1
+
+
+
+          U  . . . . . . . . . . . . . . 13
+
+
+
+          W  . . . . . . . . . . . . . . 14
+
+
+
+          Xc . . . . . . . . . . . . . . 16
+
+          Xd . . . . . . . . . . . . . . 16
+
+          Xg . . . . . . . . . . . . . . 16
+
+          Xk . . . . . . . . . . . . . . 16
+
+          Xm . . . . . . . . . . . . . . 16
+
+          Xs . . . . . . . . . . . . . . 16
+
+
+
+          Z  . . . . . . . . . . . . . . 12
+
+
+

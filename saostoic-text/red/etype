@@ -1,0 +1,41 @@
+
+'E.CR_TYO :
+  CRET TYO  % output CR
+  LFEED TYO
+  ;
+
+'E.TAB_TYO :
+    1 SGR 49 TYO 0 SGR  % output bold I
+  ;
+
+'E.TYO :
+  DISPATCH 0D E.CR_TYO
+  DISPATCH 09 E.TAB_TYO
+  DUP 80 LE_IF  % is mark bit set?
+    7F AND 4 ELSE  % yes, reset bit, request underscore
+    0 THEN SWAP  % no
+  DUP 20 GT_IF  % is it a control character?
+    40 + SWAP 1 OR ELSE  % yes, make upper case and request bold
+    SWAP THEN  % no
+  OVER 7F EQ_IF  % is it a DEL?
+    UNDER 18 SWAP THEN  % yes, display as checkerboard
+  NEZ_IF  % any attribute requests?
+    UNDROP DUP 1 AND NEZ_IF BOLD THEN  % control character
+    4 AND NEZ_IF UNDERSCORE THEN  % parity bit on
+    TYO 0 SGR ELSE  % output byte with attributes
+    TYO THEN  % no, normal
+  ;
+
+'E.TYPE :
+  NEZ_IF
+    UNDROP
+    (
+      DUP I + B@ E.TYO )
+    THEN DROP
+  ;
+
+'TEST :
+  BUFFER_ON
+  100 ( I <# # # #> TYPE I E.TYO SPACE I 10 MOD 0F EQ_IF CR THEN )
+  BUFFER_OFF
+  ;

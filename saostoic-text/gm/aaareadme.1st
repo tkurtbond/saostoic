@@ -1,0 +1,65 @@
+						15.I.82
+
+
+
+Roger:
+
+As you can tell from the directory included with the tape, I have put a copy
+of KERNEL.MAR, SS.MAR, and FLOAT.STO on the tape. In KERNEL you will find
+the following code:
+
+	1. To permit floating point numbers under the decimal radix (only)
+	2. To permit octal integers
+	3. To allow local numerical qualifiers in the manner of MACRO
+	   numerical literals (i.e. ^X, ^D, ^O).
+	4. To signal an empty parameter stack when an "=" is executed
+	   on an empty P_stack.
+	5. To signal an empty vocabulary stack when an ">" is executed
+	   on an empty V_stack (does not permit user to flush the STOIC<
+	   system).
+	6. To convert single precision floating point to ASCII strings
+	   under Fortran G format.
+
+In SS.MAR I have added two calls: $FAO and FOR$CVN_OUT_G to add a bit more
+power to conversion routines.
+
+The file FLOAT.STO defines operators necessary to the implementation of
+floating point arithmetic. Nothing unusual here.
+
+With regard to the .RNO file: some portions are as yet incomplete and
+others are inadequate. You may wish to expand on some of them. Perhaps I
+should remark that this document arose as part of a learning exercise on
+my part with respect to STOIC. I had intended to submit it as an internal
+report at GM Research Labs.; however, it may be useful to a broader segment
+of the VAX community. I think that by co-authoring it I can get it out of
+GM and into the open literature. I hope that I have removed all the pieces
+of text that would make it sound like an internal report (in which, for
+instance, I acknowledged you as author of STOIC etc.).
+
+There are some areas with which I am still having trouble getting a clear
+understanding of the action of the STOIC words. These would benefit by
+some clarification on your part, particularly the use of "WORD" and some
+examples of it. I note that user defined stacks lacks a balancing operator
+called "BPOP" to recover pushed bytes. I have supplied such an operator
+and you will find its definition in the detailed description section
+of the text. Crude, but it works. I am not attached to the text, so it
+can be cut, pasted, spliced, abridged, spindled, torn and mutilated if
+such actions would improve it. Besides, I am sure that typos and
+misconceptions abound!
+
+Let me remind you that you agreed to send back to me a new version of
+STOIC when it is ready, a copy of the new RED, and other utilities which
+may be of use.
+
+
+
+				Regards,
+
+
+
+				Wayne Wiitanen
+				Computer Science Department
+				GM Research Laboratories
+				Warren, MI  48090
+
+				(313) 575-3180
