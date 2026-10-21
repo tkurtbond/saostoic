@@ -1,0 +1,24 @@
+IN 10A, DEPTH 2
+IN 10B, DEPTH 3
+Input file table overflow.
+'10C.STO LOAD
+LOAD
+No word found at 0
+LOAD		 D=68193, C=137249(7)
+No word found at 846865
+No word found at 135266
+BACK IN 10B
+BACK IN 10A
+AFTER NEST
+GET      -^@^@^@1 8
+GET 2    -^@^@^@1 9
+GET EOF  0
+LIST
+LINE ONE
+LINE TWO!
+AFTER LIST
+IN 10D
+NOSUCHWORD
+undefined error compiling...  NOSUCHWORD  ...in line
+NOSUCHWORD
+

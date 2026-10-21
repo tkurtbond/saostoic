@@ -1,14 +1,19 @@
 #!/bin/sh
 # Runs STOIC source files on the VAX and prints what STOIC writes.
 #
-#   tools/stoic-run [-x <exe>] [-f <file>]... [-m] <file.sto|file.con>...
+#   tools/stoic-run [-x <exe>] [-f <file>]... [-m] <file.sto|file.con|file.dcl>...
 #
 # A <file.con> is typed at the console instead: its lines are the data lines
 # of a STOIC of its own, then ";F". A compile error there abandons only
 # its line, where in a LOAD file it abandons the rest of the file (and
 # every LOAD under way), so error tests are .con files. A run-time error
-# abandons only its line either way. No line of one may begin with "$". Console lines from a
-# procedure are not uppercased either.
+# abandons only its line either way. No line of one may begin with "$".
+# Console lines from a procedure are not uppercased either.
+#
+# A <file.dcl> holds DCL commands, one per line without the "$", run after
+# @WORK-ASSIGN, so STOIC, RED and CALC are the [.WORK] copies; it tests
+# DCL command tails. No line of one may contain an apostrophe (DCL would
+# take it for a symbol substitution).
 #
 # Each <file.sto> is copied to [.WORK] and LOADed by a STOIC of its own:
 # the procedure runs @WORK-ASSIGN, then STOIC with the console lines
@@ -28,12 +33,15 @@
 # and "Welcome to STOIC" with which each STOIC begins, or the NUL that ends
 # the session's output. NULs are shown as ^@ (= writes some). Exits as
 # tools/vax-do does.
+#
+# Tests may write files named *.TMP; every version of them is deleted at the
+# end.
 set -e
 here=$(cd "$(dirname "$0")" && pwd)
 exe=${STOIC_EXE:-DUA1:[USERS.CLAUDE.SAOSTOIC.STOIC]STOIC.EXE}
 extra=
 marks=
-usage() { echo "usage: tools/stoic-run [-x <exe>] [-f <file>]... [-m] <file.sto|file.con>..." >&2; exit 2; }
+usage() { echo "usage: tools/stoic-run [-x <exe>] [-f <file>]... [-m] <file.sto|file.con|file.dcl>..." >&2; exit 2; }
 while [ $# -gt 0 ]; do
   case $1 in
     -x) [ $# -ge 2 ] || usage; exe=$2; shift 2 ;;
@@ -53,11 +61,14 @@ trap 'rm -rf "$stage"' EXIT
 vms() { basename "$1" | tr a-z- A-Z_; }
 for f in "$@" $extra; do
   [ -r "$f" ] || { echo "stoic-run: cannot read $f" >&2; exit 2; }
-  case $f in *.con) continue ;; esac
+  case $f in *.con|*.dcl) continue ;; esac
   cp "$f" "$stage/$(vms "$f")"
 done
 for f; do
-  case $f in *.con) ! grep -q '^\$' "$f" || { echo "stoic-run: a line of $f begins with \$" >&2; exit 2; } ;; esac
+  case $f in
+    *.con) ! grep -q '^\$' "$f" || { echo "stoic-run: a line of $f begins with \$" >&2; exit 2; } ;;
+    *.dcl) ! grep -q "'" "$f" || { echo "stoic-run: a line of $f has an apostrophe" >&2; exit 2; } ;;
+  esac
 done
 cp "$here/work-assign.com" "$stage/WORK-ASSIGN.COM"
 
@@ -70,6 +81,9 @@ proc=$stage/STOICRUN.COM
   for f; do
     n=$(vms "$f")
     [ -z "$marks" ] || echo "\$ WRITE SYS\$COMMAND \"=== $(basename "${f%.*}") ===\""
+    case $f in
+      *.dcl) sed 's/^/$ /' "$f"; continue ;;
+    esac
     echo "\$ RUN_STOIC"
     case $f in
       *.con) cat "$f" ;;
@@ -77,21 +91,26 @@ proc=$stage/STOICRUN.COM
     esac
     echo ";F"
   done
+  echo "\$ IF F\$SEARCH(\"*.TMP\") .NES. \"\" THEN DELETE/NOLOG *.TMP;*"
   echo "\$ EXIT 1"
 } >"$proc"
 
 files="$stage/WORK-ASSIGN.COM"
 for f in "$@" $extra; do
-  case $f in *.con) ;; *) files="$files $stage/$(vms "$f")" ;; esac
+  case $f in *.con|*.dcl) ;; *) files="$files $stage/$(vms "$f")" ;; esac
 done
 status=0
 # shellcheck disable=SC2086
 "$here/vax-do" -o "$stage" -t "$stage/tt" "$proc" $files >"$stage/do.out" || status=$?
 [ -f "$stage/tt" ] || { cat "$stage/do.out" >&2; exit 2; }
 # each STOIC's opening blank line and banner gone, and the lone NUL the
-# session sends after the last one
+# session sends after the last one. DCL ends a record with CR and begins
+# the next with LF, so output that follows a marker without a LF of its own
+# (a STOIC started with a command tail prints no banner) is put on a line
+# of its own.
 awk '
   /^\^@$/ { next }
+  /^=== [^ ]* ===./ { if (held) { print ""; held = 0 }; print substr($0, 1, index(substr($0, 5), " ===") + 7); $0 = substr($0, index(substr($0, 5), " ===") + 8) }
   /^Welcome to STOIC$/ { if (held) held = 0; next }
   held { print ""; held = 0 }
   /^$/ { held = 1; next }

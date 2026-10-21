@@ -1,5 +1,5 @@
 #!/bin/sh
-# Runs the regression suite: every tests/*.sto and tests/*.con (or the ones named), in one
+# Runs the regression suite: every tests/*.sto, *.con and *.dcl (or the ones named), in one
 # VAX job by tools/stoic-run, each in a STOIC of its own, and compares each
 # one's output with tests/<name>.expected.
 #
@@ -25,10 +25,12 @@ while [ $# -gt 0 ]; do
   esac
 done
 if [ $# -eq 0 ]; then
-  set -- $(ls "$tests"/*.sto "$tests"/*.con 2>/dev/null | sort)
+  set -- $(ls "$tests"/*.sto "$tests"/*.con "$tests"/*.dcl 2>/dev/null | sort)
 else
   for n; do
-    if [ -f "$tests/$n.con" ]; then set -- "$@" "$tests/$n.con"; else set -- "$@" "$tests/$n.sto"; fi
+    t=$tests/$n.sto
+    for x in con dcl; do [ -f "$tests/$n.$x" ] && t=$tests/$n.$x; done
+    set -- "$@" "$t"
     shift
   done
 fi
