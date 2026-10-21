@@ -90,10 +90,15 @@ it.
 
 For unattended runs, use `tools/` (see `tools/README.md`):
 
-- `tools/stoic-run [-x exe] [-f file]... file.sto...` LOADs each file in a
-  fresh STOIC on the VAX and prints STOIC's output.
-- `tools/stoic-suite [--update] [name...]` runs `tests/*.sto` in one job and
-  diffs each against `tests/*.expected`.
+- `tools/stoic-run [-x exe] [-f file]... file...` runs each file in a
+  fresh STOIC on the VAX and prints STOIC's output. A `.sto` is LOADed, a
+  `.con` is typed as console lines, and a `.dcl` is DCL commands (for
+  command tails).
+- `tools/stoic-suite [--update] [name...]` runs `tests/*.sto`, `*.con` and
+  `*.dcl` in one job and diffs each against `tests/*.expected`.
+- `tools/vax-interact check.tcl...` runs interactive checks (CTRL/C, TYI,
+  terminal modes) over a fresh telnet session and logs each to
+  `tests/interactive/`.
 - `tools/vax-do [-t file] proc.com [file...]` runs any DCL procedure in
   `[.WORK]`.
 
@@ -103,8 +108,7 @@ tools capture it there with `vax-do -t`. In batch, every TYO becomes a
 separate record (defect 8), so don't use batch.
 
 Prefer these over typing into the user's tmux pane. Use the pane only for
-interactive checks the user has okayed, such as RED, CTRL/C or terminal
-modes.
+interactive checks the user has okayed and wants to watch, such as RED.
 
 ## Design in brief
 
@@ -142,14 +146,34 @@ Details and `file:line` citations are in `notes/`.
 - **Memory.** Stacks, the compile buffer, the channel blocks and the data
   region are `$EXPREG`'d at startup, each with a no-access moat page in
   front. Overflow is caught by ACCVIO, not by checks.
-- **Errors.** The condition handler rewrites the signal PC to `ABORT` and
+- **Errors.** The condition handler rewrites the signal PC to `ABORT @` and
   resignals as a warning, so faults print a message and return to the
-  prompt. CTRL/C works by patching the AST frame's return PC to ABORT.
+  prompt. rdef sets ABORT to ERROR_TRACE, which prints the line, the word
+  and a traceback (WHAT of ERROR_PC, then of the return stack). So every
+  message shows ERROR_TRACE's PC; the first traceback line is the real one.
+  - A **compile error** (an undefined word) calls LOAD_RESET, which ends
+    every LOAD under way. A **run-time error** ends only its line; a LOAD
+    file carries on.
+  - LOAD or OPEN of a missing file goes through `.errstop` to LIB$STOP, and
+    STOIC exits (defect 7).
+  - CTRL/C works by patching the AST frame's return PC to ABORT, so only the
+    first ^C works (defect 2).
 - **Conventions.** The default radix is **hex**. `=` prints with a leading
   space. Any odd value is true; the canonical flags are −1 and 0. `-` and
   `/` compute B−A and B/A, where A is the top of stack.
-- **Files.** There are 8 RMS channels: 0 console, 1–3 LOAD nesting, 4
-  messages, 5 keyed, 6 block, 7 UFO/map. End of file in a LOAD file runs
+  - A line is compiled in full before it runs, so `HEX`, `DECIMAL`, a branch
+    word like `TV<`, or a definition takes effect from the **next** line.
+  - Strings: WORD skips a leading run of `"`, scans to the next `"` and the
+    run of quotes there, and SLITERAL drops the first and last characters.
+    So `""AB"` is `"AB`, `"CD""` is `CD"`, and `""` is not empty (it runs to
+    the next quote). A string pushes one address; `COUNT` gives address and
+    count.
+  - Float literals take digits of the current radix and are read as decimal:
+    `1.E30` works only in HEX.
+- **Files.** There are 8 RMS channels: 0 console, 1–3 LOAD nesting (a 4th
+  level gives "Input file table overflow."), 4 messages, 5 keyed (a plain
+  PUT gives RMS-W-RAC; use 1–3 for sequential files), 6 block (SAVE/XLOAD),
+  7 UFO/map. End of file in a LOAD file runs
   `;F`. End of file on the console exits STOIC.
 - **Startup.** The kernel calls `@USER_INIT`. `rdef` installs DEF_INIT,
   which fetches the DCL command tail with `GETCMD` (an old CLI callback) and
@@ -197,24 +221,36 @@ Details and `file:line` citations are in `notes/`.
   report suspected (test `00-mod`).
 - STOIC output goes to SYS$COMMAND. Under SUBMIT, every TYO is its own log
   record.
+- `/MOD` is unsigned too: `-42 6 I=` prints `967254`. Integer literals wrap
+  mod 2³².
+- `=` prints a negative number as `-`, three NULs, then the digits.
+- `.^` computes B^A: `2. 10. .^` gives 1024. OTS$POWDD agrees.
+- SAVE and XLOAD round-trip in the same exe. CALC works through the command
+  tail. REVISION of the shipped exe is `9-SEP-1985 21:17:31.34`.
+- The shipped exe has 964 words (`doc/data/stoic-inventory.txt`, INVENTORY).
+- Phase 1's suite and interactive checks are in `tests/`; what each test
+  settled is in the defect checklist in `PLAN.md`.
 
-## Known or suspected defects to verify
+## Known or suspected defects
 
-From reading the code; each needs a test:
+Suspected from reading the code. Results are in `PLAN.md`'s defect
+checklist, which also lists defects 12–20, found in Phase 1 (`=` NULs, DGE,
+`.FLIP`, unreported MTH$ errors, `.SQRT` of a negative ending STOIC, and
+others). Confirmed: 1, 2, 3, 4, 5, 7, 8. Open: 6, 9, 11.
 
 1. DIGIT treats any character above `Z` as a decimal point, so lowercase
    undefined words in LOAD files (which are not uppercased) compile silently
    as junk floats (`rkernel.mar:630-667`).
-2. The CTRL/C handler bypasses `$ASTEXIT`, which may block later ASTs,
-   including a second ^C.
+2. The CTRL/C handler bypasses `$ASTEXIT`, so the process stays at AST
+   level and a second ^C is never delivered.
 3. The terminal IOSB at `ttchan+2(r11)` overwrites the next user-table cell.
 4. The compile buffer has no overflow check.
 5. Integer literal overflow is not checked. A float typed in hex radix is
    read as decimal.
 6. Nothing checks that code and data stay within the 16-bit displacement
    windows from R8 and R11.
-7. `.errstop` uses LIB$STOP, which cannot continue, so it probably exits
-   STOIC rather than returning to the prompt.
+7. `.errstop` uses LIB$STOP, which cannot continue, so it exits STOIC
+   rather than returning to the prompt.
 8. In batch, every TYO becomes its own `$PUT` record. **Confirmed.**
 9. `tyio.mar` remote-line code (`_remstart`, `rmast`): bad descriptor,
    LIB$SIGNAL called without an argument.

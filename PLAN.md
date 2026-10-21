@@ -14,7 +14,7 @@ Phase 1 passes. Phase 5 is written gradually as results come in.
 | Phase | State |
 |---|---|
 | 0 Tooling | done (see "Phase 0 outcome"); `tests/00-*` pass |
-| 1 Characterize shipped binaries | a few one-liners run by hand (see AGENTS.md, "Facts already established") |
+| 1 Characterize shipped binaries | suite `tests/00`–`15` (18 files) passes; interactive checks in `tests/interactive/`; INVENTORY in `doc/data/`. Left: `tests/README.md` justifications, `doc/defects.md` |
 | 2 Rebuild from source | not started |
 | 3 IMAGE | not started |
 | 4 RED | not started |
@@ -335,21 +335,28 @@ verified.
 Defects suspected from the code, numbered as in `AGENTS.md`, and the tests
 that settle them:
 
-| # | Suspected defect | Settled by |
-|---|---|---|
-| 1 | DIGIT: a character above `Z` is taken as a decimal point | 06-numio |
-| 2 | CTRL/C skips `$ASTEXIT` | interactive ^C twice, `$SETIMR` |
-| 3 | IOSB overwrites the next user-table cell | read the cell before and after a QIO, in 15-sys or interactive |
-| 4 | No check on compile-buffer overflow | interactive long definition |
-| 5 | Integer overflow is not checked; a float in hex is read as decimal | 06-numio, 12-float |
-| 6 | Nothing checks the 16-bit windows | Phase 3, large dictionary |
-| 7 | LIB$STOP from `.errstop` exits | 11-errors |
-| 8 | One record per TYO in batch | **confirmed** in Phase 0 (SUBMIT log) |
-| 9 | Remote-line code bugs | source review only, unless a test can be built |
-| 10 | GETCMD uses the CLI callback | 13-calc (works now; note why it is fragile) |
-| 11 | IMAGE header and layout assumptions | Phase 3 |
-| — | MOD with a negative dividend | **confirmed**: `-7 3 MOD` gives 0, so the dividend is taken as unsigned (00-mod) |
-| — | Comparison sense differs from the manual | 02-compare (already seen) |
+| # | Suspected defect | Settled by | Result |
+|---|---|---|---|
+| 1 | DIGIT: a character above `Z` is taken as a decimal point | 06-numio | **confirmed**: lowercase `x`, `1x5`, `2_5`, `7[` in a LOAD file compile silently as 0.0 (OTS$CVT_T_D's status is not checked) |
+| 2 | CTRL/C skips `$ASTEXIT` | interactive `ctrlc` | **confirmed**: I_CTRL_C_HNDLR makes the AST routine return into I_ABORT; a second ^C is echoed but never delivered, a third interrupts like ^Y. DELAY ($SETIMR, $WAITFR) still works |
+| 3 | IOSB overwrites the next user-table cell | interactive `tty` | **confirmed**: NLEN (TTCHAN+8, 3F as assembled) is already changed at startup and changes after every terminal QIO |
+| 4 | No check on compile-buffer overflow | interactive `compbuf` | **confirmed**: the 17th 90-character line of a definition writes into the moat at CF000; STOIC then loops on OPCDEC faults until stopped |
+| 5 | Integer overflow is not checked; a float in hex is read as decimal | 06-numio, 12-float | **confirmed**: literals wrap mod 2³²; `1.E30` needs HEX (E must be a digit) and is read as decimal |
+| 6 | Nothing checks the 16-bit windows | Phase 3, large dictionary | open |
+| 7 | LIB$STOP from `.errstop` exits | 10-files, 11-errors | **confirmed**: LOAD or OPEN of a missing file exits STOIC with %RMS-F-FNF |
+| 8 | One record per TYO in batch | Phase 0 (SUBMIT log) | **confirmed** |
+| 9 | Remote-line code bugs | source review only, unless a test can be built | open |
+| 10 | GETCMD uses the CLI callback | 13-calc | works on V5.5-2H4, including an empty tail |
+| 11 | IMAGE header and layout assumptions | Phase 3 | open; SAVE/XLOAD round-trip (14-save, 14-xload) |
+| 12 | MOD and /MOD with a negative dividend | 00, 01-arith | **confirmed**: unsigned; `-7 3 MOD` gives 0 |
+| 13 | Comparison sense differs from the manual | 02-compare | **confirmed**: `GT` is true when the top of stack is greater |
+| 14 | `=` writes a negative number as `-`, three NULs, digits | 01, 02 and others | **new**, confirmed: `EQ_SGN` builds the sign with `movl #^a/-/` (a longword) |
+| 15 | DGE compares the low longwords signed | 02-compare | **new**, confirmed: `0 0 0 -1 DGE` gives 0, `-1 5 -1 3 DGE` gives −1 |
+| 16 | `.FLIP` moves only the first longword of each D_floating value | 12-float | **new**, confirmed: 1.1 becomes 1.0999999… |
+| 17 | MTH$ and OTS$ errors are not reported | 12-math | **new**, confirmed: LOG 0, ASIN 2 and a POWDD overflow return a reserved operand, and the next float word faults (ROPRAND) |
+| 18 | `.SQRT` of a negative number ends STOIC | 12-math | **new**, confirmed: ACCVIO at PC 80000010, "Improperly handled condition"; the condition handler's $UNWIND path for a signal from deeper than one frame is the suspect |
+| 19 | Error messages show ABORT's PC | every error | **new**, confirmed: the handler writes `ABORT @` into the signal PC before the message is printed, and rdef sets ABORT to ERROR_TRACE (`rdef:1426-1440`, code at 23998 in the shipped exe), so every message says PC=00023998. The real PC is in ERROR_PC; ERROR_TRACE's traceback (WHAT of ERROR_PC, then of each return-stack entry) gives it as the first line |
+| 20 | GETJPI's comment promises a completion code it does not leave | 15-sys | **new**, confirmed: SYSERR takes the code; only the value is left |
 
 ### Done when
 
@@ -364,4 +371,5 @@ test. `notes/` is either retired or marked as historical.
 - Nothing is written on the VAX outside `[USERS.CLAUDE.WORK...]`. All new
   binaries, rebuilt or IMAGE-made, go there. `[.SAOSTOIC]` stays as the
   read-only reference.
-- Interactive checks use the telnet session in tmux window 2.
+- Interactive checks run over a fresh telnet session (`tools/vax-interact`);
+  the telnet session in tmux window 2 is for checks the user watches.
