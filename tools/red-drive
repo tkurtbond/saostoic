@@ -1,0 +1,39 @@
+#!/bin/sh
+# Drives RED over a fresh telnet session, holding the VAX lock, and records
+# what it puts on the screen.
+#
+#   tools/red-drive [-o <dir>] <script.tcl>...
+#
+# Each <script.tcl> is Tcl sourced by tools/red-drive.exp, which describes
+# the procs it may use (red, k, snap, line, keys, settle, await). The raw
+# session output is <dir>/<script>.raw (default dir tests/red), and the
+# screens at each snap, rendered by tools/red-screens, are <dir>/<script>.scr.
+# The session's default directory is [.WORK]. RED is the shipped one, or
+# $STOIC_RED (a VMS file spec); STOIC is the shipped one, or $STOIC_EXE.
+#
+# The login and password are $VAX_NETRC's (default ~/.netrc-claude-vax), read
+# by the expect script; they are never shown. VAX_HOST names the VAX.
+set -e
+host=${VAX_HOST:-192.168.2.20}
+here=$(cd "$(dirname "$0")" && pwd)
+VAX_NETRC=${VAX_NETRC:-$HOME/.netrc-claude-vax}
+export VAX_NETRC
+VAX_WORKDIR="[.WORK]"; export VAX_WORKDIR
+. "$here/vax-lock.sh"
+
+outdir=$here/../tests/red
+case $1 in -o) outdir=$2; shift 2 ;; esac
+[ $# -gt 0 ] || { echo "usage: tools/red-drive [-o <dir>] <script.tcl>..." >&2; exit 2; }
+for f; do [ -r "$f" ] || { echo "red-drive: cannot read $f" >&2; exit 2; }; done
+mkdir -p "$outdir"
+
+vax_lock
+trap 'vax_unlock' EXIT
+status=0
+expect -f "$here/red-drive.exp" "$host" "$outdir" "$@" || status=$?
+for f; do
+  raw=$outdir/$(basename "${f%.*}").raw
+  [ -f "$raw" ] || continue
+  python3 "$here/red-screens" -a "$raw" >"${raw%.raw}.scr" || status=1
+done
+exit $status

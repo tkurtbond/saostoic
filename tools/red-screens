@@ -1,0 +1,76 @@
+#!/usr/bin/env python3
+"""Prints the screens recorded in a tools/red-drive .raw log.
+
+    tools/red-screens [-a] <file.raw>
+
+The log is replayed through a 24 by 80 VT100 emulator (pyte), and the
+screen is printed at each marker "\\001SNAP <name>\\002": a header with the
+name and the cursor position (row and column from 1), then the 24 lines
+between bars. With -a, a line that has any character in reverse, bold,
+underline or blink video is followed by a line marking them, one letter per
+column: r b u k, or * for more than one. pyte does not do double-width
+lines or blinking, but keeps the blink attribute.
+"""
+import re
+import sys
+
+import pyte
+
+ROWS, COLS = 24, 80
+
+
+def attr_line(line):
+    marks = []
+    any_set = False
+    for x in range(COLS):
+        ch = line[x]
+        flags = [c for c, on in (("r", ch.reverse), ("b", ch.bold),
+                                 ("u", ch.underscore), ("k", ch.blink)) if on]
+        if flags:
+            any_set = True
+        marks.append(" " if not flags else flags[0] if len(flags) == 1 else "*")
+    return "".join(marks).rstrip() if any_set else None
+
+
+def show(screen, name, attrs):
+    print(f"=== {name}  cursor {screen.cursor.y + 1},{screen.cursor.x + 1}")
+    print("+" + "-" * COLS + "+")
+    for y in range(ROWS):
+        line = screen.buffer[y]
+        print("|" + "".join(line[x].data for x in range(COLS)) + "|")
+        if attrs:
+            a = attr_line(line)
+            if a is not None:
+                print(" " + a)
+    print("+" + "-" * COLS + "+")
+
+
+def main():
+    args = sys.argv[1:]
+    attrs = False
+    if args and args[0] == "-a":
+        attrs = True
+        args = args[1:]
+    if len(args) != 1:
+        sys.exit("usage: tools/red-screens [-a] <file.raw>")
+    data = open(args[0], "rb").read().decode("latin-1")
+    screen = pyte.Screen(COLS, ROWS)
+    stream = pyte.Stream(screen)
+    # 8-bit mode, in which pyte honours ESC ( 0, the line-drawing set
+    stream.use_utf8 = False
+    # pyte drops NUL and DEL itself; DEC line attributes (ESC # 3/4/5/6) are
+    # removed here so that they cannot be read as something else
+    data = re.sub("\033#[3-6]", "", data)
+    # KBD's "6 RESET_MODE" sends ESC [ ? ^F l (the vt100 RESET_MODE wants a
+    # character, not a number). A VT100 acts on the ^F and ends the sequence
+    # at the l; pyte prints the l. Drop it.
+    data = data.replace("\033[?\006l", "")
+    pos = 0
+    for m in re.finditer("\001SNAP ([^\002]*)\002", data):
+        stream.feed(data[pos:m.start()])
+        show(screen, m.group(1), attrs)
+        pos = m.end()
+    stream.feed(data[pos:])
+
+
+main()

@@ -1,0 +1,129 @@
+# Drives RED over a fresh telnet session for tools/red-drive. Each
+# <script.tcl> is sourced in turn, and everything the session sends from
+# then until it ends is written, as it came, to <dir>/<script>.raw, with a
+# marker "\001SNAP <name>\002" wherever the script calls snap. tools/red-screens
+# replays a .raw through a VT100 emulator and prints the screen at each
+# marker. A script uses these procs, besides those of vax-interact.exp:
+#
+#   red [<tail>]     start RED (the shipped one, or $STOIC_RED) as the DCL
+#                    command "RED <tail>", and wait for its screen
+#   snap <name>      wait for quiet, then mark the log
+#   cmd <text> [<secs>]  type a RED command line, each ~ sent as LF, then
+#                    wait for quiet (2 seconds, or <secs>)
+#   k <key>...       press keys by name: lf ret del bs esc tab
+#                    up down right left, pf1-pf4, kp0-kp9, kp- kp, kp. enter,
+#                    ^X for CTRL/X; any other word is typed as it is
+#
+# The terminal is set to a 24-line, 80-column VT100 before the first script,
+# and SHOW TERMINAL is logged before and after each.
+#
+#   expect -f tools/red-drive.exp <host> <dir> <script.tcl>...
+
+set host [lindex $argv 0]
+set outdir [lindex $argv 1]
+set scripts [lrange $argv 2 end]
+set timeout 30
+log_user 0
+
+source [file join [file dirname [info script]] vax-login.tcl]
+
+set exe DUA1:\[USERS.CLAUDE.SAOSTOIC.STOIC\]STOIC.EXE
+if {[info exists ::env(STOIC_EXE)] && $::env(STOIC_EXE) ne ""} { set exe $::env(STOIC_EXE) }
+set redexe DUA1:\[USERS.CLAUDE.SAOSTOIC.RED\]RED.EXE
+if {[info exists ::env(STOIC_RED)] && $::env(STOIC_RED) ne ""} { set redexe $::env(STOIC_RED) }
+
+# quiet for $secs, or output for 20 seconds without a pause
+proc settle {{secs 2}} {
+  set deadline [expr {[clock seconds] + 20}]
+  expect {
+    -timeout $secs
+    -re {.+} { if {[clock seconds] < $deadline} exp_continue }
+    timeout {}
+    eof { fail "the telnet session ended" }
+  }
+}
+proc await {re {secs 10}} {
+  expect {
+    -timeout $secs
+    -re $re { return 1 }
+    timeout { return 0 }
+    eof { fail "the telnet session ended" }
+  }
+}
+proc keys {text {secs 2}} { send -- $text; settle $secs }
+proc line {text {secs 2}} { send -- "$text\r"; settle $secs }
+proc stoic {{tail ""}} {
+  if {$tail eq ""} { send "ISTOIC\r" } else { send "ISTOIC $tail\r" }
+  settle 3
+}
+proc red {{tail ""}} {
+  if {$tail eq ""} { send "IRED\r" } else { send "IRED $tail\r" }
+  settle 4
+}
+proc at_dcl {} {
+  send "\r"
+  return [await $::prompt 5]
+}
+proc snap {name} {
+  settle 2
+  send_log "\001SNAP $name\002"
+}
+array set keyname {
+  lf "\n" ret "\r" del "\177" bs "\b" esc "\033" tab "\t"
+  up "\033\[A" down "\033\[B" right "\033\[C" left "\033\[D"
+  pf1 "\033OP" pf2 "\033OQ" pf3 "\033OR" pf4 "\033OS"
+  kp0 "\033Op" kp1 "\033Oq" kp2 "\033Or" kp3 "\033Os" kp4 "\033Ot"
+  kp5 "\033Ou" kp6 "\033Ov" kp7 "\033Ow" kp8 "\033Ox" kp9 "\033Oy"
+  kp- "\033Om" kp, "\033Ol" kp. "\033On" enter "\033OM"
+}
+proc cmd {text {secs 2}} {
+  send -- [string map {~ \n} $text]
+  settle $secs
+}
+# each key, with a short pause, as a person would type
+proc k {args} {
+  foreach key $args {
+    if {[info exists ::keyname($key)]} {
+      set s $::keyname($key)
+    } elseif {[regexp {^\^(.)$} $key -> c]} {
+      set s [format %c [expr {[scan [string toupper $c] %c] & 0x1f}]]
+    } else {
+      set s $key
+    }
+    send -- $s
+    settle 1
+  }
+}
+
+# a raw pty, so that a CR typed reaches RED as CR: otherwise the pty turns
+# it into NL, which telnet sends as CR LF, and RED reads LF as a terminator
+set stty_init raw
+vax_login $host
+send "ISTOIC :== \$$exe\r"
+expect -re $prompt
+send "IRED :== \$$redexe RED\r"
+expect -re $prompt
+send "SET TERMINAL/DEVICE=VT100/PAGE=24/WIDTH=80\r"
+expect -re $prompt
+# keep NULs (expect drops them by default)
+remove_nulls 0
+
+foreach script $scripts {
+  set name [file rootname [file tail $script]]
+  log_file -a -noappend [file join $outdir $name.raw]
+  line "SHOW TERMINAL"
+  if {[catch {source $script} message]} {
+    send_log "\n*** red-drive: $message\n"
+  }
+  if {![at_dcl]} {
+    send_log "\n*** red-drive: no DCL prompt; CTRL/Y and STOP\n"
+    send "\031"
+    settle 3
+    send "STOP\r"
+    if {![await $prompt 10]} { log_file; fail "no DCL prompt after $name, even after STOP" }
+  }
+  line "SHOW TERMINAL"
+  log_file
+}
+send "LOGOUT\r"
+expect eof

@@ -1,0 +1,11 @@
+#!/bin/sh
+# Prints the screens of tools/red-drive .raw logs compactly: the header of
+# each screen, then only its non-blank rows, each with its row number.
+#
+#   tools/red-show <file.raw>...
+here=$(cd "$(dirname "$0")" && pwd)
+for f; do
+  [ $# -gt 1 ] && echo "##### $f"
+  python3 "$here/red-screens" "$f" |
+    awk '/^===/{print; n=0; next} /^\+--/{next} {n++; if ($0 !~ /^\| *\|$/) printf "%2d%s\n", n, $0}'
+done
