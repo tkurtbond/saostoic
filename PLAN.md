@@ -369,7 +369,7 @@ that settle them:
 | 10 | GETCMD uses the CLI callback | 13-calc | works on V5.5-2H4, including an empty tail |
 | 11 | IMAGE header and layout assumptions | Phase 3 | open; SAVE/XLOAD round-trip (14-save, 14-xload). Phase 2: the P0 layout of the `$EXPREG`'d regions depends on the shareable images the kernel was linked against (4F800 lower in a V5 link) |
 | 12 | MOD and /MOD with a negative dividend | 00, 01-arith | **confirmed**: unsigned; `-7 3 MOD` gives 0 |
-| 13 | Comparison sense differs from the manual | 02-compare | **confirmed**: `GT` is true when the top of stack is greater |
+| 13 | Comparison sense differs from the manual | 02-compare | **confirmed**: `GT` is true when the top of stack is greater; CP/M STOIC has the manual's sense, so the VAX reversed it (`doc/cpm-compare.md`) |
 | 14 | `=` writes a negative number as `-`, three NULs, digits | 01, 02 and others | **new**, confirmed: `EQ_SGN` builds the sign with `movl #^a/-/` (a longword) |
 | 15 | DGE compares the low longwords signed | 02-compare | **new**, confirmed: `0 0 0 -1 DGE` gives 0, `-1 5 -1 3 DGE` gives −1 |
 | 16 | `.FLIP` moves only the first longword of each D_floating value | 12-float | **new**, confirmed: 1.1 becomes 1.0999999… |

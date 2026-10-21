@@ -215,7 +215,9 @@ Details and `file:line` citations are in `notes/`.
   `STOIC DECIMAL 5 0 DO I = LOOP CR ;F` gives ` 0 1 2 3 4`.
 - **Comparisons are the reverse of `stoic.mem`.** `1 2 GT =` gives −1 and
   `2 1 GT =` gives 0. `GT` is true when the *top* of stack is greater. The
-  code and every use in the sources agree; the manual is wrong.
+  code and every use in the sources agree; the manual is wrong. CP/M STOIC
+  (tmux window 4) does what the manual says, so the VAX reversed the
+  intended sense: `CMPL (P)+ (P)+` compares A with B (`doc/cpm-compare.md`).
 - `1 2 - =` gives −1, so `-` is B−A.
 - **MOD treats a negative dividend as unsigned.** `7 2 MOD =` and
   `-7 2 MOD =` both give 1, and `-7 3 MOD =` gives 0: 2³²−7 is divisible
