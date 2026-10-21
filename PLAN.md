@@ -13,7 +13,7 @@ Phase 1 passes. Phase 5 is written gradually as results come in.
 
 | Phase | State |
 |---|---|
-| 0 Tooling | not started |
+| 0 Tooling | done (see "Phase 0 outcome"); `tests/00-*` pass |
 | 1 Characterize shipped binaries | a few one-liners run by hand (see AGENTS.md, "Facts already established") |
 | 2 Rebuild from source | not started |
 | 3 IMAGE | not started |
@@ -89,6 +89,35 @@ without typing into the user's tmux pane and without exposing the password.
    - or drive STOIC over telnet under expect instead of with `/OUTPUT`.
 
    Record the choice and the reason in this file.
+
+### Phase 0 outcome (2026-10-21)
+
+- **Output goes to the terminal.** STOIC writes to SYS$COMMAND, not
+  SYS$OUTPUT, so under `@NAME/OUTPUT=VAXDO.LOG` its output appears in the
+  telnet session and not in the log. `vax-do -t <file>` captures what the
+  procedure writes to the terminal. All the STOIC tools use that.
+- **Batch confirms defect 8.** Under SUBMIT every TYO is its own record:
+  `2 3 + =` logs ` ` and `5` as two lines, and CR writes a record holding a
+  lone carriage return, then blank records. Batch also echoes the input
+  lines. So the tools drive STOIC over telnet, the third choice above, and
+  don't use batch.
+- **Input comes as data lines.** `stoic-run` doesn't put `'FILE.STO LOAD`
+  on the DCL command line, where the quote would start symbol substitution.
+  It runs STOIC with no tail and gives it `'FILE.STO LOAD` and `;F` as data
+  lines of the procedure (SYS$INPUT). Test files are **not** uppercased, so
+  that the lowercase defect stays testable; write tests in uppercase.
+- **Each test runs in a fresh STOIC.** One job runs them all, with a
+  `WRITE SYS$COMMAND "=== name ==="` marker before each.
+- **File names.** VMS V5 names have no hyphens. `01-arith.sto` is
+  `01_ARITH.STO` on the VAX.
+- **The scratch copy** is `[.WORK.SAOSTOIC...]`, a BACKUP of
+  `[.SAOSTOIC...]`, not `[.WORK...]` itself, so the tools' own files don't
+  mix with the tree. `work-assign.com` points `SAO$KERNEL`, `SAO$STOIC` and
+  `SAO$RED` at it. `stoic-run` runs the shipped
+  `[.SAOSTOIC.STOIC]STOIC.EXE` unless given `-x`.
+- **A side effect we can't avoid.** UCX writes a `UCX$FTPSERVER.LOG` into
+  `SYS$LOGIN` for every FTP session. It is outside `[.WORK]`, so the tools
+  leave it alone. The user may want to purge it now and then.
 
 ### Produces
 
@@ -315,11 +344,11 @@ that settle them:
 | 5 | Integer overflow is not checked; a float in hex is read as decimal | 06-numio, 12-float |
 | 6 | Nothing checks the 16-bit windows | Phase 3, large dictionary |
 | 7 | LIB$STOP from `.errstop` exits | 11-errors |
-| 8 | One record per TYO in batch | Phase 0 step 5 |
+| 8 | One record per TYO in batch | **confirmed** in Phase 0 (SUBMIT log) |
 | 9 | Remote-line code bugs | source review only, unless a test can be built |
 | 10 | GETCMD uses the CLI callback | 13-calc (works now; note why it is fragile) |
 | 11 | IMAGE header and layout assumptions | Phase 3 |
-| — | MOD with a negative dividend | 01-arith |
+| — | MOD with a negative dividend | **confirmed**: `-7 3 MOD` gives 0, so the dividend is taken as unsigned (00-mod) |
 | — | Comparison sense differs from the manual | 02-compare (already seen) |
 
 ### Done when

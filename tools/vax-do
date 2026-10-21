@@ -1,0 +1,130 @@
+#!/bin/sh
+# Runs a DCL command procedure on the VAX, with the files it needs, and
+# brings back the files it makes. Adapted from Peaseblossom's tools/vax-do.
+#
+#   tools/vax-do [-o <dir>] [-get <NAME.EXT>]... [-p <word>] [-keep] [-t <file>] <proc.com> [<file>...]
+#
+# The procedure and the files are copied by FTP to the work directory,
+# DUA1:[USERS.CLAUDE.WORK] (or the subdirectory of it that $VAX_WORKDIR
+# names, such as [.WORK.TESTS]), each named as its file name uppercased.
+# Text goes in ASCII mode, as variable-length records; a .exe goes in
+# binary mode. Then, over telnet, the procedure is run there as
+# @NAME/OUTPUT=VAXDO.LOG [P1]. Finally VAXDO.LOG and each -get file are
+# copied back into <dir>.
+#
+# Every file copied there or back is then deleted on the VAX, unless -keep
+# is given. The script prints the procedure's output and a last line
+# "<proc>: %X<status> <severity>".
+#
+#   -o <dir>       where the files come back to (default .)
+#   -get <NAME>    a file the procedure leaves, to bring back (repeatable)
+#   -p <word>      the procedure's P1: letters, digits and underscores
+#   -keep          leave the files on the VAX
+#   -t <file>      write what the procedure writes to the terminal (where
+#                  STOIC's output goes) to <file>, with the closing prompt
+#                  and the carriage returns removed
+#
+# VAX_DO_TIMEOUT is how long the procedure may run, in seconds (default
+# 600). The script exits 0 if the procedure's $STATUS is success or
+# informational and every file came back, 1 if not, and 2 if the VAX could
+# not be used.
+#
+# The login and password are $VAX_NETRC's (default ~/.netrc-claude-vax).
+# The expect script reads them itself; they never appear on a command line
+# and are never printed. VAX_HOST names the VAX (default 192.168.2.20).
+# Each run holds a lock while it uses the VAX (tools/vax-lock.sh).
+set -e
+
+host=${VAX_HOST:-192.168.2.20}
+here=$(cd "$(dirname "$0")" && pwd)
+VAX_NETRC=${VAX_NETRC:-$HOME/.netrc-claude-vax}
+export VAX_NETRC
+# nothing may be written outside [.WORK] (AGENTS.md)
+VAX_WORKDIR=${VAX_WORKDIR:-[.WORK]}
+case $VAX_WORKDIR in
+  "[.WORK]"|"[.WORK."*"]") ;;
+  *) echo "vax-do: VAX_WORKDIR $VAX_WORKDIR is not [.WORK] or under it" >&2; exit 2 ;;
+esac
+export VAX_WORKDIR
+. "$here/vax-lock.sh"
+
+usage() { echo "usage: tools/vax-do [-o <dir>] [-get <NAME.EXT>]... [-p <word>] [-keep] [-t <file>] <proc.com> [<file>...]" >&2; exit 2; }
+
+# a file's name on the VAX: its own, uppercased, which must be a plain VMS
+# name and type
+guest_name() {
+  n=$(basename "$1" | tr a-z A-Z)
+  case $n in
+    *[!A-Z0-9_\$.-]*|*.*.*|.*|"") echo "vax-do: $(basename "$1") is not a VMS file name" >&2; exit 2 ;;
+  esac
+  echo "$n"
+}
+
+outdir=.
+gets=
+VAX_DO_PARAMETER=; export VAX_DO_PARAMETER
+VAX_DO_KEEP=; export VAX_DO_KEEP
+terminal=
+while [ $# -gt 0 ]; do
+  case $1 in
+    -o) [ $# -ge 2 ] || usage; outdir=$2; shift 2 ;;
+    -get) [ $# -ge 2 ] || usage; g=$(guest_name "$2"); gets="$gets $g"; shift 2 ;;
+    -p)
+      [ $# -ge 2 ] || usage
+      case $2 in *[!A-Za-z0-9_]*|"") echo "vax-do: -p $2 is not a word" >&2; exit 2 ;; esac
+      VAX_DO_PARAMETER=$2; shift 2 ;;
+    -keep) VAX_DO_KEEP=yes; shift ;;
+    -t) [ $# -ge 2 ] || usage; terminal=$2; shift 2 ;;
+    -*) usage ;;
+    *) break ;;
+  esac
+done
+[ $# -gt 0 ] || usage
+case $1 in *.com|*.COM) ;; *) echo "vax-do: $1 is not a .com file" >&2; exit 2 ;; esac
+for f; do [ -r "$f" ] || { echo "vax-do: cannot read $f" >&2; exit 2; }; done
+[ -d "$outdir" ] || { echo "vax-do: $outdir is not a directory" >&2; exit 2; }
+procfile=$1
+proc=$(guest_name "$1")
+for f; do guest_name "$f" >/dev/null || exit 2; done
+
+out=$(mktemp "${TMPDIR:-/tmp}/vax-do.XXXXXX")
+# only once this run has the lock may it touch the VAX
+vax_lock
+trap 'rm -f "$out"; vax_unlock' EXIT
+
+# each file and its name there, then the files to bring back
+set -- "$@" --
+while [ "$1" != -- ]; do
+  set -- "$@" "$1" "$(guest_name "$1")"
+  shift
+done
+shift
+# shellcheck disable=SC2086
+set -- "$@" -- $gets
+
+if [ -n "$terminal" ]; then
+  VAX_DO_TERMINAL=$(mktemp "${TMPDIR:-/tmp}/vax-do-tt.XXXXXX")
+  export VAX_DO_TERMINAL
+  trap 'rm -f "$out" "$VAX_DO_TERMINAL"; vax_unlock' EXIT
+fi
+
+status=0
+expect -f "$here/vax-do.exp" "$host" "${proc%.COM}" "$outdir" "$@" >"$out" || status=$?
+[ "$status" -ne 2 ] || { cat "$out" >&2; exit 2; }
+if [ -n "$terminal" ]; then
+  # carriage returns and NULs gone, and the closing prompt
+  tr -d '\r\000' <"$VAX_DO_TERMINAL" >"$terminal"
+fi
+[ -f "$outdir/VAXDO.LOG" ] && cat "$outdir/VAXDO.LOG"
+hex=$(sed -n 's/^VAXDO-STATUS \([0-9A-F]*\)$/\1/p' "$out")
+if [ -z "$hex" ]; then
+  echo "$procfile: no status"; exit 1
+fi
+# the low three bits of a VMS status are its severity
+case $(( 0x$hex & 7 )) in
+  0) sev=warning ;; 1) sev=success ;; 2) sev=error ;;
+  3) sev=informational ;; 4) sev=fatal ;; *) sev=unknown ;;
+esac
+echo "$procfile: %X$hex $sev"
+case $sev in success|informational) ;; *) status=1 ;; esac
+exit $status

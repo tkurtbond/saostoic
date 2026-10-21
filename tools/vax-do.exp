@@ -1,0 +1,115 @@
+# Runs a command procedure on the VAX for tools/vax-do, adapted from
+# Peaseblossom's tools/vax-do.exp. In one FTP session (tools/vax-ftp.tcl) it
+# copies the procedure and the files to the work directory, [.WORK]. Then,
+# by telnet (tools/vax-login.tcl), it runs @<NAME>/OUTPUT=VAXDO.LOG [<P1>]
+# there, keeping the FTP session alive. Afterwards it copies VAXDO.LOG and
+# each <GET> back into <dir>, and, unless $VAX_DO_KEEP is "yes", deletes
+# every version of all of them there, whatever happened. A <file> whose
+# name ends in .exe goes in binary mode. Prints one line
+# "VAXDO-STATUS <hex $STATUS>". Exits 0, 1 if a file did not come back,
+# or 2 if the VAX could not be used.
+#
+#   expect -f tools/vax-do.exp <host> <NAME> <dir> {<file> <NAME.EXT>}... -- <GET>...
+#
+# <P1> is $VAX_DO_PARAMETER, which tools/vax-do's -p sets. A <GET> ending
+# in .EXE comes back in binary mode. When $VAX_DO_TERMINAL names a file,
+# what the procedure writes to the terminal goes there. STOIC writes to
+# SYS$COMMAND, the terminal, not to SYS$OUTPUT, so its output is found
+# there and not in VAXDO.LOG.
+
+set host [lindex $argv 0]
+set name [lindex $argv 1]
+set outdir [lindex $argv 2]
+set rest [lrange $argv 3 end]
+set split [lsearch -exact $rest --]
+set puts [lrange $rest 0 [expr {$split - 1}]]
+set gets [lrange $rest [expr {$split + 1}] end]
+set timeout 600
+if {[info exists ::env(VAX_DO_TIMEOUT)] && $::env(VAX_DO_TIMEOUT) ne ""} { set timeout $::env(VAX_DO_TIMEOUT) }
+set keep [expr {[info exists ::env(VAX_DO_KEEP)] && $::env(VAX_DO_KEEP) eq "yes"}]
+log_user 0
+
+source [file join [file dirname [info script]] vax-login.tcl]
+source [file join [file dirname [info script]] vax-ftp.tcl]
+
+if {[catch {ftp_open $host} message]} {
+  puts stderr "vax-do: the VAX $host is not available ($message)"
+  exit 2
+}
+# from here on, whatever happens, every file of this run is deleted there
+set made {}
+foreach {file remote} $puts { lappend made $remote }
+lappend made VAXDO.LOG {*}$gets
+exit -onexit {
+  if {!$::keep} {
+    foreach remote $::made { catch {ftp_delete $remote} }
+  }
+  ftp_close
+}
+
+foreach {file remote} $puts {
+  if {[string match -nocase *.exe $file]} {
+    set copy ftp_put_binary
+  } else {
+    set copy ftp_put
+  }
+  if {[catch {$copy $file $remote} message]} { fail "cannot copy $file there: $message" }
+}
+
+vax_login $host
+set parameter ""
+if {[info exists ::env(VAX_DO_PARAMETER)] && $::env(VAX_DO_PARAMETER) ne ""} { set parameter " $::env(VAX_DO_PARAMETER)" }
+set terminal ""
+if {[info exists ::env(VAX_DO_TERMINAL)] && $::env(VAX_DO_TERMINAL) ne ""} { set terminal $::env(VAX_DO_TERMINAL) }
+send "@$name/OUTPUT=VAXDO.LOG$parameter\r"
+# the echo of the command, before what the procedure writes
+expect -re {VAXDO\.LOG[^\n]*\n}
+set captured ""
+# a minute at a time, the FTP session kept alive in between
+set deadline [expr {[clock seconds] + $timeout}]
+set done 0
+while {!$done} {
+  expect {
+    -timeout 60
+    -re $prompt { append captured $expect_out(buffer); set done 1 }
+    -re {[^\n]*\n} { append captured $expect_out(buffer); exp_continue }
+    timeout {}
+    eof { fail "the telnet session ended while $name ran" }
+  }
+  if {!$done} {
+    if {[clock seconds] >= $deadline} { fail "$name did not finish within $timeout seconds" }
+    catch ftp_noop
+  }
+}
+if {$terminal ne ""} {
+  set f [open $terminal w]
+  puts -nonewline $f [regsub $prompt $captured ""]
+  close $f
+}
+# $STATUS is a string, "%X10000001"
+send "WRITE SYS\$OUTPUT \"VAXDO-STATUS \", \$STATUS\r"
+expect {
+  -re {VAXDO-STATUS %X([0-9A-F]{8})\r?\n} { puts "VAXDO-STATUS $expect_out(1,string)" }
+  timeout { fail "no status after $name" }
+}
+expect {
+  -re $prompt {}
+  timeout { fail "no prompt after the status of $name" }
+}
+send "LOGOUT\r"
+expect eof
+
+set status 0
+foreach remote [concat VAXDO.LOG $gets] {
+  if {[string match -nocase *.exe $remote]} {
+    set copy ftp_get_binary
+  } else {
+    set copy ftp_get
+  }
+  if {[catch {$copy $remote [file join $outdir $remote]} message]} {
+    puts stderr "vax-do: cannot copy $remote back: $message"
+    file delete [file join $outdir $remote]
+    set status 1
+  }
+}
+exit $status

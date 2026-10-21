@@ -88,18 +88,19 @@ console level exits to DCL. That makes one-liners easy to script.
 For anything longer, put the STOIC source in a file and `'FILE.STO LOAD`
 it.
 
-For unattended runs, build `tools/` (Phase 0 in `PLAN.md`) on the
-Peaseblossom model (`~/Repos/Oberon/Peaseblossom/tools/`):
+For unattended runs, use `tools/` (see `tools/README.md`):
 
-- `vax-login.tcl`: expect login that reads the netrc file with `log_user 0`
-  and sets a known prompt.
-- `vax-ftp.tcl`: pure-Tcl active-mode FTP with ASCII CRLF handling and
-  retries.
-- `vax-do`/`vax-do.exp`: FTP a `.COM` in, run it as
-  `@NAME/OUTPUT=VAXDO.LOG` over a fresh telnet login, FTP the log back, and
-  report `$STATUS`.
-- `vax-lock.sh`: a flock lock per account, so only one job drives the VAX at
-  a time.
+- `tools/stoic-run [-x exe] [-f file]... file.sto...` LOADs each file in a
+  fresh STOIC on the VAX and prints STOIC's output.
+- `tools/stoic-suite [--update] [name...]` runs `tests/*.sto` in one job and
+  diffs each against `tests/*.expected`.
+- `tools/vax-do [-t file] proc.com [file...]` runs any DCL procedure in
+  `[.WORK]`.
+
+STOIC writes to SYS$COMMAND, the terminal, not SYS$OUTPUT. Under `/OUTPUT`
+its output therefore lands in the telnet session, not in the log, and the
+tools capture it there with `vax-do -t`. In batch, every TYO becomes a
+separate record (defect 8), so don't use batch.
 
 Prefer these over typing into the user's tmux pane. Use the pane only for
 interactive checks the user has okayed, such as RED, CTRL/C or terminal
@@ -190,11 +191,12 @@ Details and `file:line` citations are in `notes/`.
   `2 1 GT =` gives 0. `GT` is true when the *top* of stack is greater. The
   code and every use in the sources agree; the manual is wrong.
 - `1 2 - =` gives −1, so `-` is B−A.
-- `-7 2 MOD =` gives 1 and `7 2 MOD =` gives 1. Signed EDIV would give −1
-  for the first, so MOD is either floored or the high longword of the EDIV
-  dividend is zero (the bug the kernel report suspects). `-7 3 MOD` decides
-  it: 0 means unsigned (2³²−7 is divisible by 3), 2 means floored, −1
-  means signed.
+- **MOD treats a negative dividend as unsigned.** `7 2 MOD =` and
+  `-7 2 MOD =` both give 1, and `-7 3 MOD =` gives 0: 2³²−7 is divisible
+  by 3. The high longword of the EDIV dividend is zero, as the kernel
+  report suspected (test `00-mod`).
+- STOIC output goes to SYS$COMMAND. Under SUBMIT, every TYO is its own log
+  record.
 
 ## Known or suspected defects to verify
 
@@ -213,7 +215,7 @@ From reading the code; each needs a test:
    windows from R8 and R11.
 7. `.errstop` uses LIB$STOP, which cannot continue, so it probably exits
    STOIC rather than returning to the prompt.
-8. In batch, every TYO becomes its own `$PUT` record.
+8. In batch, every TYO becomes its own `$PUT` record. **Confirmed.**
 9. `tyio.mar` remote-line code (`_remstart`, `rmast`): bad descriptor,
    LIB$SIGNAL called without an argument.
 10. `GETCMD` uses the obsolete CLI callback. It works on 5.5-2 (the command

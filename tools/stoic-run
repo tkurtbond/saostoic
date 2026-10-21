@@ -1,0 +1,80 @@
+#!/bin/sh
+# Runs STOIC source files on the VAX and prints what STOIC writes.
+#
+#   tools/stoic-run [-x <exe>] [-f <file>]... [-m] <file.sto>...
+#
+# Each <file.sto> is copied to [.WORK] and LOADed by a STOIC of its own:
+# the procedure runs @WORK-ASSIGN, then STOIC with the console lines
+# "'<FILE>.STO LOAD" and ";F" as data lines (SYS$INPUT), so DCL never sees
+# the quote. A file's name there is its own uppercased, with "-" made "_"
+# (VMS V5 names have no hyphens). The files are not uppercased: LOAD does
+# not uppercase what it reads, so write them in uppercase.
+#
+#   -x <exe>   the STOIC to run, a VMS file spec (default the shipped
+#              DUA1:[USERS.CLAUDE.SAOSTOIC.STOIC]STOIC.EXE; $STOIC_EXE)
+#   -f <file>  another file to copy there, such as one a test LOADs
+#   -m         print "=== <name> ===" before each file's output (always,
+#              if there is more than one file)
+#
+# STOIC's output goes to the terminal, so it is taken from the telnet
+# session (tools/vax-do -t), without the blank line and "Welcome to STOIC"
+# with which each STOIC begins. Exits as tools/vax-do does.
+set -e
+here=$(cd "$(dirname "$0")" && pwd)
+exe=${STOIC_EXE:-DUA1:[USERS.CLAUDE.SAOSTOIC.STOIC]STOIC.EXE}
+extra=
+marks=
+usage() { echo "usage: tools/stoic-run [-x <exe>] [-f <file>]... [-m] <file.sto>..." >&2; exit 2; }
+while [ $# -gt 0 ]; do
+  case $1 in
+    -x) [ $# -ge 2 ] || usage; exe=$2; shift 2 ;;
+    -f) [ $# -ge 2 ] || usage; extra="$extra $2"; shift 2 ;;
+    -m) marks=yes; shift ;;
+    -*) usage ;;
+    *) break ;;
+  esac
+done
+[ $# -gt 0 ] || usage
+[ $# -eq 1 ] || marks=yes
+case $exe in *[\'\"\ ]*) echo "stoic-run: $exe is not a plain file spec" >&2; exit 2 ;; esac
+
+stage=$(mktemp -d "${TMPDIR:-/tmp}/stoic-run.XXXXXX")
+trap 'rm -rf "$stage"' EXIT
+# a copy of each file under its name there
+vms() { basename "$1" | tr a-z- A-Z_; }
+for f in "$@" $extra; do
+  [ -r "$f" ] || { echo "stoic-run: cannot read $f" >&2; exit 2; }
+  cp "$f" "$stage/$(vms "$f")"
+done
+cp "$here/work-assign.com" "$stage/WORK-ASSIGN.COM"
+
+proc=$stage/STOICRUN.COM
+{
+  echo "\$ @WORK-ASSIGN"
+  echo "\$ RUN_STOIC :== \$$exe"
+  for f; do
+    n=$(vms "$f")
+    [ -z "$marks" ] || echo "\$ WRITE SYS\$COMMAND \"=== $(basename "$f" .sto) ===\""
+    echo "\$ RUN_STOIC"
+    echo "'$n LOAD"
+    echo ";F"
+  done
+  echo "\$ EXIT 1"
+} >"$proc"
+
+files="$stage/WORK-ASSIGN.COM"
+for f in "$@" $extra; do files="$files $stage/$(vms "$f")"; done
+status=0
+# shellcheck disable=SC2086
+"$here/vax-do" -o "$stage" -t "$stage/tt" "$proc" $files >"$stage/do.out" || status=$?
+if [ "$status" -eq 2 ] || [ ! -f "$stage/tt" ]; then cat "$stage/do.out" >&2; exit 2; fi
+# each STOIC's opening blank line and banner gone
+awk '
+  /^Welcome to STOIC$/ { if (held) held = 0; next }
+  held { print ""; held = 0 }
+  /^$/ { held = 1; next }
+  { print }
+  END { if (held) print "" }
+' "$stage/tt"
+[ "$status" -eq 0 ] || tail -n 1 "$stage/do.out" >&2
+exit $status

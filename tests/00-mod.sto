@@ -1,0 +1,6 @@
+DECIMAL
+7 2 MOD = CR
+-7 2 MOD = CR
+-7 3 MOD = CR
+1 2 - = CR
+1 2 GT = 2 1 GT = CR

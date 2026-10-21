@@ -1,0 +1,5 @@
+DECIMAL
+2 3 + = CR
+5 0 DO I = LOOP CR
+'SQ : DUP * ;
+9 SQ = CR

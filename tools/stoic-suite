@@ -1,0 +1,65 @@
+#!/bin/sh
+# Runs the regression suite: every tests/*.sto (or the ones named), in one
+# VAX job by tools/stoic-run, each in a STOIC of its own, and compares each
+# one's output with tests/<name>.expected.
+#
+#   tools/stoic-suite [-x <exe>] [--update] [<name>...]
+#
+# A <name> is a test's name, such as 01-arith. Every file in tests/files/ is
+# copied there too, for tests that LOAD other files. --update writes each
+# test's output as its .expected instead of comparing; check the result
+# against the source before committing it. -x is stoic-run's. Prints PASS or
+# FAIL and a diff for each test, then a count, and exits 1 if any failed or
+# had no .expected.
+set -e
+here=$(cd "$(dirname "$0")" && pwd)
+tests=$here/../tests
+update=
+xflag=
+while [ $# -gt 0 ]; do
+  case $1 in
+    --update) update=yes; shift ;;
+    -x) [ $# -ge 2 ] || { echo "stoic-suite: -x needs an exe" >&2; exit 2; }; xflag="-x $2"; shift 2 ;;
+    -*) echo "usage: tools/stoic-suite [-x <exe>] [--update] [<name>...]" >&2; exit 2 ;;
+    *) break ;;
+  esac
+done
+if [ $# -eq 0 ]; then
+  set -- "$tests"/*.sto
+else
+  for n; do set -- "$@" "$tests/$n.sto"; shift; done
+fi
+for f; do [ -r "$f" ] || { echo "stoic-suite: no test $f" >&2; exit 2; }; done
+extra=
+for f in "$tests"/files/*; do [ -f "$f" ] && extra="$extra -f $f"; done
+
+out=$(mktemp -d "${TMPDIR:-/tmp}/stoic-suite.XXXXXX")
+trap 'rm -rf "$out"' EXIT
+# shellcheck disable=SC2086
+"$here/stoic-run" $xflag $extra -m "$@" >"$out/all" || {
+  s=$?; [ "$s" -ne 2 ] || exit 2
+}
+# one file per test, split at the markers
+awk -v dir="$out" '
+  /^=== .* ===$/ { f = dir "/" substr($0, 5, length($0) - 8) ".out"; printf "" >f; next }
+  f { print >>f }
+' "$out/all"
+
+pass=0; fail=0
+for f; do
+  n=$(basename "$f" .sto)
+  got=$out/$n.out
+  [ -f "$got" ] || : >"$got"
+  if [ -n "$update" ]; then
+    cp "$got" "$tests/$n.expected"; echo "UPDATED $n"
+  elif [ ! -f "$tests/$n.expected" ]; then
+    echo "FAIL $n (no $n.expected)"; fail=$((fail + 1))
+  elif diff -u "$tests/$n.expected" "$got" >"$out/diff"; then
+    echo "PASS $n"; pass=$((pass + 1))
+  else
+    echo "FAIL $n"; sed 's/^/  /' "$out/diff"; fail=$((fail + 1))
+  fi
+done
+[ -n "$update" ] && exit 0
+echo "$pass passed, $fail failed"
+[ "$fail" -eq 0 ]
