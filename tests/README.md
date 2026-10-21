@@ -94,3 +94,26 @@ The defect numbers are those of `PLAN.md`'s defect checklist.
 
 The full word list of the shipped exe, from INVENTORY, is
 `doc/data/stoic-inventory.txt`.
+
+## Phase 5 checks (`lang/`)
+
+Claims in `doc/language.md` and `doc/float.md` that the suite did not
+cover, each run once on the shipped STOIC.EXE:
+
+```
+cd tests && ../tools/stoic-run lang/L1-LANG.con lang/L2-LONGIF.sto lang/L3-POP.con
+../tools/stoic-run lang/L4-FORGET.con lang/F1-FLOAT.con lang/F2-NOFLOAT.con
+../tools/stoic-run lang/F3-FSOVER.con lang/F4-FSUNDER.con
+```
+
+The output of those three runs is `lang/phase5.out`. They are not part of
+`stoic-suite`: several leave STOIC broken on purpose (`L3-POP` makes every
+line fault). In `L1-LANG`, C6 failed because `M` was used on the line that
+defines it; `L4-FORGET` is the corrected check. In `F1-FLOAT`, the
+"UNDERFLOW" and "OVERFLOW" lines are spoiled by the underflow before them;
+`F3` and `F4` repeat them in fresh STOICs.
+
+`lang/K1-KERNEL.con` checks `doc/kernel.md` (with `-f lang/KA.STO`); its
+output is `lang/phase5-kernel.out`. K2's `IMMEDIATE`, K3's `C@`, and
+K11/K13's `DEPTH` and `DEF?` are not words of the bare STOIC (or are
+rdef's), so those lines fail; they are left in as run.

@@ -1,0 +1,635 @@
+#!/usr/bin/env python3
+"""Index every word of the shipped STOIC.EXE from its sources.
+
+    tools/word-index            # counts and the INVENTORY cross-check
+    tools/word-index --list     # one line per word: name, branch, source, kind, effect
+    tools/word-index --md       # doc/words.md, on stdout
+
+It parses the `header` macros (and the macros that expand to headers: ss,
+ss$, io$, sec$, jpi$, math1, math2, dlrte, dlte, nullhead) in
+saostoic-text/kernel/{ss,ttio,rkernel,crtl}.mar, then the definitions in
+the STOIC sources in stoic.cre's order: rdef, image, float, obuf, vt100.
+A STOIC definition is `'NAME` followed by a defining word (`:`, AC,
+CONSTANT, VARIABLE, ARRAY, SVARIABLE, STRINGTAB, FRAB, BRANCH). The branch
+a word goes into is found by following `X<`, `>` and DEFINITIONS at top
+level. The tokenizer follows the kernel's WORD: a leading run of `"` is a
+string to the next `"`, and a leading run of `%` is a comment to the next
+`%` or the end of the line.
+
+The stack effect is a source comment that names the word (STOIC: on the
+definition line, or on the line before or after; kernel: the comment block
+above the header). Where there is none, an effect is given only for
+definitions whose effect follows from the defining word or macro (marked
+"derived"). A redefined word shows its last definition; the earlier ones
+are listed.
+
+The global definition order (ss, ttio, rkernel, then the STOIC files) is
+compared with doc/data/stoic-inventory.txt, which INVENTORY prints newest
+first. crtl.mar's words are not on the global chain (ss.mar:90 has its
+nullhead commented out), so they are expected to be missing from it.
+
+The Test column cites the test file under tests/ (*.sto, *.con, *.dcl,
+files/, image/, interactive/*.tcl) that uses the word most often, comments,
+strings and 'NAME literals not counted.
+
+Python 3, standard library only. Run it from anywhere.
+"""
+
+import difflib
+import os
+import re
+import sys
+from collections import Counter
+
+ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+KDIR = os.path.join(ROOT, 'saostoic-text', 'kernel')
+SDIR = os.path.join(ROOT, 'saostoic-text', 'stoic')
+INV = os.path.join(ROOT, 'doc', 'data', 'stoic-inventory.txt')
+TESTS = os.path.join(ROOT, 'tests')
+
+KFILES = ['ss.mar', 'ttio.mar', 'rkernel.mar', 'crtl.mar']   # link order
+SFILES = ['rdef', 'image', 'float', 'obuf', 'vt100']         # stoic.cre order
+BASE = 'base'
+MACRO_BRANCH = {'kernel': BASE, 'ttio': 'TTIO<', 'crtl': 'FLOAT<'}
+BRANCH_ORDER = [BASE, 'ASSEMBLER<', 'TTIO<', 'FLOAT<', 'IORB<', 'STOIC<']
+DEFINERS = {':': 'colon', 'AC': 'AC', 'CONSTANT': 'constant',
+            'VARIABLE': 'variable', 'ARRAY': 'array', 'SVARIABLE': 'svariable',
+            'STRINGTAB': 'stringtab', 'FRAB': 'FRAB', 'BRANCH': 'branch'}
+BRANCH_EFFECT = '%s (pushes the branch on the V-stack)'
+ADDR_KINDS = {'variable', 'array', 'svariable', 'stringtab', 'FRAB'}
+
+
+def may_inherit(d):
+    """Redefinitions with the same interface, which may carry an earlier
+    definition's comment: rdef:604-622 recompiles words inline for speed,
+    and obuf's TYO, CR, SPACE, MSG and TYI buffer the kernel's. Others
+    (BRANCH, I_DATE_ERROR, vt100's SET_MODE...) change the interface."""
+    return (d.file == 'rdef' and 604 <= d.line <= 622) or \
+        (d.file == 'obuf' and d.name in ('TYO', 'CR', 'SPACE', 'MSG', 'TYI'))
+
+
+class Def:
+    def __init__(self, name, branch, file, line, kind, effect=None, derived=False):
+        self.name, self.branch, self.file, self.line = name, branch, file, line
+        self.kind, self.effect, self.derived = kind, effect, derived
+        self.earlier = []        # earlier Defs of the same (branch, name)
+        self.inherited = None    # Def the effect was taken from
+        self.test = None
+
+    @property
+    def src(self):
+        return '%s:%d' % (self.file, self.line)
+
+
+# ---------------------------------------------------------------- matching
+
+def names_for(name):
+    out = [name]
+    if name.startswith('I_'):
+        out.append(name[2:])
+    if name.startswith('.') and len(name) > 1:
+        out.append(name[1:])
+    return out
+
+
+def mentions(text, name, nocase=False):
+    for n in names_for(name):
+        if re.search(r'(?:^|[\s,:(])' + re.escape(n) + r'(?=$|[\s,:)])', text,
+                     re.I if nocase else 0):
+            return True
+    return False
+
+
+# ---------------------------------------------------------------- kernel
+
+def macro_args(s):
+    """Split MACRO-32 macro arguments: <...> and ^x...x delimiters, ; comment."""
+    args, cur, i = [], '', 0
+    while i < len(s):
+        c = s[i]
+        if c == '<':
+            depth, j = 1, i + 1
+            while j < len(s) and depth:
+                depth += {'<': 1, '>': -1}.get(s[j], 0)
+                j += 1
+            cur += s[i + 1:j - 1]
+            i = j
+            continue
+        if c == '^' and i + 1 < len(s) and s[i + 1] not in 'xXoOdDbB':
+            d = s[i + 1]
+            j = s.index(d, i + 2)
+            cur += s[i + 2:j]
+            i = j + 1
+            continue
+        if c == ';':
+            break
+        if c == ',':
+            args.append(cur.strip())
+            cur = ''
+        else:
+            cur += c
+        i += 1
+    args.append(cur.strip())
+    return args
+
+
+def kernel_comment(lines, idx, name):
+    """Look up the comment block above lines[idx] for 'label: effect'."""
+    j = idx - 1
+    while j >= 0 and idx - j <= 12:
+        s = lines[j].strip()
+        if s == '':
+            j -= 1
+            continue
+        if not s.startswith(';'):
+            break
+        m = re.match(r';-*\s*(\S+?):\s*(.*)$', s)
+        if m:
+            label, eff = m.group(1), m.group(2).strip().lstrip('%').strip()
+            if label.upper() in [n.upper() for n in names_for(name)] and eff:
+                k = j + 1
+                while k < idx and lines[k].strip().startswith(';') and (
+                        eff.endswith(',') or eff.count('[') > eff.count(']') or
+                        eff.replace(name, '').count('(') > eff.replace(name, '').count(')')):
+                    eff += ' ' + lines[k].strip().lstrip(';').strip()
+                    k += 1
+                if ',' in eff or mentions(eff, name, True) or mentions(eff, label, True):
+                    return eff
+            return None
+        j -= 1
+    return None
+
+
+def parse_kernel(fn):
+    path = os.path.join(KDIR, fn)
+    lines = open(path, encoding='latin-1').read().split('\n')
+    defs, in_macro = [], False
+    short = fn
+    for i, raw in enumerate(lines):
+        ln = i + 1
+        s = raw.strip()
+        low = s.lower()
+        if re.match(r'\.macro\b', low):
+            in_macro = True
+            continue
+        if re.match(r'\.endm\b', low):
+            in_macro = False
+            continue
+        if in_macro or not s or s.startswith(';'):
+            continue
+        m = re.match(r'(\w+\$?)\s+(.*)$', s)
+        if not m:
+            if fn == 'ss.mar' and re.match(r'\.ascic\s*/NULL/', s, re.I):
+                defs.append(Def('NULL', BASE, short, ln, 'code', None))
+            continue
+        mac, rest = m.group(1).lower(), m.group(2)
+        if mac not in ('header', 'nullhead', 'ss', 'ss$', 'io$', 'sec$', 'jpi$',
+                       'math1', 'math2', 'dlrte', 'dlte'):
+            continue
+        args = macro_args(rest)
+        d = None
+        if mac == 'header':
+            if fn == 'rkernel.mar':
+                name = args[1] if len(args) > 1 and args[1] else args[0]
+                atr = args[2] if len(args) > 2 and args[2] else 'jump_to_me'
+                br = args[3] if len(args) > 3 and args[3] else 'kernel'
+            else:
+                name = args[0]
+                atr = args[1] if len(args) > 1 and args[1] else 'jump_to_me'
+                br = args[2] if len(args) > 2 and args[2] else 'kernel'
+            kind = 'immediate' if atr.lower() == 'immediate' else 'code'
+            d = Def(name, MACRO_BRANCH[br.lower()], short, ln, kind,
+                    kernel_comment(lines, i, name))
+            if d.effect is None and name != args[0]:
+                d.effect = kernel_comment(lines, i, args[0])
+            if name in ('ASSEMBLER<', 'STOIC<', 'TTIO<', 'FLOAT<'):
+                d.kind, d.effect, d.derived = 'branch', BRANCH_EFFECT % name, True
+        elif mac == 'nullhead':
+            d = Def('NULL', MACRO_BRANCH[args[3].lower()], short, ln, 'code',
+                    'NULL', True)
+        elif mac == 'ss' and args[0].startswith('$'):
+            br = 'TTIO<' if fn == 'ttio.mar' else BASE
+            d = Def(args[0], br, short, ln, 'system service',
+                    'arg_n ... arg_1, n, %s, arg_n ... arg_1, status' % args[0], True)
+        elif mac in ('ss$', 'io$', 'sec$', 'jpi$'):
+            item = args[0]
+            name = {'ss$': '$' + item, 'io$': 'IO$' + item,
+                    'sec$': 'SEC$' + item, 'jpi$': item}[mac]
+            br = 'TTIO<' if fn == 'ttio.mar' else BASE
+            code = {'ss$': 'SS$', 'io$': 'IO$', 'sec$': 'SEC$', 'jpi$': 'JPI$_'}[mac] + item
+            d = Def(name, br, short, ln, 'constant', '%s, value of %s' % (name, code), True)
+        elif mac == 'math1':
+            name = '.' + args[0]
+            d = Def(name, 'FLOAT<', short, ln, 'code',
+                    '(F: x), %s, (F: MTH$D%s(x))' % (name, args[0]), True)
+        elif mac == 'math2':
+            name = '.' + args[0]
+            d = Def(name, 'FLOAT<', short, ln, 'code',
+                    '(F: b, a), %s, (F: OTS$%s(b, a))' % (name, args[0]), True)
+        elif mac == 'dlrte':
+            d = Def(args[0], BASE, short, ln, 'user variable',
+                    '%s, address' % args[0], True)
+        elif mac == 'dlte':
+            d = Def(args[0], BASE, short, ln, 'dispatch entry',
+                    '%s, address of its dispatch entry' % args[0], True)
+        if d:
+            if d.effect is None and d.name.startswith('SCR.') and _no_args(lines, i):
+                d.effect, d.derived = '%s, status' % d.name, True
+            defs.append(d)
+    return defs
+
+
+def _no_args(lines, i):
+    """True if the word after lines[i] calls with no argument from the
+    stack ('calls #0' or 'pushl #0' then 'calls #1') and pushes R0."""
+    body = []
+    for s in lines[i + 1:i + 8]:
+        s = re.sub(r'\s+', ' ', s.split(';')[0].strip().lower())
+        if s == 'rsbx':
+            break
+        if s:
+            body.append(s)
+    if body and body[0] == 'pushl #0':
+        body = body[1:]
+    return len(body) == 2 and body[0].startswith('calls #') and \
+        body[1] == 'movl r0,-(r10)'
+
+
+# ---------------------------------------------------------------- STOIC
+
+def tokenize(line):
+    """Yield (kind, text, col) per the kernel's WORD: word, string, comment."""
+    i, n = 0, len(line)
+    while i < n:
+        if line[i] in ' \t\f':
+            i += 1
+            continue
+        st = i
+        if line[i] == '"':
+            while i < n and line[i] == '"':
+                i += 1
+            j = line.find('"', i)
+            if j < 0:
+                yield ('string', line[st:], st)
+                return
+            while j < n and line[j] == '"':
+                j += 1
+            yield ('string', line[st:j], st)
+            i = j
+            continue
+        if line[i] == '%':
+            while i < n and line[i] == '%':
+                i += 1
+            j = line.find('%', i)
+            if j < 0:
+                yield ('comment', line[i:].strip(), st)
+                return
+            yield ('comment', line[i:j].strip(), st)
+            i = j + 1
+            continue
+        while i < n and line[i] not in ' \t':
+            i += 1
+        yield ('word', line[st:i], st)
+
+
+def clean_comment(c, name):
+    c = c.strip()
+    m = re.match(r'-*\s*(\S+?):\s+(.*)$', c)
+    if m and m.group(1).upper() in [x.upper() for x in names_for(name)]:
+        return m.group(2).strip(), True
+    return c, c.split(' ', 1)[0].rstrip(',:') in names_for(name)
+
+
+def stoic_comment(lines, toks, ln, col, name, endcol):
+    """Find the stack-effect comment for a definition at line ln (1-based)."""
+    def open_paren(c):
+        c = c.replace(name, '')
+        return c.count('(') > c.count(')')
+
+    def continued(c, k):
+        while k < len(lines) and (c.endswith('-') or open_paren(c)):
+            nxt = toks[k]
+            if not nxt or not all(t[0] == 'comment' for t in nxt):
+                break
+            c = (c[:-1] if c.endswith('-') else c).rstrip() + ' ' + nxt[0][1]
+            k += 1
+        return c
+
+    for kind, text, c in toks[ln - 1]:
+        if kind == 'comment' and c > col and (endcol is None or c < endcol):
+            eff, labelled = clean_comment(text, name)
+            eff = continued(eff, ln)
+            if labelled or (mentions(eff, name) and ',' in eff):
+                return eff
+            break
+    for k in (ln - 2, ln):
+        if 0 <= k < len(toks):
+            tk = toks[k]
+            if tk and all(t[0] == 'comment' for t in tk):
+                eff, labelled = clean_comment(tk[0][1], name)
+                if mentions(eff, name) and (',' in eff or labelled or
+                                            eff.split(' ', 1)[0] in names_for(name)):
+                    return continued(eff, k + 1)
+                if labelled and eff:
+                    return continued(eff, k + 1)
+    return None
+
+
+def parse_stoic(fn, branches):
+    lines = open(os.path.join(SDIR, fn), encoding='latin-1').read().split('\n')
+    toks = [list(tokenize(l)) for l in lines]
+    flat = [(ln + 1, t) for ln, tl in enumerate(toks) for t in tl if t[0] != 'comment']
+    defs = []
+    vstack, current = [BASE], BASE
+    depth, last = 0, None
+    k = 0
+    while k < len(flat):
+        ln, (kind, text, col) = flat[k]
+        nxt = flat[k + 1][1][1] if k + 1 < len(flat) and flat[k + 1][1][0] == 'word' else None
+        if depth:
+            if kind == 'word' and text == ':':
+                depth += 1
+            elif kind == 'word' and text == ';':
+                depth -= 1
+            k += 1
+            continue
+        if kind == 'word' and text.startswith("'") and len(text) > 1 and nxt in DEFINERS:
+            name = text[1:]
+            dk = DEFINERS[nxt]
+            if dk == 'AC':
+                prev = flat[k - 1][1][1] if k else '?'
+                dk = 'AC %s' % prev
+            # end of this definition's own stretch on the line
+            endcol = None
+            for t in toks[ln - 1]:
+                if t[2] > col + len(text) and t[0] == 'word' and t[1].startswith("'") \
+                        and t[2] > flat[k + 1][1][2]:
+                    endcol = t[2]
+                    break
+            d = Def(name, current, fn, ln, dk, stoic_comment(lines, toks, ln, col, name, endcol))
+            if dk == 'branch':
+                branches.add(name)
+                d.effect = BRANCH_EFFECT % name
+                d.derived = True
+            elif d.effect is None and dk == 'constant':
+                d.effect, d.derived = '%s, value' % name, True
+            elif d.effect is None and dk in ADDR_KINDS:
+                d.effect, d.derived = '%s, address' % name, True
+            defs.append(d)
+            last = d
+            if nxt == ':':
+                depth = 1
+            k += 2
+            continue
+        if kind == 'word':
+            if text in branches:
+                vstack.append(text)
+            elif text == '>':
+                vstack.pop()
+            elif text == 'DEFINITIONS':
+                current = vstack[-1]
+            elif text == 'IMMEDIATE' and last is not None and last.kind == 'colon' \
+                    and flat[k - 1][1][1] == ';':
+                last.kind = 'immediate'
+        k += 1
+    return defs
+
+
+# ---------------------------------------------------------------- tests
+
+def test_tokens():
+    files = []
+    for sub, exts in (('', ('.sto', '.con', '.dcl')), ('files', ('.sto',)),
+                      ('image', ('.sto', '.con', '.dcl')), ('interactive', ('.tcl',))):
+        d = os.path.join(TESTS, sub)
+        if os.path.isdir(d):
+            for f in sorted(os.listdir(d)):
+                if f.endswith(exts):
+                    files.append(os.path.join(sub, f) if sub else f)
+    index = {}
+    for f in files:
+        text = open(os.path.join(TESTS, f), encoding='latin-1').read()
+        lines = text.split('\n')
+        if f.endswith('.tcl'):
+            src = []
+            for l in lines:
+                m = re.match(r'\s*(?:line|send)\s+"(.*)"\s*(?:;.*)?$', l)
+                if m:
+                    src.append(m.group(1).replace('\\"', '"').replace('\\r', ''))
+            lines = src
+        c = Counter()
+        for l in lines:
+            if f.endswith('.dcl'):
+                l = l.lstrip('$ ')
+            for kind, t, _ in tokenize(l):
+                if kind == 'word' and not t.startswith("'"):
+                    c[t] += 1
+        index[f] = c
+    return index
+
+
+def find_test(name, index):
+    best, bc = None, 0
+    for f in sorted(index):
+        n = index[f].get(name, 0)
+        if n > bc:
+            best, bc = f, n
+    return best
+
+
+# ---------------------------------------------------------------- main
+
+def collect():
+    kdefs = {f: parse_kernel(f) for f in KFILES}
+    branches = {'ASSEMBLER<', 'STOIC<', 'TTIO<', 'FLOAT<'}
+    sdefs = {f: parse_stoic(f, branches) for f in SFILES}
+    glob = kdefs['ss.mar'] + kdefs['ttio.mar'] + kdefs['rkernel.mar']
+    for f in SFILES:
+        glob += sdefs[f]
+    order = kdefs['ss.mar'] + kdefs['ttio.mar'] + kdefs['crtl.mar'] + kdefs['rkernel.mar']
+    for f in SFILES:
+        order += sdefs[f]
+    final = {}
+    for d in order:
+        key = (d.branch, d.name)
+        if key in final:
+            d.earlier = final[key].earlier + [final[key]]
+        final[key] = d
+    for d in final.values():
+        if d.effect is None and may_inherit(d):
+            for e in reversed(d.earlier):
+                if e.effect and not e.derived:
+                    d.effect, d.inherited = e.effect, e
+                    break
+    return glob, kdefs['crtl.mar'], order, final
+
+
+def read_inventory():
+    out = []
+    for l in open(INV, encoding='latin-1'):
+        m = re.match(r'(\S+)\s+D=', l)
+        if m:
+            out.append(m.group(1))
+    out.reverse()
+    return out
+
+
+def crosscheck(glob, inv):
+    a = [d.name for d in glob]
+    sm = difflib.SequenceMatcher(None, a, inv, autojunk=False)
+    only_src, only_inv, matched = [], [], 0
+    for op, i1, i2, j1, j2 in sm.get_opcodes():
+        if op == 'equal':
+            matched += i2 - i1
+        else:
+            only_src += glob[i1:i2]
+            only_inv += [(j, inv[j]) for j in range(j1, j2)]
+    return matched, only_src, only_inv
+
+
+def md_code(s):
+    s = s.replace('|', '\\|')
+    tick = '``' if '`' in s else '`'
+    pad = ' ' if '`' in s else ''
+    return '%s%s%s%s%s' % (tick, pad, s, pad, tick)
+
+
+def render_md(order, final, crtl, inv, matched, only_src, only_inv, index):
+    out = []
+    w = out.append
+    nfinal = len(final)
+    w('# STOIC.EXE word list')
+    w('')
+    w('Every word in the shipped `STOIC.EXE`, grouped by branch. The list was '
+      'generated by `tools/word-index --md > doc/words.md` from the kernel '
+      '`header` macros (`saostoic-text/kernel/*.mar`) and the definitions in '
+      'the STOIC files loaded by `stoic.cre` (rdef, image, float, obuf, '
+      'vt100). It was then cross-checked against the INVENTORY output in '
+      '`doc/data/stoic-inventory.txt`. To regenerate it, run the same command.')
+    w('')
+    w('- **Word** is the name as it is looked up.')
+    w('- **Kind** is how the word was made:')
+    w('  - `code` is a kernel `header`.')
+    w('  - `colon` is a `:` definition.')
+    w('  - `immediate` is either of those with the IMMEDIATE attribute.')
+    w('  - `AC xx` is an assembler word that compiles the byte `xx`.')
+    w('  - Otherwise it is the defining word (`constant`, `variable`...) or '
+      'the kernel macro (`system service`, `user variable`, `dispatch entry`).')
+    w('- **Stack effect** quotes the source comment in STOIC\'s notation, '
+      '`inputs, NAME, outputs`, top of stack last.')
+    w('  - † marks an effect that is derived from the defining word or macro, '
+      'not from a comment. `(F: ...)` is the float stack.')
+    w('  - "(from file:line)" marks an effect carried over from an earlier '
+      'definition of the same word.')
+    w('  - "—" means the source gives none and the code was not read for one.')
+    w('- **Source** is the final definition. Earlier ones follow "also".')
+    w('- **Test** is the test file under `tests/` that uses the word most, '
+      'or "—" if none does. It shows that the word is used, not that its '
+      'stack effect was checked.')
+    w('')
+    w('%d definitions were parsed, giving %d distinct (branch, name) words. '
+      '%d of the definitions are on the global chain, and INVENTORY lists '
+      '%d entries, of which %d match the source definitions in order. '
+      'See [Mismatches](#mismatches-with-inventory) for the rest.'
+      % (len(order), nfinal, len(order) - len(crtl), len(inv), matched))
+    w('')
+    w('The base branch is the one the kernel starts in (`B_KERNEL`, '
+      '`rkernel.mar:383-386`). It has no name: `STOIC<` pushes a separate '
+      'branch, which nothing loaded into STOIC.EXE defines into.')
+    for br in BRANCH_ORDER:
+        words = sorted([d for (b, _), d in final.items() if b == br],
+                       key=lambda d: (d.name.upper(), d.name))
+        title = 'Base branch' if br == BASE else '`%s`' % br
+        w('')
+        w('## %s' % title)
+        w('')
+        if not words:
+            w('Empty in STOIC.EXE.')
+            continue
+        w('%d words.' % len(words))
+        w('')
+        w('| Word | Kind | Stack effect | Source | Test |')
+        w('|---|---|---|---|---|')
+        for d in words:
+            if d.effect:
+                eff = md_code(d.effect)
+                if d.derived:
+                    eff += ' †'
+                if d.inherited:
+                    eff += ' (from %s)' % d.inherited.src
+            else:
+                eff = '—'
+            src = d.src
+            if d.earlier:
+                src += '; also ' + ', '.join(e.src for e in d.earlier)
+            t = d.test
+            w('| %s | %s | %s | %s | %s |' % (md_code(d.name), d.kind, eff, src,
+                                              '`%s`' % t if t else '—'))
+    w('')
+    w('## Mismatches with INVENTORY')
+    w('')
+    w('The source and INVENTORY sequences were aligned with difflib. '
+      'INVENTORY walks the global chain, which holds every definition, '
+      'redefinitions included.')
+    w('')
+    crtl_names = {d.name for d in crtl}
+    w('**In the source, not in INVENTORY: %d.**' % (len(only_src) + len(crtl)))
+    w('')
+    w('- The %d `FLOAT<` kernel words of `crtl.mar` are in the exe but not on '
+      'the global chain. `crtl.mar` links them only into its own branch '
+      '(the `crtl_crtl` cell). In `ss.mar:90` the `nullhead` that would '
+      'chain `crtlglob` in is commented out. INVENTORY never sees them, but '
+      'lookup through `FLOAT<` finds them: `tests/12-math.sto` uses `.SQRT` '
+      'and the others, and float\'s `.^` calls `.POWDD`. The words are:'
+      % len(crtl))
+    w('  ' + ', '.join(md_code(d.name) for d in crtl) + '.')
+    for d in only_src:
+        w('- %s (%s)' % (md_code(d.name), d.src))
+    w('')
+    w('**In INVENTORY, not in the source: %d.**' % len(only_inv))
+    if only_inv:
+        w('')
+        for j, n in only_inv:
+            w('- %s (line %d of the file)' % (md_code(n), len(inv) - j))
+    w('')
+    return '\n'.join(out)
+
+
+def main():
+    mode = sys.argv[1] if len(sys.argv) > 1 else ''
+    if mode not in ('', '--list', '--md'):
+        sys.stderr.write('usage: tools/word-index [--list | --md]\n')
+        return 2
+    glob, crtl, order, final = collect()
+    inv = read_inventory()
+    matched, only_src, only_inv = crosscheck(glob, inv)
+    index = test_tokens()
+    for d in final.values():
+        d.test = find_test(d.name, index)
+    if mode == '--md':
+        print(render_md(order, final, crtl, inv, matched, only_src, only_inv, index))
+        return 0
+    if mode == '--list':
+        for d in order:
+            print('\t'.join([d.name, d.branch, d.src, d.kind,
+                             (d.effect or '-') + (' [derived]' if d.derived else '')]))
+        return 0
+    print('definitions parsed: %d (%d on the global chain, %d crtl)'
+          % (len(order), len(glob), len(crtl)))
+    print('distinct words:     %d' % len(final))
+    print('inventory entries:  %d' % len(inv))
+    print('matched in order:   %d' % matched)
+    print('only in source:     %d (+ %d crtl)' % (len(only_src), len(crtl)))
+    for d in only_src:
+        print('  %s\t%s\t%s' % (d.name, d.branch, d.src))
+    print('only in inventory:  %d' % len(only_inv))
+    for j, n in only_inv:
+        print('  %s\tinventory line %d' % (n, len(inv) - j))
+    nofx = sum(1 for d in final.values() if not d.effect)
+    print('words without an effect: %d; without a test: %d'
+          % (nofx, sum(1 for d in final.values() if not d.test)))
+    return 1 if only_src or only_inv else 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

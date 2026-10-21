@@ -1,5 +1,9 @@
 # SAO STOIC VAX/VMS Kernel: Design Report
 
+> **Historical.** This is a first draft written from reading the code before
+> any test. It is superseded by `doc/` (see `doc/README.md`), which corrects
+> it in places. Keep it for history; don't cite it.
+
 Sources: `/home/tkb/Repos/STOIC/saostoic-text/kernel/` (rkernel.mar, rms.mar, ss.mar, ss.src, tyio.mar, ttio.mar, crtl.mar, controlc.mar, dtinit.mar, extend.mar, rkernel.opt, rkernel.map, kermac.com, kerlink.com) and the older GM variant in `/home/tkb/Repos/STOIC/saostoic-text/gm/` (kernel.mar, ss.mar, aaareadme.1st). Citations are `file:line`. Unless a directory is given, the file is in `kernel/`.
 
 ## 1. Overview

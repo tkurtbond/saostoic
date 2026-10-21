@@ -72,6 +72,40 @@ The modules, in `red.cre`'s load order, are:
 `stoic/obuf` (output buffering) and `stoic/vt100` (escape sequences) come
 from STOIC.EXE.
 
+### Dynasts: the buffers and the gap
+
+RED keeps all its text in "dynasts" (dynamic strings), defined in `dyna`.
+
+- **The pointer table.** It starts at `D.START`, which `.D@ 'D.START
+  CONSTANT` freezes at the data pointer when dyna is loaded
+  (`dyna:121-126`).
+  - It holds K0, the command buffers: 8 longwords.
+  - Then X0, the ten text buffers (`#BUFS` = 0A): 4 longwords each.
+  - Then `D.STOP`.
+  - D.INIT points every entry at the current end of data, so every buffer
+    starts empty (`dyna:266-270`).
+- **Three strings per buffer.** A buffer's four pointers are TOPOTOP,
+  BOTOTOP, TOPOBOT and BOTOBOT (`dyna:228-231`). Consecutive pairs mark
+  three strings:
+  - the text before the cursor, from TOPOTOP to BOTOTOP;
+  - the gap, from BOTOTOP to TOPOBOT;
+  - the text after the cursor, from TOPOBOT to BOTOBOT.
+- **Moving the cursor.** MOVE_UP and MOVE_DOWN (`dyna:247-262`) move the
+  cursor by copying bytes across the gap. Inserting adds bytes at the end
+  of the first string (ABE, ASE), and deleting removes them (RBE).
+- **Growing the gap.** When a gap is full, D.EXPAND1 (`dyna:147-161`)
+  grows it by at least 800 (hex) bytes:
+  - it extends the data region with `.D+!` if needed;
+  - it moves every later dynast up, pointer pair by pointer pair
+    (D.EXPAND2).
+  - So the buffers sit end to end in the data region, in table order.
+- **XD.** XD shows these pointers as LOC, TOP, GAP and BOT for each buffer
+  (r3 `xd`).
+
+`D.START` is another address frozen at load time, like `O.BUFSTRT`
+(defect 30). The shipped RED faults in obuf before it would reach the
+dynasts, so it is not known whether `D.START` would fault too.
+
 ### Startup
 
 1. DCL runs `RED.EXE` with the command tail `RED file`.
@@ -292,8 +326,9 @@ not return** (r6 `dcl`, `dcl-2`):
 - Recovery: `SET TERMINAL/DEVICE=VT100` (or `/INQUIRE`).
 
 **32. `KBD` sends a malformed escape sequence:**
-- `6 RESET_MODE` (`kbd:500`) sends `ESC [ ? ^F l`. vt100's RESET_MODE
-  wants a character, not a number.
+- `6 RESET_MODE` (`kbd:500`) sends `ESC [ ? ^F l`. `vt100` defines
+  RESET_MODE twice. The second definition (`vt100:153`) takes a character
+  and replaces the first (`vt100:63`), which took a number.
 - A VT100 acts on the ^F and ignores the rest. pyte prints the `l`, so
   `tools/red-screens` removes the sequence.
 - It is harmless on a real terminal. The intent was probably `ASCII 6`

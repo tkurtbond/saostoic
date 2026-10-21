@@ -1,5 +1,9 @@
 # SAO STOIC: the STOIC-language layer, IMAGE, FLOAT and RED
 
+> **Historical.** This is a first draft written from reading the code before
+> any test. It is superseded by `doc/` (see `doc/README.md`), which corrects
+> it in places. Keep it for history; don't cite it.
+
 Source tree: `/home/tkb/Repos/STOIC/saostoic-text/`. Paths below are relative to that tree. Kernel line numbers refer to `kernel/rkernel.mar` unless another file is named.
 
 ## 1. Build pipeline

@@ -15,7 +15,8 @@ system on a real (SIMH) VAX and document its design**.
 | `saostoic-text/stoic/` | The STOIC layer: `rdef` (the standard word set), `image`, `float`, `obuf`, `vt100`, `stoic.cre`, and the manual `stoic.mem`/`stoic.rno`. |
 | `saostoic-text/red/` | RED: `err dyna e window edv eb command immed cli kbd red`, `red.cre`, `hirez.cre`, `red.mem`. |
 | `saostoic-text/gm/` | GM variant: `kernel.mar`, `ss.mar`, `float.sto`, and `newstoic.mem` (the GM "Detailed Guide to VAX/VMS STOIC", 19 May 1982). |
-| `notes/` | Working design reports: `kernel-design.md` (the MACRO kernel) and `stoic-level-design.md` (rdef, IMAGE, FLOAT, RED). They are drafts written from reading the code. Claims marked unverified must be tested before they go into final docs. |
+| `doc/` | The verified documentation (Phase 5). Start at `doc/README.md`; `doc/defects.md` lists all 40 defects. |
+| `notes/` | The first design drafts (`kernel-design.md`, `stoic-level-design.md`), written from reading the code. Historical: `doc/` supersedes them. |
 
 The authoritative copy of every file, binaries included, is on the VAX in
 `DUA1:[USERS.CLAUDE.SAOSTOIC...]`.
@@ -106,6 +107,9 @@ For unattended runs, use `tools/` (see `tools/README.md`):
 - `tools/red-drive [-o dir] script.tcl...` drives RED from a key script
   over a fresh telnet session and writes `.raw` and `.scr` (the screens,
   via pyte) to `tests/red/`. Set `STOIC_RED` to the rebuilt RED.EXE.
+- `tools/word-index [--list|--md]` indexes every word definition in the
+  sources and cross-checks it against INVENTORY; `--md` makes
+  `doc/words.md`.
 
 STOIC writes to SYS$COMMAND, the terminal, not SYS$OUTPUT. Under `/OUTPUT`
 its output therefore lands in the telnet session, not in the log, and the
@@ -117,7 +121,7 @@ interactive checks the user has okayed and wants to watch, such as RED.
 
 ## Design in brief
 
-Details and `file:line` citations are in `notes/`.
+Details and `file:line` citations are in `doc/` (start at `doc/README.md`).
 
 - **Native subroutine threading.** There is no inner interpreter. Each word
   is VAX code ending in RSB. A call compiles to `JSB W^disp(R8)`, an integer
@@ -282,7 +286,10 @@ fault loops, the PUT-only console, FIX_DZRO underflow, an unchecked HEAD0,
 and rdef's unused I_DATE_ERROR. Phase 4 added 30–36 for RED: the shipped
 exe's ACCVIO and the terminal it leaves, a malformed escape, the up arrow,
 `@K`/`@N` drawing on the divider, the `` `C `` replies, and smaller
-differences from the manual (`doc/red.md`).
+differences from the manual (`doc/red.md`). Phase 5 added 37–40:
+`.+ROT`/`.-ROT` losing half a value, `F->S` overrunning `F_STRING`,
+unchecked float-stack underflow, and `>` emptying the branch stack.
+Each has a repro, cause and fix in `doc/defects.md`.
 
 1. DIGIT treats any character above `Z` as a decimal point, so lowercase
    undefined words in LOAD files (which are not uppercased) compile silently
@@ -315,9 +322,8 @@ date.
 
 ## Working conventions
 
-- Treat `notes/` as hypotheses and `doc/` as verified results. Don't promote
-  a claim from `notes/` to `doc/` until a test or a cited source line backs
-  it.
+- `doc/` holds verified results; `notes/` is historical. A new claim goes
+  into `doc/` only with a test or a cited source line behind it.
 - Put any change to STOIC sources in `[.WORK]` and in a separate `patched/`
   tree here, never in `saostoic-text/` or the reference `[.SAOSTOIC]` files.
 - Commit to git as work progresses. Don't commit fetched VAX binaries or

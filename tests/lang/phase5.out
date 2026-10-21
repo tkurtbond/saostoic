@@ -1,0 +1,125 @@
+=== L1-LANG ===
+
+C1 MID-LINE % COMMENT, EXPECT 3: 3
+C2 %X% UNSPACED, EXPECT 3: 3
+C4 NEGATIVE +LOOP STEP: 0 -^@^@^@1 -^@^@^@2 -^@^@^@3 -^@^@^@4
+%SYSTEM-W-ACCVIO, access violation, reason mask=00, virtual address=00000000, PC
+=00023998, PSL=03C00004
+"C4 NEGATIVE +LOOP STEP:" MSG 3 0 DO I = I -4 EQ IF 0 @ THEN -1 +LOOP
++LOOP
+No word found at 846934
+No word found at 135266
+
+C5 I AFTER EXIT, EXPECT 1: 1
+M
+undefined error compiling...  M  ...in line
+'M MODULE 7 'V VARIABLE M FORGET
+C6 ARRAY AFTER FORGET: 0
+C7 () N !, EXPECT 200: 200
+C9 WORD SHADOWS NUMBER, EXPECT 99: 99
+C10 MANUAL MAX, 3 7: 3
+C11 STRING FROM LAST LINE, COUNT: 33
+C13 : INSIDE IF:
+
+Syntax Error error compiling...  :  ...in line
+1 IF 'X : 1 ; THEN
+END
+
+=== L2-LONGIF ===
+
+Byte-displacement overflow. error compiling...  THEN  ...in line
+THEN ;
+
+=== L3-POP ===
+
+%SYSTEM-W-ACCVIO, access violation, reason mask=00, virtual address=000CEA0C, PC
+=00023998, PSL=03C00000
+1 = CR
+1
+I_LOOKUP	 D=106CD, C=21537(47)
+No word found at -^@^@^@1
+I_COMPILE	 D=10552, C=21260(4C)
+No word found at 21053
+
+%SYSTEM-W-ACCVIO, access violation, reason mask=00, virtual address=000CEA0C, PC
+=00023998, PSL=03C00000
+DECIMAL 2 = CR
+DECIMAL
+I_LOOKUP	 D=106CD, C=21537(47)
+No word found at CEA0C
+I_COMPILE	 D=10552, C=21260(4C)
+No word found at 21053
+
+%SYSTEM-W-ACCVIO, access violation, reason mask=00, virtual address=000CEA0C, PC
+=00023998, PSL=03C00000
+;F
+;F
+I_LOOKUP	 D=106CD, C=21537(47)
+No word found at CEA0C
+I_COMPILE	 D=10552, C=21260(4C)
+No word found at 21053
+
+=== L4-FORGET ===
+ARRAY AFTER FORGET, 7 IF NOT ZEROED: 7
+
+=== F1-FLOAT ===
++ROT: 2.200000000000000     1.100000000000000     3.300000143051147    
+-ROT: 1.099999928474426     3.300000000000000     2.200000000000000    
+F.EXPADD AFTER .=: 1.500000000000000     32
+F_STACK, F_STACK @, L_STACK: 851233 845312 844288
+E= .001 12 3:    .001E+00
+.<#> 1.5:1.5000
+.<#> -2.25:-2.2500
+.EFIX 1234.5: 40.1234500000000000    
+SECOND POINT:
+1.2.3
+undefined error compiling...  1.2.3  ...in line
+1.2.3 .= CR
+UNDERFLOW:
+0.1234500000000000    
+OVERFLOW:
+
+%SYSTEM-W-ACCVIO, access violation, reason mask=00, virtual address=000CE610, PC
+=00023998, PSL=03C00008
+'FILL : 70 0 DO 1. LOOP ;
+1.
+ICOMPILE	 D=66957, C=135963(71)
+I_LITERAL	 D=67063, C=136198(18)
+I_COMPILE	 D=66898, C=135776(76)
+No word found at 135251
+FILL
+undefined error compiling...  FILL  ...in line
+FILL
+AFTER OVERFLOW
+HEX 1.A:0.0000000000000000E+00
+
+=== F2-NOFLOAT ===
+.SQRT
+undefined error compiling...  .SQRT  ...in line
+2. .SQRT .= CR
+
+=== F3-FSOVER ===
+
+%SYSTEM-W-ACCVIO, access violation, reason mask=04, virtual address=000CE3F8, PC
+=00023998, PSL=03C00000
+FILL
+FILL
+FILL		 D=84480, C=153600(38)
+No word found at 846852
+No word found at 135266
+AFTER OVERFLOW: 2.500000000000000    
+HEX 1.A:0.0000000000000000E+00
+
+=== F4-FSUNDER ===
+ONE .DROP ON EMPTY FS, THEN .=:^@^@^@^@^@^@^@^@^@^@^@^@^@^@^@^@^@^@^@^@^@^@
+
+%SYSTEM-W-ACCVIO, access violation, reason mask=00, virtual address=000CE608, PC
+=00023998, PSL=03C00008
+"NEXT LINE, 2.5 .=:" MSG 2.5 .= CR
+2.5
+ICOMPILE	 D=66957, C=135963(71)
+I_LITERAL	 D=67063, C=136198(18)
+I_COMPILE	 D=66898, C=135776(76)
+No word found at 135251
+F_STACK @: 845312
+
