@@ -1,0 +1,143 @@
+== analyze-new-redhirez.txt
+header blocks 1
+transfer %X'00020DDA'
+image name "RKERNEL"
+linked 21-OCT-2026 14:30:00.34
+  isd 1  va %X'00000200'   pages 14   dzro 0 wrt 0 gbl 0 vbn 2    ISD$K_NORMAL
+  isd 2  va %X'00001E00'   pages 109  dzro 1 wrt 1 gbl 0 vbn      ISD$K_NORMAL
+  isd 3  va %X'0000F800'   pages 62   dzro 0 wrt 0 gbl 0 vbn 16   ISD$K_NORMAL
+  isd 4  va %X'00017400'   pages 68   dzro 1 wrt 1 gbl 0 vbn      ISD$K_NORMAL
+  isd 5  va %X'0001FC00'   pages 97   dzro 0 wrt 0 gbl 0 vbn 78   ISD$K_NORMAL
+  isd 6  va %X'0002BE00'   pages 31   dzro 1 wrt 1 gbl 0 vbn      ISD$K_NORMAL
+  isd 7  va %X'0002FC00'   pages 2    dzro 0 wrt 1 gbl 0 vbn 175  ISD$K_NORMAL
+  isd 8  va %X'7FFFD800'   pages 20   dzro 1 wrt 1 gbl 0 vbn      ISD$K_USRSTACK
+  isd 9  va %X'00000000'   pages 66   dzro 0 wrt 0 gbl 1 vbn 0    ISD$K_SHRPIC "FORRTL_001"
+  isd 10 va %X'00000000'   pages 14   dzro 0 wrt 0 gbl 1 vbn 0    ISD$K_SHRPIC "SCRSHR_001"
+  isd 11 va %X'00000000'   pages 195  dzro 0 wrt 0 gbl 1 vbn 0    ISD$K_SHRPIC "LIBRTL_001"
+  isd 12 va %X'00000000'   pages 2    dzro 0 wrt 0 gbl 1 vbn 0    ISD$K_SHRPIC "MTHRTL_001"
+== analyze-new-red.txt
+header blocks 1
+transfer %X'00020DDA'
+image name "RKERNEL"
+linked 21-OCT-2026 14:30:00.34
+  isd 1  va %X'00000200'   pages 14   dzro 0 wrt 0 gbl 0 vbn 2    ISD$K_NORMAL
+  isd 2  va %X'00001E00'   pages 109  dzro 1 wrt 1 gbl 0 vbn      ISD$K_NORMAL
+  isd 3  va %X'0000F800'   pages 62   dzro 0 wrt 0 gbl 0 vbn 16   ISD$K_NORMAL
+  isd 4  va %X'00017400'   pages 68   dzro 1 wrt 1 gbl 0 vbn      ISD$K_NORMAL
+  isd 5  va %X'0001FC00'   pages 97   dzro 0 wrt 0 gbl 0 vbn 78   ISD$K_NORMAL
+  isd 6  va %X'0002BE00'   pages 31   dzro 1 wrt 1 gbl 0 vbn      ISD$K_NORMAL
+  isd 7  va %X'0002FC00'   pages 2    dzro 0 wrt 1 gbl 0 vbn 175  ISD$K_NORMAL
+  isd 8  va %X'7FFFD800'   pages 20   dzro 1 wrt 1 gbl 0 vbn      ISD$K_USRSTACK
+  isd 9  va %X'00000000'   pages 66   dzro 0 wrt 0 gbl 1 vbn 0    ISD$K_SHRPIC "FORRTL_001"
+  isd 10 va %X'00000000'   pages 14   dzro 0 wrt 0 gbl 1 vbn 0    ISD$K_SHRPIC "SCRSHR_001"
+  isd 11 va %X'00000000'   pages 195  dzro 0 wrt 0 gbl 1 vbn 0    ISD$K_SHRPIC "LIBRTL_001"
+  isd 12 va %X'00000000'   pages 2    dzro 0 wrt 0 gbl 1 vbn 0    ISD$K_SHRPIC "MTHRTL_001"
+== analyze-new-rkernel.txt
+header blocks 1
+transfer %X'00020DDA'
+image name "RKERNEL"
+linked 21-OCT-2026 14:30:00.34
+  isd 1  va %X'00000200'   pages 3    dzro 0 wrt 1 gbl 0 vbn 2    ISD$K_NORMAL
+  isd 2  va %X'00000800'   pages 120  dzro 1 wrt 1 gbl 0 vbn      ISD$K_NORMAL
+  isd 3  va %X'0000F800'   pages 16   dzro 0 wrt 1 gbl 0 vbn 5    ISD$K_NORMAL
+  isd 4  va %X'00011800'   pages 114  dzro 1 wrt 1 gbl 0 vbn      ISD$K_NORMAL
+  isd 5  va %X'0001FC00'   pages 17   dzro 0 wrt 1 gbl 0 vbn 21   ISD$K_NORMAL
+  isd 6  va %X'00021E00'   pages 111  dzro 1 wrt 1 gbl 0 vbn      ISD$K_NORMAL
+  isd 7  va %X'0002FC00'   pages 2    dzro 0 wrt 1 gbl 0 vbn 38   ISD$K_NORMAL
+  isd 8  va %X'7FFFD800'   pages 20   dzro 1 wrt 1 gbl 0 vbn      ISD$K_USRSTACK
+  isd 9  va %X'00000000'   pages 66   dzro 0 wrt 0 gbl 1 vbn 0    ISD$K_SHRPIC "FORRTL_001"
+  isd 10 va %X'00000000'   pages 14   dzro 0 wrt 0 gbl 1 vbn 0    ISD$K_SHRPIC "SCRSHR_001"
+  isd 11 va %X'00000000'   pages 195  dzro 0 wrt 0 gbl 1 vbn 0    ISD$K_SHRPIC "LIBRTL_001"
+  isd 12 va %X'00000000'   pages 2    dzro 0 wrt 0 gbl 1 vbn 0    ISD$K_SHRPIC "MTHRTL_001"
+== analyze-new-stoic.txt
+header blocks 1
+transfer %X'00020DDA'
+image name "RKERNEL"
+linked 21-OCT-2026 14:30:00.34
+  isd 1  va %X'00000200'   pages 10   dzro 0 wrt 0 gbl 0 vbn 2    ISD$K_NORMAL
+  isd 2  va %X'00001600'   pages 113  dzro 1 wrt 1 gbl 0 vbn      ISD$K_NORMAL
+  isd 3  va %X'0000F800'   pages 41   dzro 0 wrt 0 gbl 0 vbn 12   ISD$K_NORMAL
+  isd 4  va %X'00014A00'   pages 89   dzro 1 wrt 1 gbl 0 vbn      ISD$K_NORMAL
+  isd 5  va %X'0001FC00'   pages 46   dzro 0 wrt 0 gbl 0 vbn 53   ISD$K_NORMAL
+  isd 6  va %X'00025800'   pages 82   dzro 1 wrt 1 gbl 0 vbn      ISD$K_NORMAL
+  isd 7  va %X'0002FC00'   pages 2    dzro 0 wrt 1 gbl 0 vbn 99   ISD$K_NORMAL
+  isd 8  va %X'7FFFD800'   pages 20   dzro 1 wrt 1 gbl 0 vbn      ISD$K_USRSTACK
+  isd 9  va %X'00000000'   pages 66   dzro 0 wrt 0 gbl 1 vbn 0    ISD$K_SHRPIC "FORRTL_001"
+  isd 10 va %X'00000000'   pages 14   dzro 0 wrt 0 gbl 1 vbn 0    ISD$K_SHRPIC "SCRSHR_001"
+  isd 11 va %X'00000000'   pages 195  dzro 0 wrt 0 gbl 1 vbn 0    ISD$K_SHRPIC "LIBRTL_001"
+  isd 12 va %X'00000000'   pages 2    dzro 0 wrt 0 gbl 1 vbn 0    ISD$K_SHRPIC "MTHRTL_001"
+== analyze-ship-head0.txt
+header blocks 1
+transfer %X'00020DD2'
+image name "RKERNEL"
+linked 4-SEP-1985 17:53:44.15
+  isd 1  va %X'00000200'   pages 3    dzro 0 wrt 1 gbl 0 vbn 2    ISD$K_NORMAL
+  isd 2  va %X'00000800'   pages 120  dzro 1 wrt 1 gbl 0 vbn      ISD$K_NORMAL
+  isd 3  va %X'0000F800'   pages 16   dzro 0 wrt 1 gbl 0 vbn 5    ISD$K_NORMAL
+  isd 4  va %X'00011800'   pages 114  dzro 1 wrt 1 gbl 0 vbn      ISD$K_NORMAL
+  isd 5  va %X'0001FC00'   pages 17   dzro 0 wrt 1 gbl 0 vbn 21   ISD$K_NORMAL
+  isd 6  va %X'00021E00'   pages 111  dzro 1 wrt 1 gbl 0 vbn      ISD$K_NORMAL
+  isd 7  va %X'0002FC00'   pages 1    dzro 0 wrt 1 gbl 0 vbn 38   ISD$K_NORMAL
+  isd 8  va %X'7FFFD800'   pages 20   dzro 1 wrt 1 gbl 0 vbn      ISD$K_USRSTACK
+  isd 9  va %X'00000000'   pages 12   dzro 0 wrt 0 gbl 1 vbn 0    ISD$K_SHRPIC "VMSRTL_001"
+  isd 10 va %X'00000000'   pages 1    dzro 0 wrt 0 gbl 1 vbn 0    ISD$K_SHRPIC "SCRSHR_001"
+== analyze-ship-redhirez.txt
+header blocks 1
+transfer %X'00020DA6'
+image name "RKERNEL"
+linked 8-NOV-1983 17:36:15.46
+  isd 1  va %X'00000200'   pages 14   dzro 0 wrt 0 gbl 0 vbn 2    ISD$K_NORMAL
+  isd 2  va %X'00001E00'   pages 109  dzro 1 wrt 0 gbl 0 vbn      ISD$K_NORMAL
+  isd 3  va %X'0000F800'   pages 61   dzro 0 wrt 0 gbl 0 vbn 16   ISD$K_NORMAL
+  isd 4  va %X'00017200'   pages 69   dzro 1 wrt 0 gbl 0 vbn      ISD$K_NORMAL
+  isd 5  va %X'0001FC00'   pages 96   dzro 0 wrt 0 gbl 0 vbn 77   ISD$K_NORMAL
+  isd 6  va %X'0002BC00'   pages 32   dzro 1 wrt 0 gbl 0 vbn      ISD$K_NORMAL
+  isd 7  va %X'0002FC00'   pages 1    dzro 0 wrt 1 gbl 0 vbn 173  ISD$K_NORMAL
+  isd 8  va %X'7FFFD800'   pages 20   dzro 1 wrt 1 gbl 0 vbn      ISD$K_USRSTACK
+  isd 9  va %X'00000000'   pages 12   dzro 0 wrt 0 gbl 1 vbn 0    ISD$K_SHRPIC "VMSRTL_001"
+  isd 10 va %X'00000000'   pages 1    dzro 0 wrt 0 gbl 1 vbn 0    ISD$K_SHRPIC "SCRSHR_001"
+== analyze-ship-red.txt
+header blocks 1
+transfer %X'00020DD2'
+image name "RKERNEL"
+linked 4-SEP-1985 17:53:44.15
+  isd 1  va %X'00000200'   pages 14   dzro 0 wrt 0 gbl 0 vbn 2    ISD$K_NORMAL
+  isd 2  va %X'00001E00'   pages 109  dzro 1 wrt 1 gbl 0 vbn      ISD$K_NORMAL
+  isd 3  va %X'0000F800'   pages 62   dzro 0 wrt 0 gbl 0 vbn 16   ISD$K_NORMAL
+  isd 4  va %X'00017400'   pages 68   dzro 1 wrt 1 gbl 0 vbn      ISD$K_NORMAL
+  isd 5  va %X'0001FC00'   pages 97   dzro 0 wrt 0 gbl 0 vbn 78   ISD$K_NORMAL
+  isd 6  va %X'0002BE00'   pages 31   dzro 1 wrt 1 gbl 0 vbn      ISD$K_NORMAL
+  isd 7  va %X'0002FC00'   pages 1    dzro 0 wrt 1 gbl 0 vbn 175  ISD$K_NORMAL
+  isd 8  va %X'7FFFD800'   pages 20   dzro 1 wrt 1 gbl 0 vbn      ISD$K_USRSTACK
+  isd 9  va %X'00000000'   pages 12   dzro 0 wrt 0 gbl 1 vbn 0    ISD$K_SHRPIC "VMSRTL_001"
+  isd 10 va %X'00000000'   pages 1    dzro 0 wrt 0 gbl 1 vbn 0    ISD$K_SHRPIC "SCRSHR_001"
+== analyze-ship-rkernel.txt
+header blocks 1
+transfer %X'00020DD2'
+image name "RKERNEL"
+linked 4-SEP-1985 17:53:44.15
+  isd 1  va %X'00000200'   pages 3    dzro 0 wrt 1 gbl 0 vbn 2    ISD$K_NORMAL
+  isd 2  va %X'00000800'   pages 120  dzro 1 wrt 1 gbl 0 vbn      ISD$K_NORMAL
+  isd 3  va %X'0000F800'   pages 16   dzro 0 wrt 1 gbl 0 vbn 5    ISD$K_NORMAL
+  isd 4  va %X'00011800'   pages 114  dzro 1 wrt 1 gbl 0 vbn      ISD$K_NORMAL
+  isd 5  va %X'0001FC00'   pages 17   dzro 0 wrt 1 gbl 0 vbn 21   ISD$K_NORMAL
+  isd 6  va %X'00021E00'   pages 111  dzro 1 wrt 1 gbl 0 vbn      ISD$K_NORMAL
+  isd 7  va %X'0002FC00'   pages 1    dzro 0 wrt 1 gbl 0 vbn 38   ISD$K_NORMAL
+  isd 8  va %X'7FFFD800'   pages 20   dzro 1 wrt 1 gbl 0 vbn      ISD$K_USRSTACK
+  isd 9  va %X'00000000'   pages 12   dzro 0 wrt 0 gbl 1 vbn 0    ISD$K_SHRPIC "VMSRTL_001"
+  isd 10 va %X'00000000'   pages 1    dzro 0 wrt 0 gbl 1 vbn 0    ISD$K_SHRPIC "SCRSHR_001"
+== analyze-ship-stoic.txt
+header blocks 1
+transfer %X'00020DD2'
+image name "RKERNEL"
+linked 4-SEP-1985 17:53:44.15
+  isd 1  va %X'00000200'   pages 10   dzro 0 wrt 0 gbl 0 vbn 2    ISD$K_NORMAL
+  isd 2  va %X'00001600'   pages 113  dzro 1 wrt 1 gbl 0 vbn      ISD$K_NORMAL
+  isd 3  va %X'0000F800'   pages 41   dzro 0 wrt 0 gbl 0 vbn 12   ISD$K_NORMAL
+  isd 4  va %X'00014A00'   pages 89   dzro 1 wrt 1 gbl 0 vbn      ISD$K_NORMAL
+  isd 5  va %X'0001FC00'   pages 46   dzro 0 wrt 0 gbl 0 vbn 53   ISD$K_NORMAL
+  isd 6  va %X'00025800'   pages 82   dzro 1 wrt 1 gbl 0 vbn      ISD$K_NORMAL
+  isd 7  va %X'0002FC00'   pages 1    dzro 0 wrt 1 gbl 0 vbn 99   ISD$K_NORMAL
+  isd 8  va %X'7FFFD800'   pages 20   dzro 1 wrt 1 gbl 0 vbn      ISD$K_USRSTACK
+  isd 9  va %X'00000000'   pages 12   dzro 0 wrt 0 gbl 1 vbn 0    ISD$K_SHRPIC "VMSRTL_001"
+  isd 10 va %X'00000000'   pages 1    dzro 0 wrt 0 gbl 1 vbn 0    ISD$K_SHRPIC "SCRSHR_001"

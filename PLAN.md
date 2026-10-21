@@ -14,8 +14,8 @@ Phase 1 passes. Phase 5 is written gradually as results come in.
 | Phase | State |
 |---|---|
 | 0 Tooling | done (see "Phase 0 outcome"); `tests/00-*` pass |
-| 1 Characterize shipped binaries | suite `tests/00`–`15` (18 files) passes; interactive checks in `tests/interactive/`; INVENTORY in `doc/data/`. Left: `tests/README.md` justifications, `doc/defects.md` |
-| 2 Rebuild from source | not started |
+| 1 Characterize shipped binaries | suite `tests/00`–`15` (18 files) passes; interactive checks in `tests/interactive/`; INVENTORY in `doc/data/`; `tests/README.md`. Left: `doc/defects.md` |
+| 2 Rebuild from source | done (see "Phase 2 outcome"; `doc/build.md`) |
 | 3 IMAGE | not started |
 | 4 RED | not started |
 | 5 Documentation | design drafts in `notes/` |
@@ -224,6 +224,26 @@ anything needed changing.
 There is a clean rebuild, the suite passes against it, and the ANALYZE
 comparison is documented.
 
+### Phase 2 outcome (2026-10-21)
+
+- `@STOBUILD MAC` and `@HIREZ.CRE` ran in `[.WORK.SAOSTOIC]` with no
+  MACRO or LINK diagnostics and no source changes; `patched/` is not needed.
+- DATINIT, DICTIONARY and every ISD that IMAGE writes are the same size as
+  the shipped ones. The KERNEL psect is 8 bytes longer, because V5's
+  `$ASSIGN_S` passes a fifth argument (one call in CONTROLC, three in
+  TYIO); `START` moves from 20DD2 to 20DDA.
+- The rebuild links FORRTL, LIBRTL and MTHRTL instead of VMSRTL, so its
+  fixup vector (ISD 7) is 2 pages, and the `$EXPREG`'d regions (stacks,
+  compile buffer, R11) start 4F800 lower in P0.
+- The suite against the rebuilt STOIC and RED differs from the shipped
+  run only in those addresses and in REVISION (`build/suite-rebuilt.txt`).
+  The expected files stay those of the shipped exe.
+- The shipped `REDHIREZ.EXE` (1983) does not run on V5.5-2: BADISD. The
+  rebuilt one does.
+- The work tree now holds `;2` rebuilt versions over the `;1` shipped
+  ones, including `SAO$KERNEL:HEAD0.EXE`; `stoic-run` gained `-r` so that
+  `.dcl` tests use the RED they are meant to.
+
 ---
 
 ## Phase 3: IMAGE
@@ -347,7 +367,7 @@ that settle them:
 | 8 | One record per TYO in batch | Phase 0 (SUBMIT log) | **confirmed** |
 | 9 | Remote-line code bugs | source review only, unless a test can be built | open |
 | 10 | GETCMD uses the CLI callback | 13-calc | works on V5.5-2H4, including an empty tail |
-| 11 | IMAGE header and layout assumptions | Phase 3 | open; SAVE/XLOAD round-trip (14-save, 14-xload) |
+| 11 | IMAGE header and layout assumptions | Phase 3 | open; SAVE/XLOAD round-trip (14-save, 14-xload). Phase 2: the P0 layout of the `$EXPREG`'d regions depends on the shareable images the kernel was linked against (4F800 lower in a V5 link) |
 | 12 | MOD and /MOD with a negative dividend | 00, 01-arith | **confirmed**: unsigned; `-7 3 MOD` gives 0 |
 | 13 | Comparison sense differs from the manual | 02-compare | **confirmed**: `GT` is true when the top of stack is greater |
 | 14 | `=` writes a negative number as `-`, three NULs, digits | 01, 02 and others | **new**, confirmed: `EQ_SGN` builds the sign with `movl #^a/-/` (a longword) |
@@ -357,6 +377,7 @@ that settle them:
 | 18 | `.SQRT` of a negative number ends STOIC | 12-math | **new**, confirmed: ACCVIO at PC 80000010, "Improperly handled condition"; the condition handler's $UNWIND path for a signal from deeper than one frame is the suspect |
 | 19 | Error messages show ABORT's PC | every error | **new**, confirmed: the handler writes `ABORT @` into the signal PC before the message is printed, and rdef sets ABORT to ERROR_TRACE (`rdef:1426-1440`, code at 23998 in the shipped exe), so every message says PC=00023998. The real PC is in ERROR_PC; ERROR_TRACE's traceback (WHAT of ERROR_PC, then of each return-stack entry) gives it as the first line |
 | 20 | GETJPI's comment promises a completion code it does not leave | 15-sys | **new**, confirmed: SYSERR takes the code; only the value is left |
+| 21 | IMAGE output from before the V4 fix no longer runs | Phase 2 | **new**, confirmed: the shipped `REDHIREZ.EXE` (1983, demand-zero ISDs no-write) fails with SYSTEM-F-BADISD on V5.5-2 |
 
 ### Done when
 

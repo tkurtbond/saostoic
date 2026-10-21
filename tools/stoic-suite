@@ -3,12 +3,12 @@
 # VAX job by tools/stoic-run, each in a STOIC of its own, and compares each
 # one's output with tests/<name>.expected.
 #
-#   tools/stoic-suite [-x <exe>] [--update] [<name>...]
+#   tools/stoic-suite [-x <exe>] [-r <exe>] [--update] [<name>...]
 #
 # A <name> is a test's name, such as 01-arith. Every file in tests/files/ is
 # copied there too, for tests that LOAD other files. --update writes each
 # test's output as its .expected instead of comparing; check the result
-# against the source before committing it. -x is stoic-run's. Prints PASS or
+# against the source before committing it. -x and -r are stoic-run's. Prints PASS or
 # FAIL and a diff for each test, then a count, and exits 1 if any failed or
 # had no .expected.
 set -e
@@ -19,8 +19,9 @@ xflag=
 while [ $# -gt 0 ]; do
   case $1 in
     --update) update=yes; shift ;;
-    -x) [ $# -ge 2 ] || { echo "stoic-suite: -x needs an exe" >&2; exit 2; }; xflag="-x $2"; shift 2 ;;
-    -*) echo "usage: tools/stoic-suite [-x <exe>] [--update] [<name>...]" >&2; exit 2 ;;
+    -x) [ $# -ge 2 ] || { echo "stoic-suite: -x needs an exe" >&2; exit 2; }; xflag="$xflag -x $2"; shift 2 ;;
+    -r) [ $# -ge 2 ] || { echo "stoic-suite: -r needs an exe" >&2; exit 2; }; xflag="$xflag -r $2"; shift 2 ;;
+    -*) echo "usage: tools/stoic-suite [-x <exe>] [-r <exe>] [--update] [<name>...]" >&2; exit 2 ;;
     *) break ;;
   esac
 done

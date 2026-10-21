@@ -1,7 +1,7 @@
 #!/bin/sh
 # Runs STOIC source files on the VAX and prints what STOIC writes.
 #
-#   tools/stoic-run [-x <exe>] [-f <file>]... [-m] <file.sto|file.con|file.dcl>...
+#   tools/stoic-run [-x <exe>] [-r <exe>] [-f <file>]... [-m] <file.sto|file.con|file.dcl>...
 #
 # A <file.con> is typed at the console instead: its lines are the data lines
 # of a STOIC of its own, then ";F". A compile error there abandons only
@@ -11,8 +11,8 @@
 # Console lines from a procedure are not uppercased either.
 #
 # A <file.dcl> holds DCL commands, one per line without the "$", run after
-# @WORK-ASSIGN, so STOIC, RED and CALC are the [.WORK] copies; it tests
-# DCL command tails. No line of one may contain an apostrophe (DCL would
+# @WORK-ASSIGN, with STOIC the -x exe and RED and CALC the -r one; it
+# tests DCL command tails. No line of one may contain an apostrophe (DCL would
 # take it for a symbol substitution).
 #
 # Each <file.sto> is copied to [.WORK] and LOADed by a STOIC of its own:
@@ -24,6 +24,8 @@
 #
 #   -x <exe>   the STOIC to run, a VMS file spec (default the shipped
 #              DUA1:[USERS.CLAUDE.SAOSTOIC.STOIC]STOIC.EXE; $STOIC_EXE)
+#   -r <exe>   the RED for RED and CALC in a .dcl (default the shipped
+#              DUA1:[USERS.CLAUDE.SAOSTOIC.RED]RED.EXE; $STOIC_RED)
 #   -f <file>  another file to copy there, such as one a test LOADs
 #   -m         print "=== <name> ===" before each file's output (always,
 #              if there is more than one file)
@@ -39,12 +41,14 @@
 set -e
 here=$(cd "$(dirname "$0")" && pwd)
 exe=${STOIC_EXE:-DUA1:[USERS.CLAUDE.SAOSTOIC.STOIC]STOIC.EXE}
+red=${STOIC_RED:-DUA1:[USERS.CLAUDE.SAOSTOIC.RED]RED.EXE}
 extra=
 marks=
-usage() { echo "usage: tools/stoic-run [-x <exe>] [-f <file>]... [-m] <file.sto|file.con|file.dcl>..." >&2; exit 2; }
+usage() { echo "usage: tools/stoic-run [-x <exe>] [-r <exe>] [-f <file>]... [-m] <file.sto|file.con|file.dcl>..." >&2; exit 2; }
 while [ $# -gt 0 ]; do
   case $1 in
     -x) [ $# -ge 2 ] || usage; exe=$2; shift 2 ;;
+    -r) [ $# -ge 2 ] || usage; red=$2; shift 2 ;;
     -f) [ $# -ge 2 ] || usage; extra="$extra $2"; shift 2 ;;
     -m) marks=yes; shift ;;
     -*) usage ;;
@@ -53,7 +57,9 @@ while [ $# -gt 0 ]; do
 done
 [ $# -gt 0 ] || usage
 [ $# -eq 1 ] || marks=yes
-case $exe in *[\'\"\ ]*) echo "stoic-run: $exe is not a plain file spec" >&2; exit 2 ;; esac
+for x in "$exe" "$red"; do
+  case $x in *[\'\"\ ]*) echo "stoic-run: $x is not a plain file spec" >&2; exit 2 ;; esac
+done
 
 stage=$(mktemp -d "${TMPDIR:-/tmp}/stoic-run.XXXXXX")
 trap 'rm -rf "$stage"' EXIT
@@ -78,6 +84,9 @@ proc=$stage/STOICRUN.COM
   echo "\$ SET NOON"
   echo "\$ @WORK-ASSIGN"
   echo "\$ RUN_STOIC :== \$$exe"
+  echo "\$ STOIC :== \$$exe"
+  echo "\$ RED :== \$$red RED"
+  echo "\$ CALC :== \$$red FLODEF"
   for f; do
     n=$(vms "$f")
     [ -z "$marks" ] || echo "\$ WRITE SYS\$COMMAND \"=== $(basename "${f%.*}") ===\""

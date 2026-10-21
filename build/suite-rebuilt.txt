@@ -1,0 +1,180 @@
+PASS 00-smoke
+PASS 01-arith
+PASS 02-compare
+PASS 03-stack
+PASS 04-control
+PASS 05-define
+PASS 06-numio
+PASS 07-strings
+PASS 08-vocab
+PASS 09-asm
+FAIL 10-files
+  --- /home/tkb/Repos/STOIC/tools/../tests/10-files.expected	2026-10-21 13:46:05.973395634 -0400
+  +++ /tmp/stoic-suite.sd99IE/10-files.out	2026-10-21 14:33:39.895461206 -0400
+  @@ -4,9 +4,9 @@
+   '10C.STO LOAD
+   LOAD
+   No word found at 0
+  -LOAD		 D=68193, C=137249(7)
+  -No word found at 846865
+  -No word found at 135266
+  +LOAD		 D=68193, C=137257(7)
+  +No word found at 521233
+  +No word found at 135274
+   BACK IN 10B
+   BACK IN 10A
+   AFTER NEST
+FAIL 11-errors
+  --- /home/tkb/Repos/STOIC/tools/../tests/11-errors.expected	2026-10-21 13:40:59.932094029 -0400
+  +++ /tmp/stoic-suite.sd99IE/11-errors.out	2026-10-21 14:33:39.895461206 -0400
+  @@ -20,15 +20,15 @@
+    3
+   
+   %SYSTEM-W-ACCVIO, access violation, reason mask=98, virtual address=03C00000, PC
+  -=00020AE3, PSL=00024D89
+  +=00020AE7, PSL=00024D89
+   MSG CR
+   CR
+  -SYSERR		 D=66852, C=135624(14)
+  -No word found at 133859
+  +SYSERR		 D=66852, C=135632(14)
+  +No word found at 133863
+   TYPE		 D=82216, C=150870(52)
+   MSG		 D=82234, C=150922(9)
+  -No word found at 846852
+  -No word found at 135266
+  +No word found at 521220
+  +No word found at 135274
+    4
+   
+   %SYSTEM-W-INTDIV, arithmetic trap, integer divide by zero at PC=00023998, PSL=03
+  @@ -36,42 +36,42 @@
+   1 0 / =
+   =
+   /		 D=74518, C=139344(4)
+  -No word found at 846862
+  -No word found at 135266
+  +No word found at 521230
+  +No word found at 135274
+    5
+   
+   %SYSTEM-W-ACCVIO, access violation, reason mask=00, virtual address=00000000, PC
+   =00023998, PSL=03C00004
+   0 @ =
+   =
+  -No word found at 846855
+  -No word found at 135266
+  +No word found at 521223
+  +No word found at 135274
+    6
+   
+  -%SYSTEM-W-ACCVIO, access violation, reason mask=04, virtual address=000CDE08, PC
+  +%SYSTEM-W-ACCVIO, access violation, reason mask=04, virtual address=0007E608, PC
+   =00023998, PSL=03C00000
+   DROP DROP DROP
+   DROP
+  -I_READLINE	 D=68550, C=137433(42)
+  -No word found at 135239
+  +I_READLINE	 D=68550, C=137441(42)
+  +No word found at 135247
+    7
+   
+  -%SYSTEM-W-ACCVIO, access violation, reason mask=04, virtual address=000CDE08, PC
+  +%SYSTEM-W-ACCVIO, access violation, reason mask=04, virtual address=0007E608, PC
+   =00023998, PSL=03C00000
+   DROP DROP DROP =
+   =
+  -SPACE		 D=68957, C=137760(7)
+  -=		 D=68976, C=137767(67)
+  -No word found at 846861
+  -No word found at 135266
+  +SPACE		 D=68957, C=137768(7)
+  +=		 D=68976, C=137775(67)
+  +No word found at 521229
+  +No word found at 135274
+    8
+   
+   %SYSTEM-W-ACCVIO, access violation, reason mask=00, virtual address=00000000, PC
+   =00023998, PSL=03C00004
+   1 2 0 @
+   @
+  -No word found at 846861
+  -No word found at 135266
+  +No word found at 521229
+  +No word found at 135274
+    0
+    9
+   
+FAIL 12-float
+  --- /home/tkb/Repos/STOIC/tools/../tests/12-float.expected	2026-10-21 13:40:59.934487915 -0400
+  +++ /tmp/stoic-suite.sd99IE/12-float.out	2026-10-21 14:33:39.895461206 -0400
+  @@ -18,7 +18,7 @@
+   "OVERFLOW " MSG 1.E30 1.E30 .* .= CR
+   CR
+   .*		 D=13C79, C=246C9(4)
+  -No word found at CEC2D
+  -No word found at 21062
+  +No word found at 7F42D
+  +No word found at 2106A
+   F= ERR  Floating point output conversion error.NEXT LINE
+   
+FAIL 12-math
+  --- /home/tkb/Repos/STOIC/tools/../tests/12-math.expected	2026-10-21 13:48:55.278440121 -0400
+  +++ /tmp/stoic-suite.sd99IE/12-math.out	2026-10-21 14:33:39.895461206 -0400
+  @@ -11,23 +11,23 @@
+   "LOG 0   " MSG 0. .LOG .= CR
+   CR
+   No word found at 130264
+  -No word found at 846881
+  -No word found at 135266
+  +No word found at 521249
+  +No word found at 135274
+   POW OVF 
+   %SYSTEM-W-ROPRAND, reserved operand fault at PC=00023998, PSL=03C00000
+   "POW OVF " MSG 10. 1000. .^ .= CR
+   CR
+   No word found at 130320
+   .^		 D=81069, C=149205(5)
+  -No word found at 846892
+  -No word found at 135266
+  +No word found at 521260
+  +No word found at 135274
+   ASIN 2  
+   %SYSTEM-W-ROPRAND, reserved operand fault at PC=00023998, PSL=03C00000
+   "ASIN 2  " MSG 2. .ASIN .= CR
+   CR
+   No word found at 130160
+  -No word found at 846881
+  -No word found at 135266
+  +No word found at 521249
+  +No word found at 135274
+   NEXT LINE
+   SQRT -1 
+   %SYSTEM-F-ACCVIO, access violation, reason mask=01, virtual address=03C00000, PC
+  @@ -50,9 +50,9 @@
+   
+   	Register dump
+   
+  -	R0 = 03C00000  R1 = 03C00000  R2 = 000671D0  R3 = 00067293
+  -	R4 = 00000000  R5 = 000CFBA8  R6 = FFFFFFFF  R7 = 000CE600
+  -	R8 = 00027C00  R9 = 000CE200  R10= 000CDE00  R11= 000D7CF9
+  +	R0 = 03C00000  R1 = 03C00000  R2 = 000485D0  R3 = 00048693
+  +	R4 = 00000000  R5 = 000803A8  R6 = FFFFFFFF  R7 = 0007EE00
+  +	R8 = 00027C00  R9 = 0007EA00  R10= 0007E600  R11= 000884F9
+   	AP = 7FE45AB8  FP = 7FE45A78  SP = 7FE45AF4  PC = 80000010
+   	PSL= 03C00004
+   
+PASS 13-calc
+PASS 14-save
+PASS 14-xload
+FAIL 15-sys
+  --- /home/tkb/Repos/STOIC/tools/../tests/15-sys.expected	2026-10-21 13:46:05.977348698 -0400
+  +++ /tmp/stoic-suite.sd99IE/15-sys.out	2026-10-21 14:33:39.895461206 -0400
+  @@ -1,5 +1,5 @@
+   ASCTIM   23
+  -REVISION  9-SEP-1985 21:17:31.34
+  +REVISION 21-OCT-2026 14:30:03.60
+   TRNLOG  DUA1:[USERS.CLAUDE]
+   GETJPI   -^@^@^@1
+   WHERE   DUP		 D=75974, C=140652(10)
+13 passed, 5 failed

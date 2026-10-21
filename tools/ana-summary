@@ -1,0 +1,26 @@
+#!/bin/sh
+# Prints the parts of an ANALYZE/IMAGE listing that Phase 2 compares: the
+# header block count, the transfer address, the image name and link date,
+# and one line per image section (VPN base, pages, DZRO/WRT, VBN, type).
+#
+#   tools/ana-summary <analyze.txt>...
+for f; do
+  echo "== $(basename "$f")"
+  tr -d '\r' <"$f" | awk '
+    /header block count:/   { print "header blocks", $NF }
+    /first transfer address/ { print "transfer", $NF }
+    /image name:/           { print "image name", $NF }
+    /link date\/time:/      { print "linked", $3, $4 }
+    /image section descriptor \(/ { if (n) out(); n++; pc = va = vbn = dz = wr = gbl = ""; ty = "" }
+    n && /page count:/      { pc = $NF }
+    n && /base virtual address:/ { va = $4 }
+    n && /ISD\$V_DZRO/      { dz = $NF }
+    n && /ISD\$V_WRT/       { wr = $NF }
+    n && /ISD\$V_GBL/       { gbl = $NF }
+    n && /section type:/    { ty = $NF }
+    n && /base VBN:/        { vbn = $NF }
+    n && /global section name:/ { ty = ty " " $NF }
+    function out() { printf "  isd %-2d va %-14s pages %-4s dzro %s wrt %s gbl %s vbn %-4s %s\n", n, va, pc, dz, wr, gbl, vbn, ty }
+    END { if (n) out() }
+  '
+done

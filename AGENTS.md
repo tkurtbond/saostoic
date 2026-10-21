@@ -92,10 +92,10 @@ it.
 
 For unattended runs, use `tools/` (see `tools/README.md`):
 
-- `tools/stoic-run [-x exe] [-f file]... file...` runs each file in a
+- `tools/stoic-run [-x exe] [-r exe] [-f file]... file...` runs each file in a
   fresh STOIC on the VAX and prints STOIC's output. A `.sto` is LOADed, a
   `.con` is typed as console lines, and a `.dcl` is DCL commands (for
-  command tails).
+  command tails; `-r` names the RED behind `RED` and `CALC`).
 - `tools/stoic-suite [--update] [name...]` runs `tests/*.sto`, `*.con` and
   `*.dcl` in one job and diffs each against `tests/*.expected`.
 - `tools/vax-interact check.tcl...` runs interactive checks (CTRL/C, TYI,
@@ -232,13 +232,26 @@ Details and `file:line` citations are in `notes/`.
 - The shipped exe has 964 words (`doc/data/stoic-inventory.txt`, INVENTORY).
 - Phase 1's suite and interactive checks are in `tests/`; what each test
   settled is in the defect checklist in `PLAN.md`.
+- **The sources rebuild cleanly on V5.5-2H4** (`doc/build.md`): no
+  diagnostics, no changes, and the same sizes for every section IMAGE
+  writes. The kernel code is 8 bytes longer (V5's `$ASSIGN_S`), and the
+  `$EXPREG`'d regions sit 4F800 lower, because a V5 link uses LIBRTL and
+  friends in place of VMSRTL. Otherwise the suite output is the same.
+- The shipped `REDHIREZ.EXE` (1983) fails with BADISD; a rebuilt one runs.
+- **The work tree holds two versions** of every built file since Phase 2:
+  `;1` is the shipped copy and `;2` the rebuild. A spec without a version
+  gets the rebuild, including `SAO$KERNEL:HEAD0.EXE` (read by IMAGE) and the
+  `STOIC`, `RED` and `CALC` of `work-assign.com`. `tools/stoic-run` sets
+  those symbols from `-x` and `-r`, which default to the shipped
+  `[.SAOSTOIC...]` binaries.
 
 ## Known or suspected defects
 
 Suspected from reading the code. Results are in `PLAN.md`'s defect
 checklist, which also lists defects 12–20, found in Phase 1 (`=` NULs, DGE,
 `.FLIP`, unreported MTH$ errors, `.SQRT` of a negative ending STOIC, and
-others). Confirmed: 1, 2, 3, 4, 5, 7, 8. Open: 6, 9, 11.
+others). Confirmed: 1, 2, 3, 4, 5, 7, 8. Open: 6, 9, 11. Phase 2 added 21 (the
+shipped REDHIREZ's BADISD).
 
 1. DIGIT treats any character above `Z` as a decimal point, so lowercase
    undefined words in LOAD files (which are not uppercased) compile silently

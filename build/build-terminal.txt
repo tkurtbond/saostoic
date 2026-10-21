@@ -1,0 +1,52 @@
+
+Welcome to the STOIC kernel.
+Loading RDEF
+Loading IMAGE
+Loading FLOAT
+Loading OBUF
+Loading VT100
+[Creating STOIC.EXE]
+Creating writable image
+If installing in system, use /OPEN/HEAD switches only
+
+Welcome to STOIC
+Loading ERR
+Loading DYNA
+Loading E
+Loading WINDOW
+Loading EDV
+Loading EB
+Loading COMMAND
+Loading IMMED
+Loading CLI
+Loading KBD
+Loading RED
+[Creating RED.EXE]
+Creating writable image
+If installing in system, use /OPEN/HEAD switches only
+
+Welcome to STOIC
+Loading ERR
+Loading DYNA
+Loading E
+Loading WINDOW
+Loading EDV
+Loading EB
+Loading COMMAND
+Loading IMMED
+Loading CLIHIREZ
+Loading KBD
+Loading RED
+[Creating RED.EXE]
+Creating writable image
+If installing in system, use /OPEN/HEAD switches only
+%ANALYZE-I-ERRORS, DUA1:[USERS.CLAUDE.WORK.SAOSTOIC.KERNEL]RKERNEL.EXE;2   0 err
+ors
+%ANALYZE-I-ERRORS, DUA1:[USERS.CLAUDE.WORK.SAOSTOIC.STOIC]STOIC.EXE;2      0 err
+ors
+%ANALYZE-I-ERRORS, DUA1:[USERS.CLAUDE.WORK.SAOSTOIC.RED]RED.EXE;2          0 err
+ors
+%ANALYZE-I-ERRORS, DUA1:[USERS.CLAUDE.WORK.SAOSTOIC.RED]REDHIREZ.EXE;2     0 err
+ors
+%ANALYZE-I-ERRORS, DUA1:[USERS.CLAUDE.SAOSTOIC.RED]REDHIREZ.EXE;1          0 err
+ors
