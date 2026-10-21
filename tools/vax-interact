@@ -1,0 +1,38 @@
+#!/bin/sh
+# Runs interactive checks of STOIC over a fresh telnet session, holding the
+# VAX lock, and writes a transcript of each.
+#
+#   tools/vax-interact [-o <dir>] <check.tcl>...
+#
+# Each <check.tcl> is Tcl sourced by tools/vax-interact.exp, which describes
+# the procs it may use (stoic, line, keys, settle, await). Its transcript is
+# <dir>/<check>.log (default dir tests/interactive), with carriage returns
+# removed and NULs shown as ^@. The session's default directory is [.WORK];
+# STOIC is the shipped one, or $STOIC_EXE (a VMS file spec).
+#
+# The login and password are $VAX_NETRC's (default ~/.netrc-claude-vax), read
+# by the expect script; they are never shown. VAX_HOST names the VAX.
+set -e
+host=${VAX_HOST:-192.168.2.20}
+here=$(cd "$(dirname "$0")" && pwd)
+VAX_NETRC=${VAX_NETRC:-$HOME/.netrc-claude-vax}
+export VAX_NETRC
+VAX_WORKDIR="[.WORK]"; export VAX_WORKDIR
+. "$here/vax-lock.sh"
+
+outdir=$here/../tests/interactive
+case $1 in -o) outdir=$2; shift 2 ;; esac
+[ $# -gt 0 ] || { echo "usage: tools/vax-interact [-o <dir>] <check.tcl>..." >&2; exit 2; }
+for f; do [ -r "$f" ] || { echo "vax-interact: cannot read $f" >&2; exit 2; }; done
+mkdir -p "$outdir"
+
+vax_lock
+trap 'vax_unlock' EXIT
+status=0
+expect -f "$here/vax-interact.exp" "$host" "$outdir" "$@" || status=$?
+for f; do
+  log=$outdir/$(basename "${f%.*}").log
+  [ -f "$log" ] || continue
+  tr -d '\r' <"$log" | sed 's/\x00/^@/g' >"$log.new" && mv "$log.new" "$log"
+done
+exit $status

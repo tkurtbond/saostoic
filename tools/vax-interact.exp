@@ -1,0 +1,80 @@
+# Runs interactive checks over a fresh telnet session for tools/vax-interact.
+# Each <check.tcl> is sourced in turn, with what the session shows from then
+# until it ends written to <dir>/<check>.log. A check drives the session with
+# these procs:
+#
+#   stoic [<tail>]   start the shipped STOIC (or $STOIC_EXE), with a tail
+#   line <text>      send <text> and a return, then wait for quiet
+#   keys <text>      send <text> as it is (\003 is CTRL/C), then wait
+#   settle [<secs>]  wait until the session has been quiet for <secs> (2),
+#                    or at most 20 seconds
+#   await <re> [<secs>]   wait for output matching <re>; 1 if it came
+#
+# After each check the session must be back at the DCL prompt; if not,
+# CTRL/Y and STOP put it there, and the log says so.
+#
+#   expect -f tools/vax-interact.exp <host> <dir> <check.tcl>...
+
+set host [lindex $argv 0]
+set outdir [lindex $argv 1]
+set checks [lrange $argv 2 end]
+set timeout 30
+log_user 0
+
+source [file join [file dirname [info script]] vax-login.tcl]
+
+set exe DUA1:\[USERS.CLAUDE.SAOSTOIC.STOIC\]STOIC.EXE
+if {[info exists ::env(STOIC_EXE)] && $::env(STOIC_EXE) ne ""} { set exe $::env(STOIC_EXE) }
+
+# quiet for $secs, or output for 20 seconds without a pause
+proc settle {{secs 2}} {
+  set deadline [expr {[clock seconds] + 20}]
+  expect {
+    -timeout $secs
+    -re {.+} { if {[clock seconds] < $deadline} exp_continue }
+    timeout {}
+    eof { fail "the telnet session ended" }
+  }
+}
+proc await {re {secs 10}} {
+  expect {
+    -timeout $secs
+    -re $re { return 1 }
+    timeout { return 0 }
+    eof { fail "the telnet session ended" }
+  }
+}
+proc keys {text {secs 2}} { send -- $text; settle $secs }
+proc line {text {secs 2}} { send -- "$text\r"; settle $secs }
+proc stoic {{tail ""}} {
+  if {$tail eq ""} { send "ISTOIC\r" } else { send "ISTOIC $tail\r" }
+  settle 3
+}
+proc at_dcl {} {
+  send "\r"
+  return [await $::prompt 5]
+}
+
+vax_login $host
+send "ISTOIC :== \$$exe\r"
+expect -re $prompt
+# keep NULs: = writes some (expect drops them by default)
+remove_nulls 0
+
+foreach check $checks {
+  set name [file rootname [file tail $check]]
+  log_file -a -noappend [file join $outdir $name.log]
+  if {[catch {source $check} message]} {
+    send_log "\n*** vax-interact: $message\n"
+  }
+  if {![at_dcl]} {
+    send_log "\n*** vax-interact: no DCL prompt; CTRL/Y and STOP\n"
+    send "\031"
+    settle 3
+    send "STOP\r"
+    if {![await $prompt 10]} { log_file; fail "no DCL prompt after $name, even after STOP" }
+  }
+  log_file
+}
+send "LOGOUT\r"
+expect eof
