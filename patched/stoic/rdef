@@ -557,7 +557,8 @@ ASSEMBLER<
   MOVL R2 -(P)  MOVL R0 -(P)  % low-order longwords to stack
   MOVL R3 -(P)  MOVL R1 -(P)  % high-order parts to stack
   DDUP EQ_IF  % are high-order longwords equal
-    DROP LTZ_IF SWAP THEN ELSE  % yes, set up low-order longwords
+    2DROP  % yes, set up low-order longwords, which are unsigned:
+    80000000 XOR SWAP 80000000 XOR SWAP ELSE  % flip their sign bits
     -ROT DROP -ROT DROP THEN  % no, set up high-order longwords
   GE  % compare
   ;
