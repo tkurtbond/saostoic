@@ -50,6 +50,7 @@ are [`saostoic-text/stoic/stoic.mem`](saostoic-text/stoic/stoic.mem) and
 | [`doc/`](doc/) | The documentation. |
 | [`tests/`](tests/) | The tests and their expected output ([`tests/README.md`](tests/README.md)). |
 | [`tools/`](tools/) | Scripts that run the tests on the VAX over FTP and telnet ([`tools/README.md`](tools/README.md)). |
+| [`build/`](build/) | Logs, link maps and `ANALYZE/IMAGE` output from rebuilding the 1985 sources and the patched tree; the evidence for [`doc/build.md`](doc/build.md). Not needed to build. |
 | [`PLAN.md`](PLAN.md) | The test plan, its phases and results. |
 | [`notes/`](notes/) | Early design notes, superseded by `doc/`. |
 | [`AGENTS.md`](AGENTS.md) | Instructions for the coding agent that did the work, with a summary of the design. |
