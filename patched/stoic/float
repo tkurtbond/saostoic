@@ -29,14 +29,14 @@ RADIX @ HEX  % save radix and set to hexadecimal
   MOVQ (FS) R0  % r0 is temporary stack pointer
   MOVQ B^(FS) 8 (FS)  % move up arg1
   MOVQ B^(FS) 10 B^(FS) 8  % move up arg2
-  MOVL R0 B^(FS) 10  %  put arg3 underneath
+  MOVQ R0 B^(FS) 10  %  put arg3 underneath
   ;
 
 '.-ROT :  % arg1, arg2, arg3, -ROT, arg1, arg3, arg2
-  MOVL B^(FS) 10 R0  % set arg1 aside
+  MOVQ B^(FS) 10 R0  % set arg1 aside
   MOVQ B^(FS) 8 B^(FS) 10  % move arg3 down
   MOVQ (FS) B^(FS) 8  % move arg2 down
-  MOVL R0 (FS)  % put arg1 on top
+  MOVQ R0 (FS)  % put arg1 on top
   ;
 
 '.UNDER :  % value1, value2, UNDER, value2 (drops next to top value)
