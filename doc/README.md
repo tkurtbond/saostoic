@@ -23,7 +23,8 @@ family.
 | [`red.md`](red.md) | RED, the screen editor: buffers, the command line, the keypad, the display, and how it differs from `red.mem`. |
 | [`build.md`](build.md) | Rebuilding the kernel, STOIC.EXE, RED.EXE and REDHIREZ.EXE from source on V5.5-2H4. |
 | [`gm-variant.md`](gm-variant.md) | The GM Research kernel, compared with SAO's. From the source only; it has not been built or run. |
-| [`defects.md`](defects.md) | The 40 defects found, each with a repro, the cause, the impact and a suggested fix. |
+| [`defects.md`](defects.md) | The 42 defects found, each with a repro, the cause, the impact and a suggested fix. |
+| [`errata.md`](errata.md) | Corrections to `stoic.mem` and `red.mem`, in manual order, and which ones the patched build changes. |
 | [`cpm-compare.md`](cpm-compare.md) | CP/M STOIC's comparison words, which show that the VAX reversed the intended sense. |
 
 `data/stoic-inventory.txt` is the output of INVENTORY in the shipped exe.

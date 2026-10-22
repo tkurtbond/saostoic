@@ -19,7 +19,7 @@ Phase 1 passes. Phase 5 is written gradually as results come in.
 | 3 IMAGE | done (see "Phase 3 outcome"; `doc/image.md`, `tests/image/`) |
 | 4 RED | done (see "Phase 4 outcome"; `doc/red.md`, `tests/red/`) |
 | 5 Documentation | done (see "Phase 5 outcome"; `doc/README.md`, `tests/lang/`) |
-| 6 Fixes | in progress: Batches A–G done; decisions taken (all as recommended) |
+| 6 Fixes | in progress: Batches A–H done; decisions taken (all as recommended) |
 
 Update this table as work proceeds.
 
@@ -841,6 +841,18 @@ check (5), and no shipped-equivalent exe (6).
   and r9 match the shipped-run screens. r3 differs only in buffer
   addresses (the data region is now near 400000), r5 in timestamps, r4
   in the up-arrow rows (33) and r8 in the divider (34).
+
+### Batch H outcome (2026-10-21)
+
+- `doc/errata.md` lists the corrections to `stoic.mem` (20 rows, from
+  `language.md`'s table) and `red.mem` (7 rows: 33, 35 and 36's items),
+  in manual order. A column says whether the patched build keeps the
+  code's behaviour or now does what the manual says (12, 14, 2, 7, 40,
+  33) or changes it otherwise (5).
+- A section sets the VAX comparison words against CP/M STOIC's: `GT`, `LT`,
+  `GE` and `LE` do the opposite on the VAX, and code from CP/M or the
+  manual has to swap them.
+- Cross-referenced from `language.md`, `red.md` and `README.md`.
 
 ### Produces
 

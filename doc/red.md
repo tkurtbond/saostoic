@@ -367,7 +367,8 @@ not return** (r6 `dcl`, `dcl-2`):
 - The manual says any other key exits. The prompt RED draws matches the
   code.
 
-**36. Smaller differences between the manual and the code:**
+**36. Smaller differences between the manual and the code** (all of them,
+with corrections, are in [`errata.md`](errata.md)):
 - `TF` clamps out-of-range values instead of rejecting them.
 - `TI` (set radix) is in the table but not implemented, so arguments are
   always decimal, although the manual speaks of "the current input radix".

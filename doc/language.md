@@ -130,6 +130,10 @@ String rules (`SLITERAL`, `kernel/rkernel.mar:765-786`):
 - **The sense is the reverse of the manual** (defect 13). With A on top
   and B under it, `B A GT` is true when **A > B**. `CMPL (P)+ (P)+`
   compares A with B (`rdef:487-497`).
+- **It is also the opposite of CP/M STOIC**, which does what the manual
+  says: there `B A GT` is true when B > A. So the VAX `GT` is CP/M's `LT`
+  and the VAX `GE` is CP/M's `LE` ([`cpm-compare.md`](cpm-compare.md),
+  [`errata.md`](errata.md)).
 
 | Word | True when | `1 2` | `2 1` | `2 2` |
 |---|---|---|---|---|
@@ -429,7 +433,9 @@ Every message shows ABORT's PC; the first traceback line is the real one
 ## Differences from stoic.mem
 
 `stoic.mem` (June 1980, `saostoic-text/stoic/stoic.mem`) describes an
-earlier and partly PDP-11 STOIC. Where the shipped exe differs:
+earlier and partly PDP-11 STOIC. Where the shipped exe differs (the
+corrections, and which ones the patched build changes, are in
+[`errata.md`](errata.md)):
 
 | # | Manual says | The VAX does | Evidence |
 |---|---|---|---|
