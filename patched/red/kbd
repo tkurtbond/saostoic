@@ -497,7 +497,7 @@
 
 'KBD :  % KBD (keyboard interpretter, main loop of RED)
   CTRL_C_HANDLER 0<-  % disable ABORT on control-C
-  6 RESET_MODE BUFFER_ON  % start buffered output
+  ASCII 6 RESET_MODE BUFFER_ON  % start buffered output
   ANSI_VT100 APPLICATION_KEYPAD  % setup VT100
   IMODE -1<- TOGGLE_IMODE %  set COMMAND mode
   K.KILL_COMMAND  % initialize command line & cursors
