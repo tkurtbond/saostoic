@@ -793,7 +793,7 @@ ASSEMBLER<
   CURRENT @ !  % point current branch at new branch
   ;
 
-'GETJPI :  % item code, GETJPI, completion code, value or pointer
+'GETJPI :  % item code, GETJPI, value or pointer (SYSERR takes the completion code)
   NOTE  % save item code on L-stack
   0 MARK  % buffer for returned item
   0 MARK  % buffer for length of returned item
