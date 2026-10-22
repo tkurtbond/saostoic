@@ -240,7 +240,8 @@ DEFINITIONS
   ;
 
 'MOD :  % value, modulus, MOD, remainder of value/modulus
-  MOVQ (P)+ R0  CLRL R2  EDIV R0 R1 R1 -(P)
+  MOVQ (P)+ R0  MNEGL S^ 1F R2  ASHL R2 R1 R2  % sign-extend the dividend
+  EDIV R0 R1 R1 -(P)
   ;
 
 %  miscellaneous
@@ -272,7 +273,8 @@ DEFINITIONS
   ;
 
 '/MOD :  % divisor, dividend, quotient, remainder
-  MOVQ (P)+ R0  CLRL R2  EDIV R0 R1 R1 R0
+  MOVQ (P)+ R0  MNEGL S^ 1F R2  ASHL R2 R1 R2  % sign-extend the dividend
+  EDIV R0 R1 R1 R0
   MOVQ R0 -(P)
   ;
 
@@ -1175,9 +1177,12 @@ DEFINITIONS
     CR "Output conversion error." MSG ABORT THEN
   ;
 
+ASSEMBLER<
 '# :  % value, #, value/radix  (converts next digit onto number stack)
-  RADIX @ /MOD #A #PUT
+  RADIX @  MOVQ (P)+ R0  CLRL R2  EDIV R0 R1 R1 R0  % unsigned, unlike /MOD
+  MOVQ R0 -(P)  #A #PUT
   ;
+>
 
 '#S :  % value, #S, 0  (converts remaining digits onto number stack)
   BEGIN # DUP EQZ END
