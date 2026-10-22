@@ -29,8 +29,9 @@ for f; do
   rel=${f#patched/}
   d=$(dirname "$rel"); n=$(basename "$rel" | tr a-z A-Z)
   case $n in *.*) ;; *) n=$n. ;; esac
-  if [ "$d" = . ]; then dir=%5B.WORK.PATCHED%5D
-  else dir=%5B.WORK.PATCHED.$(echo "$d" | tr a-z A-Z)%5D; fi
+  # absolute, since each CWD in the one session is from the last
+  if [ "$d" = . ]; then dir=DUA1:%5BUSERS.CLAUDE.WORK.PATCHED%5D
+  else dir=DUA1:%5BUSERS.CLAUDE.WORK.PATCHED.$(echo "$d" | tr a-z A-Z)%5D; fi
   echo "$f -> $dir/$n"
   args="$args -T $f ftp://$host/$dir/$n"
 done

@@ -9,6 +9,7 @@
 #   a-ship  shipped STOIC.EXE with the shipped HEAD0: two layers of IMAGE,
 #           a shareable image, SAVE/XLOAD across images
 #   a-new   the same with the rebuilt STOIC.EXE and HEAD0 (;2)
+#   a-pat   the same with the Phase 6 patched STOIC.EXE and its HEAD0
 #   b       the limits: data window, data size, dictionary window, no
 #           HEAD0, a HEAD0 from another build, IMAGE inside a LOAD
 #   d       defect 22: IORB< in the shipped and the rebuilt STOIC.EXE
@@ -18,6 +19,7 @@ cd "$(dirname "$0")/../.." || exit 2
 T=tests/image
 R=$T/results
 NEW='DUA1:[USERS.CLAUDE.WORK.SAOSTOIC.STOIC]STOIC.EXE'
+PAT='DUA1:[USERS.CLAUDE.WORK.PATCHED.STOIC]STOIC.EXE'
 mkdir -p $R
 [ $# -gt 0 ] || set -- a-ship a-new b d loop
 A="$T/a2-show.sto $T/a3-make1.con $T/a4-run1.dcl $T/a5-make2.con $T/a6-run2.dcl $T/a7-xload.con"
@@ -25,6 +27,7 @@ for g; do
   case $g in
     a-ship) tools/stoic-run -m -f $T/imgutil.sto $T/a1-ship.dcl $A > $R/$g.txt 2>&1 ;;
     a-new)  tools/stoic-run -m -f $T/imgutil.sto -x "$NEW" $T/a1-new.dcl $A > $R/$g.txt 2>&1 ;;
+    a-pat)  tools/stoic-run -m -f $T/imgutil.sto -x "$PAT" $T/a1-pat.dcl $A > $R/$g.txt 2>&1 ;;
     b)      tools/stoic-run -m -f $T/imgutil.sto $T/a1-ship.dcl $T/b1-datawin.sto $T/b2-bigdata.con \
               $T/b2-run.dcl $T/b4-dict.con $T/c1-nested.sto $T/c1-run.dcl \
               $T/b5-empty.dcl $T/b5-image.con $T/a1-new.dcl $T/b6-mix.con \

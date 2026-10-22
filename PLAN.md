@@ -19,7 +19,7 @@ Phase 1 passes. Phase 5 is written gradually as results come in.
 | 3 IMAGE | done (see "Phase 3 outcome"; `doc/image.md`, `tests/image/`) |
 | 4 RED | done (see "Phase 4 outcome"; `doc/red.md`, `tests/red/`) |
 | 5 Documentation | done (see "Phase 5 outcome"; `doc/README.md`, `tests/lang/`) |
-| 6 Fixes | planned; waiting for the decisions in "Phase 6: Decisions" |
+| 6 Fixes | in progress: Batch A done; decisions taken (all as recommended) |
 
 Update this table as work proceeds.
 
@@ -607,6 +607,11 @@ edited. A new `doc/errata.md` lists each place where `stoic.mem` or
 ### Phase 6: Decisions
 
 These are for the user to decide before the batch they affect starts.
+**Taken 2026-10-21: every recommendation** ("go with the
+recommendations"): MOD signed (1b), the up arrow to the previous line
+(2a), the AST-argument CTRL/C first (3), a fixed-VA data region plus a
+run-time BRANCH (4a), the compile buffer kept at 400 hex bytes with a
+check (5), and no shipped-equivalent exe (6).
 
 1. **MOD and `/MOD` with negative numbers (12).** (a) Keep them unsigned
    and document it. (b) Sign-extend the dividend (CVTLQ-style, then
@@ -638,6 +643,26 @@ These are for the user to decide before the batch they affect starts.
    just the fixes needed to run the 1985 STOIC.EXE and RED.EXE unchanged
    on V5.5-2 (22, 30, 31). *Recommended: no.* The patched build replaces
    them, and the shipped files stay as evidence.
+
+### Batch A outcome (2026-10-21)
+
+- Fixed 1, 14, 15, 16, 20, 29, 32, 37, 38 and 40, one commit each. The
+  message of 40 is stoic.mem's "Vocabulary stack empty.", not "Branch
+  stack empty". A float literal that OTS$CVT_T_D rejects (`1E5.` in hex)
+  is now the compile error "invalid floating-point literal".
+- `tests/fix/` has F01-LOWER, F01-BADFLT, F14, F15, F16, F29, F37, F38
+  and F40. `tools/patched-suite --fix --shipped` shows each defect, and
+  `--fix` the fix. F29 SAVEs with the Phase 2 rebuild and XLOADs with the
+  exe under test.
+- `tests/patched/` changes: `=` without NULs everywhere, DGE LOW, `.FLIP`,
+  06-numio's lowercase line (now a compile error), and code addresses 16
+  hex higher. 11-errors' first ACCVIO has a junk reason mask and PSL that
+  move with the code. 06-numio now runs HEX FLT before the lowercase line,
+  which ends the file in the patched build.
+- `patched-push` uses absolute directories: in one FTP session each CWD
+  is from the last, so only the first directory's files had gone up.
+- Not yet checked on the VAX: 32 (the KBD escape) waits for the RED
+  scripts of Batch G; RED.EXE builds and loads.
 
 ### Produces
 

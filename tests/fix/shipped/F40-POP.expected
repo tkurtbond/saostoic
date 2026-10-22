@@ -1,0 +1,28 @@
+
+%SYSTEM-W-ACCVIO, access violation, reason mask=00, virtual address=000CEA0C, PC
+=00023998, PSL=03C00000
+1 = CR
+1
+I_LOOKUP	 D=106CD, C=21537(47)
+No word found at -^@^@^@1
+I_COMPILE	 D=10552, C=21260(4C)
+No word found at 21053
+
+%SYSTEM-W-ACCVIO, access violation, reason mask=00, virtual address=000CEA0C, PC
+=00023998, PSL=03C00000
+DECIMAL 2 = CR
+DECIMAL
+I_LOOKUP	 D=106CD, C=21537(47)
+No word found at CEA0C
+I_COMPILE	 D=10552, C=21260(4C)
+No word found at 21053
+
+%SYSTEM-W-ACCVIO, access violation, reason mask=00, virtual address=000CEA0C, PC
+=00023998, PSL=03C00000
+;F
+;F
+I_LOOKUP	 D=106CD, C=21537(47)
+No word found at CEA0C
+I_COMPILE	 D=10552, C=21260(4C)
+No word found at 21053
+

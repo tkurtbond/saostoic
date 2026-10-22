@@ -8,7 +8,7 @@ REPEAT 0   9
 DO         0 1 2 3 4
 DO 3 7     3 4 5 6
 DO ZERO   .
-DO NEG     -^@^@^@3 -^@^@^@2 -^@^@^@1
+DO NEG     -3 -2 -1
 +LOOP 3    0 3 6 9
 +LOOP 10   0
 +LOOP -1  .

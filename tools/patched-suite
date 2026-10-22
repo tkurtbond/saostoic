@@ -7,14 +7,15 @@
 # tests/patched/*.expected. With --fix: the defect tests tests/fix/*,
 # compared with tests/fix/patched/*.expected, or with --shipped run on the
 # shipped STOIC.EXE and RED.EXE and compared with tests/fix/shipped/. Other
-# arguments go to tools/stoic-suite. REVISION's date is masked.
+# arguments go to tools/stoic-suite. The build's date is masked.
 here=$(cd "$(dirname "$0")" && pwd)
 t=$here/../tests
 exe=DUA1:[USERS.CLAUDE.WORK.PATCHED.STOIC]STOIC.EXE
 red=DUA1:[USERS.CLAUDE.WORK.PATCHED.RED]RED.EXE
 fix= shipped=
-# the build time changes with every build
-STOIC_SUITE_SED=${STOIC_SUITE_SED:-'s/^REVISION .*/REVISION (build time)/'}
+# the build time changes with every build (REVISION, and rdef's XLOAD date
+# error)
+STOIC_SUITE_SED=${STOIC_SUITE_SED:-'s/^REVISION .*/REVISION (build time)/;s/^Date for this version:.*/Date for this version:	(build time)/'}
 export STOIC_SUITE_SED
 while :; do
   case $1 in

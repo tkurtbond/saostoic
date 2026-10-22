@@ -1,13 +1,13 @@
-LOOKUP   -^@^@^@1 0
+LOOKUP   -1 0
 OUTSIDE  0
-SAME LINE  -^@^@^@1
-INSIDE   -^@^@^@1 111
+SAME LINE  -1
+INSIDE   -1 111
 AFTER >  0
 REDEF    1 2
 CONST    42
 VAR      7 9
 ARRAY    11 22 33
-MODULE   -^@^@^@1 0 0 -^@^@^@1
+MODULE   -1 0 0 -1
 AFTER FORGET  6
 EXEC     6
 

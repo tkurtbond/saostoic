@@ -7,22 +7,22 @@ EXP LOG  2.718281828459045      1.000000000000000      3.000000000000000
 HYPER   0.0000000000000000E+00  1.000000000000000     0.0000000000000000E+00
 POWDD    8.000000000000000      8.000000000000000    
 LOG 0   
-%SYSTEM-W-ROPRAND, reserved operand fault at PC=00023998, PSL=03C00000
+%SYSTEM-W-ROPRAND, reserved operand fault at PC=000239AE, PSL=03C00000
 "LOG 0   " MSG 0. .LOG .= CR
 CR
 No word found at 130264
 No word found at 521249
 No word found at 135274
 POW OVF 
-%SYSTEM-W-ROPRAND, reserved operand fault at PC=00023998, PSL=03C00000
+%SYSTEM-W-ROPRAND, reserved operand fault at PC=000239AE, PSL=03C00000
 "POW OVF " MSG 10. 1000. .^ .= CR
 CR
 No word found at 130320
-.^		 D=81069, C=149205(5)
+.^		 D=81069, C=149231(5)
 No word found at 521260
 No word found at 135274
 ASIN 2  
-%SYSTEM-W-ROPRAND, reserved operand fault at PC=00023998, PSL=03C00000
+%SYSTEM-W-ROPRAND, reserved operand fault at PC=000239AE, PSL=03C00000
 "ASIN 2  " MSG 2. .ASIN .= CR
 CR
 No word found at 130160
