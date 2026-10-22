@@ -1508,6 +1508,8 @@ ASSEMBLER<
 
 >
 
+() I_DATE_ERROR DATE_ERROR !  % install it
+
 'REVISION :  % type the revision date and time
   DATE D@ REVSTRING ASCTIM REVSTRING MSG
   ;
