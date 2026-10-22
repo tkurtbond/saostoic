@@ -1,11 +1,11 @@
 .title	EXTEND
 
 .psect	dictionary
-	.blkb	<^x10000-^x1c00>	;fill out program sections
+	.blkb	<^x10000-^x2000>	;fill out program sections
 dict_end::
 
 .psect	kernel
-	.blkb	<^x10000-^x2200>
+	.blkb	<^x40000-^x2200>	;256 KB of code (Phase 7)
 k_end::
 
 .psect	datinit

@@ -46,7 +46,7 @@
 	.byte lookup_atr
 	.blkw	1		;space for the code length word
 	clplace=.-2		;note location to put it later
-	.word	kplace-k_start-^x8000	;r8 displacement to code address
+	.long	kplace-k_start-^x8000	;r8 displacement to code address
 	.restore
 	.endm
 
@@ -79,7 +79,7 @@
 	.ascic	/NULL/			;name
 	.byte	jump_to_me		;lookup attribute
 	.word	1			;one byte long (rsb)
-	.word	kplace-k_start-^x8000		;word address
+	.long	kplace-k_start-^x8000		;word address
 	.restore
 	rsb				;load on the rsb
 	.endm
@@ -98,7 +98,7 @@
 	.ascic	/NULL/			;name
 	.byte	jump_to_me		;lookup attribute
 	.word	1			;one byte long (rsb)
-	.word	kplace-k_start-^x8000	;word address
+	.long	kplace-k_start-^x8000	;word address
 	.restore
 	rsb				;load on the rsb
 .nlist me

@@ -24,8 +24,8 @@ Syntax Error error compiling...  ;  ...in line
 MSG CR
 CR
 No word found at 134689
-TYPE		 D=83103, C=153274(52)
-MSG		 D=83121, C=153326(9)
+TYPE		 D=85255, C=153266(52)
+MSG		 D=85275, C=153318(9)
 No word found at 4199428
 No word found at 136090
  4
@@ -34,7 +34,7 @@ No word found at 136090
 C00002
 1 0 / =
 =
-/		 D=75030, C=140885(4)
+/		 D=76370, C=140885(4)
 No word found at 4199438
 No word found at 136090
  5
@@ -48,19 +48,19 @@ No word found at 136090
  6
 
 %SYSTEM-F-ACCVIO, access violation, reason mask=04, virtual address=00400608, PC
-=00021E6C, PSL=03C00000
+=00021E59, PSL=03C00000
 DROP DROP DROP
 DROP
-I_READLINE	 D=69062, C=138848(42)
+I_READLINE	 D=69514, C=138829(42)
 No word found at 136063
  7
 
 %SYSTEM-F-ACCVIO, access violation, reason mask=04, virtual address=00400608, PC
-=00021FA7, PSL=03C00000
+=00021F94, PSL=03C00000
 DROP DROP DROP =
 =
-SPACE		 D=69469, C=139175(7)
-=		 D=69488, C=139182(67)
+SPACE		 D=69961, C=139156(7)
+=		 D=69982, C=139163(67)
 No word found at 4199437
 No word found at 136090
  8
@@ -77,7 +77,7 @@ No word found at 136090
 %RMS-E-FNF, file not found
 'NOSUCH.STO LOAD
 LOAD
-LOAD		 D=68705, C=138618(24)
+LOAD		 D=69121, C=138599(24)
 No word found at 4199444
 No word found at 136090
  10

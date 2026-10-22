@@ -20,6 +20,7 @@ Phase 1 passes. Phase 5 is written gradually as results come in.
 | 4 RED | done (see "Phase 4 outcome"; `doc/red.md`, `tests/red/`) |
 | 5 Documentation | done (see "Phase 5 outcome"; `doc/README.md`, `tests/lang/`) |
 | 6 Fixes | **done** (2026-10-21): Batches A–H; 37 fixed, 3 documented, 2 closed (`doc/patches.md`) |
+| 7 Raise the code window | **done** (2026-10-21): `JSB L^`, longword header displacement, code to K_END 6012D (`doc/patches.md`) |
 
 Update this table as work proceeds.
 
@@ -898,6 +899,71 @@ Run against the final patched build:
   patched one.
 - AGENTS.md's defect summary says which defects are fixed in the patched
   build.
+
+---
+
+## Phase 7: Raise the code window
+
+**Goal:** let applications grow past the 16-bit code window in the
+patched build. `doc/image.md` ("Room left in each window") shows the code
+window binds first: the patched RED.EXE has 13 KB of code room left.
+
+### Design
+
+1. **Calls.** I_JUMP_TO_ME compiles `JSB W^disp(R8)` (4 bytes) while the
+   displacement fits in a signed word, and `JSB L^disp(R8)` (opcode 16,
+   mode E8, a longword; 6 bytes) past it. The kernel and the code below
+   R8+8000 keep the short form, so existing code is unchanged.
+2. **Headers.** The code displacement, the last field of a header, is a
+   longword. The `header` and `nullhead` macros in `rkernel.mar`,
+   `crtl.mar`, `ttio.mar` and `ss.mar` emit `.long`. I_COMPILE reads it
+   with MOVL, I_ENTER writes it with SUBL3 and counts 16 bytes of header
+   overhead, not 14. In rdef, CODE_COUNT (used by `()`, WHERE, WHAT,
+   INVENTORY and RED's CTRL_C_HANDLER) and FORGET read a longword.
+3. **Region.** `extend.mar` pads the KERNEL psect to 40000 bytes, not
+   10000: 256 KB of code from CODE_0. KERNEL is the last psect, so nothing
+   else moves; K_START stays 1FE00. I_ENTER refuses code that would pass
+   K_END ("Code space full."). The startup `$DELTVA`/`$CRETVA` already
+   runs to K_END, and IMAGE already shrinks the demand-zero tail.
+4. The dictionary padding is cut by 400 bytes so that the longer kernel
+   headers do not push KERNEL onto the next page.
+
+Nothing else in the STOIC or RED sources compiles a call or reads the
+displacement (searched: `W->L`, `CODE_COUNT`, `C8`, `JSB`, `R8@+`).
+
+### Steps
+
+1. Edit `patched/`; push and build (`tools/patched-push`,
+   `tools/patched-build.com`).
+2. Rerun `tools/patched-suite`, `--fix`, `tests/image/run a-pat e-pat
+   e-new f` and the RED scripts; update address-only differences.
+3. Rewrite `tests/fix/F06-CODE.con` to call words on both sides of the
+   old window and to reach K_END. Add `tests/image` group `g`: IMAGE an
+   exe whose code passes the old window, and run it.
+4. Document in `doc/patches.md`, `doc/image.md`, `doc/kernel.md` and
+   AGENTS.md.
+
+### Phase 7 outcome (2026-10-21)
+
+- **Build:** assembles and links with no messages. The map shows KERNEL
+  at 1FE00–6012C and the dictionary psect ending below it. The exes are a
+  few blocks larger.
+- **Tests:**
+  - `tools/patched-suite`: 18/18 pass. `--fix`: 32/32 pass.
+  - `tests/image/run a-pat e-pat e-new f g`: all pass. The new group `g`
+    IMAGEs an exe with code past the old window and runs it (W5 at 40000
+    calls W4 at 3FF00, which calls W3 at 2FE3E with `L^`).
+  - RED scripts r0–r11 (not r6): the screens differ only in dictionary
+    addresses and file timestamps.
+  - Expectations changed only in addresses and IMAGE's DZRO page counts.
+- **Two side effects:**
+  - `widen.sto` (group e) placed its new DZRO at VPN 200, inside the
+    larger code region (`%RSX-W-PFMBSY`). It now uses the first VPN after
+    the fixup ISD.
+  - F06-CODE needed rewriting: "Code out of range" no longer exists.
+- **Room now:** code 231.8 KB in STOIC.EXE and 205.8 KB in RED.EXE;
+  dictionary 42 KB and 30.5 KB. The dictionary now binds. Enlarging it
+  would move K_START and every kernel address (not done).
 
 ---
 

@@ -187,7 +187,7 @@ len=.-loc-2
 	.byte lookup_atr
 	.blkw	1		;space for the code length word
 	clplace=.-2		;note location to put it later
-	.word	kplace-k_start-^x8000	;r8 displacement to code address
+	.long	kplace-k_start-^x8000	;r8 displacement to code address
 	.restore
 macname:
 	.endm
@@ -221,7 +221,7 @@ macname:
 	.ascic	/NULL/			;name
 	.byte	jump_to_me		;lookup attribute
 	.word	1			;one byte long (rsb)
-	.word	kplace-k_start-^x8000	;word address
+	.long	kplace-k_start-^x8000	;word address
 	.restore
 	rsb				;load on the rsb
 	.endm
@@ -671,7 +671,7 @@ header I_COMPILE
 	incl (r10)			;get attribute address
 	movl (r10),r0			;save attribute address
 	addl2 #3,(r10)			;get address of code displacement
-	cvtwl @(r10),(r10)		;get the displacement itself
+	movl @(r10),(r10)		;get the displacement itself
 	addl2 r8,(r10)			;get the actual address
 	movzbl (r0),r0			;convert attribute to longword
 	jsb @l^lookup_dispatch(r0)	;and dispatch off it
@@ -969,13 +969,13 @@ header defer_semi,<(;)>,immediate
 ; link
 header I_ENTER
 	addl3	4(r10),code_pntr(r11),r1	;end of the new code
-	subl2	r8,r1			;as a displacement
-	cmpl	r1,#^x8000		;within the 16-bit window?
-	bgtr	code_full		;if not, refuse before linking
+	moval	k_end,r2		;the end of the code region
+	cmpl	r1,r2			;would the code run past it?
+	bgtru	code_full		;if so, refuse before linking
 	movl	8(r10),r1		;r1->name string
 	movzwl	(r1),r1			;name length
 	addl2	dict_pntr(r11),r1	;plus the dictionary pointer
-	addl2	#14,r1			;plus links, count, attribute,
+	addl2	#16,r1			;plus links, count, attribute,
 					;code length and displacement
 	subl3	#^x8000,r8,r2		;the kernel code follows the dictionary
 	cmpl	r1,r2			;would the header run into it?
@@ -993,8 +993,7 @@ header I_ENTER
 	cvtlb	(r10)+,(r0)+		;load on attribute byte
 	cvtlw	(r10)+,(r0)+		;load code length
 	tstl	(r10)+			;remove string pointer
-	subl3	r8,code_pntr(r11),r1	;code displacement in r1
-	cvtlw	r1,(r0)+		;install it in the dictionary
+	subl3	r8,code_pntr(r11),(r0)+	;install the code displacement
 	movl	r0,dict_pntr(r11)	;fix pointer
 	rsbx
 code_full:
@@ -1117,22 +1116,23 @@ nomatch:	clrl	-(r10)
 	op_absolute=^x9f
 	op_auto_dec=^x7a
 	word_disp=^xc8
+	long_disp=^xe8
 ;compile a jump to the address
 ;and the top of the stack
 header I_JUMP_TO_ME
 	movl comp_buf_pntr(r11),r0	;get pointer to compile buffer
 	movb #op_jsb,(r0)+		;put in a jsb
-	movb #word_disp,(r0)+		;adr mode of word displacement
 	subl r8,(r10)			;get offset from dictionary
-	cvtlw (r10)+,(r0)+		;push in word displacement
-	bvs	10$			;if it doesn't fit
+	cvtlw (r10),r1			;does it fit in a word?
+	bvs	10$			;if not, use a longword
+	movb #word_disp,(r0)+		;adr mode of word displacement
+	movw r1,(r0)+			;push in word displacement
+	brb	20$
+10$:	movb #long_disp,(r0)+		;adr mode of longword displacement
+	movl (r10),(r0)+		;push in longword displacement
+20$:	tstl (r10)+			;drop the offset
 	movl r0,comp_buf_pntr(r11)	;restore pointer
-	rsb
-10$:	moval	code_full_msg,-(r10)
-	jsb	@compile_error(r11)
-	wterm
-code_full_msg:
-	string	</Code out of range/>
+	rsbx
 
 ;execute at compile time
 i_immediate:

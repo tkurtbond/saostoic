@@ -4,23 +4,23 @@
 |                                                                                |
 |RED [.RED]R10.TXT                                                               |
 |[.RED]R10.TXT                                                                   |
-|/                D=12516, C=22655(4)                                            |
-|C.DIVIDE         D=16BC4, C=2A62A(39)                                           |
-|CLI.DISP1        D=17145, C=2B686(267)                                          |
-|PROCESS_BYTE     D=1715C, C=2B8ED(29)                                           |
-|C.READ_BYTE      D=17176, C=2B916(45)                                           |
-|CLI              D=1718F, C=2B95B(66)                                           |
-|K.LF             D=17437, C=2C279(70)                                           |
-|KBD_COM          D=174C0, C=2C436(52)                                           |
-|INTERPRET_COMMAND_BYTE D=174EA, C=2C4B7(12)                                     |
-|SELECT_MODE      D=17523, C=2C509(30)                                           |
-|KEY_LOOP         D=1753C, C=2C539(75)                                           |
-|KBD              D=17552, C=2C5AE(74)                                           |
-|.RED             D=175AD, C=2C6F0(DC)                                           |
-|RED              D=175D3, C=2C7DE(12)                                           |
-|I_COMPILE        D=10752, C=216B5(5D)                                           |
-|EXEC             D=138E5, C=240A0(3)                                            |
-|DEF_INIT         D=13980, C=24224(102)                                          |
+|/                D=12A52, C=22655(4)                                            |
+|C.DIVIDE         D=17894, C=2A62A(39)                                           |
+|CLI.DISP1        D=17EA1, C=2B686(267)                                          |
+|PROCESS_BYTE     D=17EBA, C=2B8ED(29)                                           |
+|C.READ_BYTE      D=17ED6, C=2B916(45)                                           |
+|CLI              D=17EF1, C=2B95B(66)                                           |
+|K.LF             D=181D1, C=2C279(70)                                           |
+|KBD_COM          D=18266, C=2C436(52)                                           |
+|INTERPRET_COMMAND_BYTE D=18294, C=2C4B7(12)                                     |
+|SELECT_MODE      D=182D1, C=2C509(30)                                           |
+|KEY_LOOP         D=182EC, C=2C539(75)                                           |
+|KBD              D=18304, C=2C5AE(74)                                           |
+|.RED             D=18367, C=2C6F0(DC)                                           |
+|RED              D=18391, C=2C7DE(12)                                           |
+|I_COMPILE        D=10876, C=216B5(5D)                                           |
+|EXEC             D=1402D, C=2409C(3)                                            |
+|DEF_INIT         D=140D6, C=2421C(102)                                          |
 |No word found at 2131F                                                          |
 |                                                                                |
 |0>                                                                              |
@@ -29,23 +29,23 @@
 +--------------------------------------------------------------------------------+
 |RED [.RED]R10.TXT                                                               |
 |[.RED]R10.TXT                                                                   |
-|/                D=12516, C=22655(4)                                            |
-|C.DIVIDE         D=16BC4, C=2A62A(39)                                           |
-|CLI.DISP1        D=17145, C=2B686(267)                                          |
-|PROCESS_BYTE     D=1715C, C=2B8ED(29)                                           |
-|C.READ_BYTE      D=17176, C=2B916(45)                                           |
-|CLI              D=1718F, C=2B95B(66)                                           |
-|K.LF             D=17437, C=2C279(70)                                           |
-|KBD_COM          D=174C0, C=2C436(52)                                           |
-|INTERPRET_COMMAND_BYTE D=174EA, C=2C4B7(12)                                     |
-|SELECT_MODE      D=17523, C=2C509(30)                                           |
-|KEY_LOOP         D=1753C, C=2C539(75)                                           |
-|KBD              D=17552, C=2C5AE(74)                                           |
-|.RED             D=175AD, C=2C6F0(DC)                                           |
-|RED              D=175D3, C=2C7DE(12)                                           |
-|I_COMPILE        D=10752, C=216B5(5D)                                           |
-|EXEC             D=138E5, C=240A0(3)                                            |
-|DEF_INIT         D=13980, C=24224(102)                                          |
+|/                D=12A52, C=22655(4)                                            |
+|C.DIVIDE         D=17894, C=2A62A(39)                                           |
+|CLI.DISP1        D=17EA1, C=2B686(267)                                          |
+|PROCESS_BYTE     D=17EBA, C=2B8ED(29)                                           |
+|C.READ_BYTE      D=17ED6, C=2B916(45)                                           |
+|CLI              D=17EF1, C=2B95B(66)                                           |
+|K.LF             D=181D1, C=2C279(70)                                           |
+|KBD_COM          D=18266, C=2C436(52)                                           |
+|INTERPRET_COMMAND_BYTE D=18294, C=2C4B7(12)                                     |
+|SELECT_MODE      D=182D1, C=2C509(30)                                           |
+|KEY_LOOP         D=182EC, C=2C539(75)                                           |
+|KBD              D=18304, C=2C5AE(74)                                           |
+|.RED             D=18367, C=2C6F0(DC)                                           |
+|RED              D=18391, C=2C7DE(12)                                           |
+|I_COMPILE        D=10876, C=216B5(5D)                                           |
+|EXEC             D=1402D, C=2409C(3)                                            |
+|DEF_INIT         D=140D6, C=2421C(102)                                          |
 |No word found at 2131F                                                          |
 |                                                                                |
 |0>                                                                              |
@@ -54,22 +54,22 @@
 +--------------------------------------------------------------------------------+
 === stoic  cursor 24,4
 +--------------------------------------------------------------------------------+
-|C.DIVIDE         D=16BC4, C=2A62A(39)                                           |
-|CLI.DISP1        D=17145, C=2B686(267)                                          |
-|PROCESS_BYTE     D=1715C, C=2B8ED(29)                                           |
-|C.READ_BYTE      D=17176, C=2B916(45)                                           |
-|CLI              D=1718F, C=2B95B(66)                                           |
-|K.LF             D=17437, C=2C279(70)                                           |
-|KBD_COM          D=174C0, C=2C436(52)                                           |
-|INTERPRET_COMMAND_BYTE D=174EA, C=2C4B7(12)                                     |
-|SELECT_MODE      D=17523, C=2C509(30)                                           |
-|KEY_LOOP         D=1753C, C=2C539(75)                                           |
-|KBD              D=17552, C=2C5AE(74)                                           |
-|.RED             D=175AD, C=2C6F0(DC)                                           |
-|RED              D=175D3, C=2C7DE(12)                                           |
-|I_COMPILE        D=10752, C=216B5(5D)                                           |
-|EXEC             D=138E5, C=240A0(3)                                            |
-|DEF_INIT         D=13980, C=24224(102)                                          |
+|C.DIVIDE         D=17894, C=2A62A(39)                                           |
+|CLI.DISP1        D=17EA1, C=2B686(267)                                          |
+|PROCESS_BYTE     D=17EBA, C=2B8ED(29)                                           |
+|C.READ_BYTE      D=17ED6, C=2B916(45)                                           |
+|CLI              D=17EF1, C=2B95B(66)                                           |
+|K.LF             D=181D1, C=2C279(70)                                           |
+|KBD_COM          D=18266, C=2C436(52)                                           |
+|INTERPRET_COMMAND_BYTE D=18294, C=2C4B7(12)                                     |
+|SELECT_MODE      D=182D1, C=2C509(30)                                           |
+|KEY_LOOP         D=182EC, C=2C539(75)                                           |
+|KBD              D=18304, C=2C5AE(74)                                           |
+|.RED             D=18367, C=2C6F0(DC)                                           |
+|RED              D=18391, C=2C7DE(12)                                           |
+|I_COMPILE        D=10876, C=216B5(5D)                                           |
+|EXEC             D=1402D, C=2409C(3)                                            |
+|DEF_INIT         D=140D6, C=2421C(102)                                          |
 |No word found at 2131F                                                          |
 |                                                                                |
 |0>                                                                              |
@@ -81,21 +81,21 @@
 +--------------------------------------------------------------------------------+
 === dcl  cursor 24,11
 +--------------------------------------------------------------------------------+
-|CLI.DISP1        D=17145, C=2B686(267)                                          |
-|PROCESS_BYTE     D=1715C, C=2B8ED(29)                                           |
-|C.READ_BYTE      D=17176, C=2B916(45)                                           |
-|CLI              D=1718F, C=2B95B(66)                                           |
-|K.LF             D=17437, C=2C279(70)                                           |
-|KBD_COM          D=174C0, C=2C436(52)                                           |
-|INTERPRET_COMMAND_BYTE D=174EA, C=2C4B7(12)                                     |
-|SELECT_MODE      D=17523, C=2C509(30)                                           |
-|KEY_LOOP         D=1753C, C=2C539(75)                                           |
-|KBD              D=17552, C=2C5AE(74)                                           |
-|.RED             D=175AD, C=2C6F0(DC)                                           |
-|RED              D=175D3, C=2C7DE(12)                                           |
-|I_COMPILE        D=10752, C=216B5(5D)                                           |
-|EXEC             D=138E5, C=240A0(3)                                            |
-|DEF_INIT         D=13980, C=24224(102)                                          |
+|CLI.DISP1        D=17EA1, C=2B686(267)                                          |
+|PROCESS_BYTE     D=17EBA, C=2B8ED(29)                                           |
+|C.READ_BYTE      D=17ED6, C=2B916(45)                                           |
+|CLI              D=17EF1, C=2B95B(66)                                           |
+|K.LF             D=181D1, C=2C279(70)                                           |
+|KBD_COM          D=18266, C=2C436(52)                                           |
+|INTERPRET_COMMAND_BYTE D=18294, C=2C4B7(12)                                     |
+|SELECT_MODE      D=182D1, C=2C509(30)                                           |
+|KEY_LOOP         D=182EC, C=2C539(75)                                           |
+|KBD              D=18304, C=2C5AE(74)                                           |
+|.RED             D=18367, C=2C6F0(DC)                                           |
+|RED              D=18391, C=2C7DE(12)                                           |
+|I_COMPILE        D=10876, C=216B5(5D)                                           |
+|EXEC             D=1402D, C=2409C(3)                                            |
+|DEF_INIT         D=140D6, C=2421C(102)                                          |
 |No word found at 2131F                                                          |
 |                                                                                |
 |0>                                                                              |
@@ -108,19 +108,19 @@
 +--------------------------------------------------------------------------------+
 === dcl-2  cursor 24,11
 +--------------------------------------------------------------------------------+
-|C.READ_BYTE      D=17176, C=2B916(45)                                           |
-|CLI              D=1718F, C=2B95B(66)                                           |
-|K.LF             D=17437, C=2C279(70)                                           |
-|KBD_COM          D=174C0, C=2C436(52)                                           |
-|INTERPRET_COMMAND_BYTE D=174EA, C=2C4B7(12)                                     |
-|SELECT_MODE      D=17523, C=2C509(30)                                           |
-|KEY_LOOP         D=1753C, C=2C539(75)                                           |
-|KBD              D=17552, C=2C5AE(74)                                           |
-|.RED             D=175AD, C=2C6F0(DC)                                           |
-|RED              D=175D3, C=2C7DE(12)                                           |
-|I_COMPILE        D=10752, C=216B5(5D)                                           |
-|EXEC             D=138E5, C=240A0(3)                                            |
-|DEF_INIT         D=13980, C=24224(102)                                          |
+|C.READ_BYTE      D=17ED6, C=2B916(45)                                           |
+|CLI              D=17EF1, C=2B95B(66)                                           |
+|K.LF             D=181D1, C=2C279(70)                                           |
+|KBD_COM          D=18266, C=2C436(52)                                           |
+|INTERPRET_COMMAND_BYTE D=18294, C=2C4B7(12)                                     |
+|SELECT_MODE      D=182D1, C=2C509(30)                                           |
+|KEY_LOOP         D=182EC, C=2C539(75)                                           |
+|KBD              D=18304, C=2C5AE(74)                                           |
+|.RED             D=18367, C=2C6F0(DC)                                           |
+|RED              D=18391, C=2C7DE(12)                                           |
+|I_COMPILE        D=10876, C=216B5(5D)                                           |
+|EXEC             D=1402D, C=2409C(3)                                            |
+|DEF_INIT         D=140D6, C=2421C(102)                                          |
 |No word found at 2131F                                                          |
 |                                                                                |
 |0>                                                                              |

@@ -19,6 +19,8 @@
 #   e-pat   the same with the patched build (fixed data address)
 #   f       the room left in each window: the region pointers of the
 #           shipped, rebuilt and patched STOIC.EXE and RED.EXE
+#   g       Phase 7: code past the old code window, made into an exe with
+#           the patched build and run there
 #   loop    the code window: ends in an endless fault loop, so it is cut
 #           off by a short timeout and only its head is kept
 cd "$(dirname "$0")/../.." || exit 2
@@ -50,6 +52,8 @@ for g; do
                      "$PAT" 'DUA1:[USERS.CLAUDE.WORK.PATCHED.RED]RED.EXE'; do
                 echo "--- $x"; tools/stoic-run -x "$x" $T/f1-room.con
               done > $R/$g.txt 2>&1 ;;
+    g)      tools/stoic-run -m -f $T/imgutil.sto -x "$PAT" $T/a1-pat.dcl $T/g1-high.con \
+              $T/g2-run.dcl > $R/$g.txt 2>&1 ;;
     loop)   VAX_DO_TIMEOUT=60 tools/stoic-run -m -f $T/imgutil.sto $T/b3-code.con 2>&1 | head -40 > $R/$g.txt ;;
     *) echo "tests/image/run: no group $g" >&2; exit 2 ;;
   esac

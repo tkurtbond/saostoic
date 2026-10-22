@@ -303,7 +303,11 @@ every one apart from 13, 35 and 36, which are corrected in
 the shipped exes. The patched exes are
 `DUA1:[USERS.CLAUDE.WORK.PATCHED.STOIC]STOIC.EXE` and
 `[.WORK.PATCHED.RED]RED.EXE`. Their data region is at 402200 on any
-layout, so `IORB<` and RED's obuf work.
+layout, so `IORB<` and RED's obuf work. **Phase 7** raised their code
+window: headers hold a longword code displacement, a call out of `W^`
+range compiles as `JSB L^disp(R8)`, and code runs from 1FE00 to K_END
+(6012D), about 230 KB free in STOIC.EXE. The dictionary (about 42 KB free,
+30 KB in RED) is now the limit.
 
 1. DIGIT treats any character above `Z` as a decimal point, so lowercase
    undefined words in LOAD files (which are not uppercased) compile silently
@@ -329,10 +333,10 @@ layout, so `IORB<` and RED's obuf work.
 
 ## Plan
 
-The detailed test and documentation plan is in **`PLAN.md`**. It has seven
+The detailed test and documentation plan is in **`PLAN.md`**. It has eight
 phases: 0 tooling, 1 characterizing the shipped binaries, 2 rebuilding from
-source, 3 IMAGE, 4 RED, 5 documentation and 6 fixes (Batches A–H). Keep
-its status table up to date.
+source, 3 IMAGE, 4 RED, 5 documentation, 6 fixes (Batches A–H) and 7
+raising the code window. Keep its status table up to date.
 
 ## Working conventions
 

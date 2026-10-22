@@ -160,7 +160,10 @@ instead ([`errata.md`](errata.md)), and 11 and 21 are closed.
   displacement (`rkernel.mar:890-893`).
 - **Impact:** big applications fail silently or hang.
 - **Fix:** check the range when compiling, and say "Code space full" or
-  "Data space full".
+  "Data space full". Phase 6 did that. Phase 7 removed the code limit
+  instead: a call out of `W^` range compiles as `JSB L^disp(R8)`, headers
+  hold a longword displacement, and the code region runs to K_END
+  (`doc/patches.md`, "Phase 7").
 
 ### 7. A missing LOAD or OPEN file exits STOIC
 

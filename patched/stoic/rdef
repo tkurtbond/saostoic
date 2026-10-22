@@ -411,7 +411,7 @@ DEFINITIONS
 %----CODE_COUNT: dictionary entry address, CODE_COUNT, code address, length
 'CODE_COUNT :
   8 + DUP B@ + 2 +  % get address of length word
-  DUP W@ SWAP 2+ W@ W->L R8@+ SWAP  % get descriptor
+  DUP W@ SWAP 2+ @ R8@+ SWAP  % get descriptor
   ;
 
 ',COMPILE :  % value, ,COMPILE  (pushes longword onto compile buffer)
@@ -1483,8 +1483,7 @@ ASSEMBLER<
   DUP @ CURRENT @ !  % reset CURRENT
   4+ DUP @ GLOBAL @ !  % reset GLOBAL
   4+ DUP B@ + 4+  % skip past string, attribute byte, code length
-  W@ W->L  % convert code offset to longword
-  R8@+  % get code address
+  @ R8@+  % get code address from its offset
   DUP CODE_PNTR !  % save in code pointer
   4+ @ .D !  % dictionary pointer is stored after constant value
   ;

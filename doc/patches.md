@@ -49,7 +49,7 @@ On the final build (2026-10-21):
 | 3 | `rkernel.mar` | the terminal IOSB is a new quadword cell, TT_IOSB, so NLEN keeps `$TRNLOG`'s length | F03-IOSB, F03-TTIOSB |
 | 4 | `rkernel.mar` | I_COMPILE refuses a word when less than a line plus 16 bytes is left in the compile buffer ("Compile buffer full"). The buffer stays 400 hex bytes | F04-COMPBUF |
 | 5 | `rkernel.mar` | DIGIT accumulates with EMUL and sets U_OVF when the high longword is non-zero. ICOMPILE refuses such an integer ("Number too large") | F05-LITOVF |
-| 6 | `rkernel.mar` | I_JUMP_TO_ME and I_DISP_TO_R11 check the CVTLW ("Code out of range", "Data out of range"). I_ENTER refuses a definition past R8+8000 ("Code space full.") or one whose header would reach the kernel ("Dictionary full.") | F06-CODE, F06-DATAWIN, F06-DICT |
+| 6 | `rkernel.mar` | I_DISP_TO_R11 checks the CVTLW ("Data out of range"). I_ENTER refuses a definition past K_END ("Code space full.") or one whose header would reach the kernel ("Dictionary full."). Since Phase 7, a call out of `W^` range is compiled with `L^` (see below) | F06-CODE, F06-DATAWIN, F06-DICT |
 | 7 | `rkernel.mar` | SYSERR prints the status with `$PUTMSG` and jumps to ABORT, instead of LIB$STOP. The opens and CLOSE go through it, and a missing LOAD file gives back its input-file slot | F07-LOAD |
 | 8 | `rms.mar` | in batch, output is collected in `rmsbuf` and `$PUT` a line at a time. `_rmsflush` is called by the handler, by SYSERR, by GET_STRING and by an exit handler | F08-BATCH |
 | 9 | `tyio.mar` | the remote line names its output device, checks the `$ASSIGN`, passes R11 as astprm, and `rmast` no longer calls LIB$SIGNAL | F09-REMOTE |
@@ -109,8 +109,7 @@ only in these ways:
   - A missing file prints an RMS message and ends the line, where the
     shipped exe exited (7).
   - New compile errors: "invalid floating-point literal", "Number too
-    large", "Compile buffer full", "Code out of range", "Data out of
-    range", "Code space full.", "Dictionary full.", "Float stack empty."
+    large", "Compile buffer full", "Data out of range", "Code space full.", "Dictionary full.", "Float stack empty."
     and "Vocabulary stack empty." (1, 4, 5, 6, 39, 40).
 - **Values.**
   - `=` has no NULs (14).
@@ -126,3 +125,25 @@ only in these ways:
   screens are as before, apart from addresses and timestamps.
 
 Phase 6's batch outcomes in `PLAN.md` give the detail of each step.
+
+## Phase 7: the code window
+
+Phase 7 (`PLAN.md`) removes the 64 KB code limit of defect 6.
+
+| File | Change |
+|---|---|
+| `rkernel.mar`, `crtl.mar`, `ttio.mar`, `ss.mar` | the `header` and `nullhead` macros store the code displacement as a longword |
+| `rkernel.mar` | I_JUMP_TO_ME compiles `JSB W^disp(R8)` when the displacement fits in a word and `JSB L^disp(R8)` when not, so "Code out of range" is gone. I_COMPILE reads the displacement with MOVL. I_ENTER writes a longword, counts 16 bytes of header, and checks the code end against K_END |
+| `extend.mar` | KERNEL is padded to 40000 bytes (code up to K_END, 6012D); DICTIONARY 400 bytes less, so K_START stays 1FE00 |
+| `rdef` | CODE_COUNT and FORGET read a longword displacement |
+
+**Tests:** `tests/fix/F06-CODE` defines words on both sides of R8+8000
+and at 5FF00, calls across the boundary both ways, FORGETs a module past
+it, and gets "Code space full." at K_END. `tests/image/` group `g` IMAGEs
+an exe with code past the old window and runs it. `widen.sto` now places
+its new DZRO section after the fixup ISD, since the code ISD reaches VPN
+200. The suite, `--fix` and image expectations changed only in addresses
+and in IMAGE's DZRO page counts.
+
+Room left: about 232 KB of code in STOIC.EXE and 206 KB in RED.EXE. The
+dictionary (42 KB and 30.5 KB) is now the limit (`image.md`).

@@ -2,8 +2,8 @@ EMPTY .=   Float stack empty.
 "EMPTY .=   " MSG .= CR
 CR
 No word found at 0
-F->S		 D=82447, C=152029(30)
-.=		 D=82465, C=152059(14)
+F->S		 D=84531, C=152021(30)
+.=		 D=84551, C=152051(14)
 No word found at 4199449
 No word found at 136090
 NEXT        2.500000000000000    

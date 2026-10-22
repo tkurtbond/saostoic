@@ -208,7 +208,10 @@ The `header` macro (`rkernel.mar:167-191`) and I_ENTER
   (`doc/data/stoic-inventory.txt`).
 - **The displacement is 16 bits.** ENTER stores `CODE_PNTR − R8` with
   `CVTLW` and does not check it (`rkernel.mar:892-893`, defect 6). R8 is
-  `K_START+8000`, so code must stay within 1FC00 and 2FBFF.
+  `K_START+8000`, so code must stay within 1FC00 and 2FBFF. The Phase 7
+  patched build makes it a longword (header size 10+n, not E+n), and
+  JUMP_TO_ME compiles `JSB L^disp(R8)` (16 E8, 6 bytes) when the
+  displacement does not fit in a word (`doc/patches.md`, "Phase 7").
 
 I_ENTER (`rkernel.mar:878-895`) takes a name, a code length and an
 attribute. It:

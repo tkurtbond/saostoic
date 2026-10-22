@@ -218,3 +218,8 @@ out (defect 22). Before it `$EXPREG`s its regions, the kernel grows P0 to
 400000 (`fix_p0`). So USER_DATA is 402200 whatever shareable images the
 exe was linked against. This also keeps the addresses that obuf freezes
 at load time valid in RED.EXE (defect 30).
+
+Phase 7 pads the patched KERNEL psect to 40000 bytes, not 10000
+(`patched/kernel/extend.mar`), and the DICTIONARY psect by 400 bytes less,
+so K_START stays 1FE00. The map shows KERNEL at 1FE00–6012C, and the
+images are a few blocks larger: the extra code pages are demand-zero.

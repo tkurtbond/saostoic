@@ -20,7 +20,7 @@ POW OVF
 "POW OVF " MSG 10. 1000. .^ .= CR
 CR
 No word found at 130867
-.^		 D=81956, C=151609(5)
+.^		 D=83988, C=151601(5)
 No word found at 4199468
 No word found at 136090
 ASIN 2  
@@ -34,7 +34,7 @@ No word found at 136090
 NEXT LINE
 SQRT -1 
 %MTH-F-SQUROONEG, square root of negative value
-  user PC 00048BD0
+  user PC 00078BD0
 "SQRT -1 " MSG -1. .SQRT .= CR
 CR
 No word found at 130837

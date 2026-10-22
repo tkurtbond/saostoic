@@ -221,7 +221,7 @@ pointers of each exe at its prompt. A made exe starts with each pointer at
 its `USER_` value, page-rounded by IMAGE. The room left runs up to:
 
 - **code**: the end of the `W^(R8)` window, CODE_0 + FFFF (2FBFF; 2FDFF
-  in the patched build, whose "Code space full." stops there);
+  in the Phase 6 build, whose "Code space full." stopped there);
 - **dictionary**: CODE_0, where the kernel code starts;
 - **data**: the F600 bytes IMAGE can write (b2, measured with the shipped
   HEAD0; not measured for the patched HEAD0).
@@ -245,11 +245,36 @@ The shipped and rebuilt exes differ only in USER_DATA.
 - The patched RED has 2.5 KB less code room than the shipped one: the
   fixes made the kernel and RED longer.
 
-Raising the code limit needs a longword-displacement call (`JSB
-L^disp(R8)`) where a `W^` one is out of range, a longword code displacement
-in each header (with FORGET, WHAT and `()` changed to read it), and a code
-region that can grow past the fixup page. IMAGE's fixed layout (11, 26,
-28) would have to learn the new region. This has not been tried.
+### Phase 7: the code window raised
+
+Phase 7 (`PLAN.md`) raised the code limit in the patched build. A call
+past the `W^` window compiles as `JSB L^disp(R8)`, each header holds a
+longword code displacement, and the KERNEL psect is padded to 256 KB, so
+the code region runs from CODE_0 (1FE00) to K_END (6012D). IMAGE needed no
+change: the code ISD grows over the pages in use and the demand-zero ISD
+after it shrinks, as before. The longer headers cost the dictionary
+2 bytes a word.
+
+| Exe (patched, Phase 7) | Code free | Dictionary free |
+|---|---|---|
+| STOIC.EXE | 39F2D (231.8 KB) | A800 (42.0 KB) |
+| RED.EXE | 3372D (205.8 KB) | 7A00 (30.5 KB) |
+
+**The dictionary now binds.** It runs from USER_DICTIONARY up to CODE_0
+("Dictionary full."). Each word costs its name plus 16 bytes of header,
+so RED has room for roughly a thousand more words of average name length.
+Growing it would move CODE_0 and every kernel address.
+
+Group `g` (`g1-high.con`, `g2-run.dcl`, `results/g.txt`) shows it:
+
+- g1 runs the patched STOIC, defines W3 at 2FE3E (past the old window)
+  and W4 at 3FF00, which calls W3 with `L^`, and IMAGEs it as G1.TMP. The
+  code ISD is 101 pages from VPN FF.
+- g2 runs G1. W4 and W3 still work, and a word defined in G1 lands at
+  40000, its USER_CODE, and calls W4.
+
+`tests/fix/F06-CODE` covers the rest: calls on both sides of R8+8000,
+FORGET of a module past it, and "Code space full." at K_END.
 
 ## Defects found in Phase 3
 
