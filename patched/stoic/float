@@ -44,7 +44,7 @@ RADIX @ HEX  % save radix and set to hexadecimal
   ;
 
 '.FLIP :  % value1, value2, value3, FLIP, value1, value2, value3
-  MOVL (FS) R0  MOVL (FS) B^ 10 (FS)  MOVL R0 (FS) B^ 10
+  MOVQ (FS) R0  MOVQ (FS) B^ 10 (FS)  MOVQ R0 (FS) B^ 10
   ;
 
 
