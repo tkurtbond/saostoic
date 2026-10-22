@@ -4,14 +4,16 @@ Welcome to STOIC
  
 0> HEX
  
-0> NLEN @ = CR
- 9
+0> 'NAMELEN : NADDR @ BEGIN DUP B@ ASCII : NE IF 1+ REPEAT NADDR @ - 1+ ;
+ 
+0> NLEN @ NAMELEN EQ = CR
+ -1
  
 0> TYI = CR
  41
  
-0> NLEN @ = IO_CTRL_C = CR
- 9 0
+0> NLEN @ NAMELEN EQ = IO_CTRL_C = CR
+ -1 0
  
 0> "KEY? " COUNT TYPE_TYI = CR
 KEY?  42
@@ -19,8 +21,8 @@ KEY?  42
 0> TYI = CR
 7[7m Cancel [m8
  
-0> IO_CTRL_C = NLEN @ = CR
- -1 9
+0> IO_CTRL_C = NLEN @ NAMELEN EQ = CR
+ -1 -1
  
 0> 3 'MODEA ARRAY  3 'MODEB ARRAY
  

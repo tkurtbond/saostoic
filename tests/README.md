@@ -19,8 +19,8 @@ The interactive checks are run separately:
     tools/vax-interact tests/interactive/*.tcl
 
 Their transcripts, `tests/interactive/*.log`, are committed as evidence.
-They are not diffed, because terminal QIO values (NLEN in `tty`) differ
-between runs.
+They are not diffed, because a terminal session's details (the
+terminal's name, where a CTRL/C lands) differ between runs.
 
 The IMAGE tests of Phase 3 are separate too, because they make exes and
 one group never ends by itself:
@@ -104,7 +104,8 @@ The defect numbers are those of `PLAN.md`'s defect checklist.
 | `15-sys` | ASCTIM, REVISION, TRNLOG, GETJPI, WHERE, WHAT | GETJPI leaves only the value (20) |
 | `interactive/prompt` | the prompt depth, CTRL/Z | |
 | `interactive/ctrlc` | CTRL/C twice, DELAY after an abort | only the first ^C works (2) |
-| `interactive/tty` | TYI, TYPE_TYI, IO_CTRL_C, GETMODE/SETMODE | NLEN overwritten by the IOSB (3) |
+| `interactive/tty` | TYI, TYPE_TYI, IO_CTRL_C, GETMODE/SETMODE | NLEN overwritten by the IOSB (3): `NLEN @ NAMELEN EQ` gives 0 on the shipped exe, −1 when fixed |
+| `interactive/case` | ROP of the console's RAB, lowercase input, strings, `hello` and `HELLO` | uppercased on the shipped and patched exes, as typed on cmpfix (`doc/cmpfix.md`) |
 | `interactive/compbuf` | a definition too long for the compile buffer | no check; STOIC loops on faults (4) |
 
 The full word list of the shipped exe, from INVENTORY, is

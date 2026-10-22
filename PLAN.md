@@ -876,7 +876,8 @@ Run against the final patched build:
     OPCDEC (4, 27). The next line runs at top level and its DUP finds the
     stack empty: ACCVIO at 400600, as any empty-stack DUP (the shipped exe
     gives ACCVIO at CDE00).
-  - `tty`: NLEN stays 9 after TYI (3).
+  - `tty`: NLEN equals the length of the terminal's name at startup and
+    after TYI and CTRL/C (3).
   - `image-console`: the script points SAO$KERNEL at the shipped HEAD0,
     so the patched IMAGE refuses (28), and the rest of the script finds
     no exe. Reading the console from a file is covered by F25-CONFILE.
@@ -1048,6 +1049,12 @@ change, and stays alongside it.
   same output and sizes, the suite 18/18 against `tests/cmpfix/`, and
   RED r0–r1 the same screens. `cmpfix/aaareadme.doc` is the 1985 guide,
   copied unchanged.
+- **The console keeps its case** in cmpfix: SETUP_FABS sets PMT and no
+  longer CVT (`cmpfix/kernel/rkernel.mar:1228`). Rebuilt with the same
+  output and sizes; the suite, the defect tests and RED r0–r12 unchanged,
+  the interactive checks as patched apart from the terminal name's
+  length, and a new check, `tests/interactive/case.tcl`
+  (`doc/cmpfix.md`, "Console case").
 
 ---
 

@@ -332,7 +332,8 @@ The cells by group, with offsets from the map:
 - **TTCHAN** is 2 longwords (`rkernel.mar:2028-2030`). The terminal QIOs
   write an 8-byte IOSB at TTCHAN+2, which runs 2 bytes into NLEN
   (`tyio.mar:136, 154, 168, 177, 185`; defect 3).
-  `tests/interactive/tty.log` shows NLEN changing after each QIO.
+  In `tests/interactive/tty.log`, NLEN no longer equals the length of
+  the terminal's name, at startup or after a QIO.
 - **Run-time addresses.** DATA_INIT (`rkernel.mar:492-513`) stores the
   run-time addresses of the line and word buffers, the prompt, the
   output-conversion stack, the time string, the channel list, the
@@ -555,7 +556,8 @@ SYS$OUTPUT (`AGENTS.md`; `tools/vax-do -t`).
 - READLINE reads the console with RMS: GET_STRING on channel `INCH`,
   which is 0 at console level (`rkernel.mar:1417-1427`, `1456-1466`).
 - Channel 0's RAB has ROP PMT+CVT (`rkernel.mar:1099`). RMS therefore
-  writes the prompt and **uppercases** the line.
+  writes the prompt and **uppercases** the line. cmpfix sets only PMT, so
+  its console keeps the case typed (`cmpfix.md`, "Console case").
 - `_PROMPT` puts the prompt in the RAB's PBF/PSZ (`rms.mar:432-436`).
 - A LOAD file is read on channels 1–3, without CVT, so it is not
   uppercased (`AGENTS.md`).
@@ -587,7 +589,7 @@ RMS channels are numbered 0–7. CHANNEL_LIST points to the RAB of each
 
 | Channel | Use | Set up by |
 |---|---|---|
-| 0 | console input (SYS$INPUT); ROP PMT+CVT | START, SETUP_FABS (`rkernel.mar:1099`) |
+| 0 | console input (SYS$INPUT); ROP PMT+CVT (cmpfix: PMT) | START, SETUP_FABS (`rkernel.mar:1099`) |
 | 1–3 | LOAD nesting and sequential files: OPEN, WOPEN, GET, PUT | NEXTINCH; U_IFM = 3 |
 | 4 | messages (SYS$OUTPUT); the RMS output in batch | START (`rkernel.mar:430-432`) |
 | 5 | keyed: RANDOGET, RANDOPUT; KSZ 4, RAC KEY, FAC GET+UPD | SETUP_FABS (`rkernel.mar:1107-1112`) |

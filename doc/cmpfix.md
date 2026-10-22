@@ -1,11 +1,16 @@
 # cmpfix: the patched STOIC with the manual's comparisons
 
 `cmpfix/` (on the VAX `[.WORK.CMPFIX...]`) is the patched tree
-(`patches.md`) with one more change: the words that compare two values
-mean what `stoic.mem` and CP/M STOIC say they mean. `B A GT` is true when
-B > A. In the shipped and patched STOIC it is true when A > B (defect 13,
-`cpm-compare.md`). Code written from the manual, or brought from another
-STOIC, runs unchanged on cmpfix.
+(`patches.md`) with two more changes:
+
+- The words that compare two values mean what `stoic.mem` and CP/M STOIC
+  say they mean. `B A GT` is true when B > A. In the shipped and patched
+  STOIC it is true when A > B (defect 13, `cpm-compare.md`). Code written
+  from the manual, or brought from another STOIC, runs unchanged on
+  cmpfix.
+- The console is not uppercased (see "Console case" below). A line typed
+  at the terminal reaches STOIC as it is typed, as a LOAD file's lines
+  always have.
 
 The exes are `DUA1:[USERS.CLAUDE.WORK.CMPFIX.STOIC]STOIC.EXE` and
 `[.WORK.CMPFIX.RED]RED.EXE`.
@@ -76,6 +81,35 @@ comparison of its own: RED's `[` refuses a 25th level (defect 49) with
 `C.LOOP_COUNT @ 18 LT_IF` in cmpfix (`cmpfix/red/cli:1511`) where patched
 has `18 GT_IF`.
 
+## Console case
+
+The shipped and patched kernels set CVT, as well as PMT, in the ROP of the
+console's RAB (`patched/kernel/rkernel.mar:1228`, SETUP_FABS). So RMS has
+the terminal driver uppercase each line as it is typed: the echo shows
+the uppercase letters, and STOIC never sees lowercase from the terminal.
+cmpfix sets only PMT (`cmpfix/kernel/rkernel.mar:1228`). The prompt is
+unchanged.
+
+The dictionary is case-sensitive, so on cmpfix:
+
+- the built-in words must be typed in uppercase: `decimal` is undefined;
+- `hello` and `HELLO` are two different words;
+- strings keep their case: `"Hello, World" MSG` prints `Hello, World`.
+
+`tests/interactive/case.tcl` shows each of these, and that ROP of RAB 0
+(`CHANNEL_LIST @ @ 4 + @`) is 40000000 (PMT) on cmpfix
+(`tests/interactive/cmpfix/case.log`). On the patched exe it is 44000000
+(PMT+CVT), and every line of the same check reaches STOIC in uppercase
+(`tests/interactive/patched/case.log`); the shipped kernel sets the same
+bits (`saostoic-text/kernel/rkernel.mar:1099`). The same experiment on the
+earlier cmpfix exe, clearing and setting CVT in that cell by hand, gave
+the same results with CVT clear, and uppercasing again with it set.
+
+LOAD files, channels 1–3, never had CVT, and the tools type their console
+lines from a DCL procedure, where CVT has no effect. RED reads its keys
+with its own QIOs. So no result of the suite, the defect tests or RED's
+scripts changed (see "Testing").
+
 ## Building
 
 `cmpfix/README.md` is a guide for anyone building cmpfix on their own VAX
@@ -109,10 +143,18 @@ itself. Each test set was run on both:
 | The defect tests `tests/fix/` (38) | `… patched-suite --fix --update`, into `tests/fix/cmpfix/` | identical to `tests/fix/patched/` apart from F15-DGE |
 | IMAGE groups a-pat, e-pat, f, g | `STOIC_TREE=cmpfix tests/image/run …`, into `tests/image/results/cmpfix/` | identical apart from dates and the exes' paths |
 | The big application and the code-space fill (`tests/big/`) | `STOIC_TREE=cmpfix tests/big/run`, `runfill` | identical to the patched results |
-| RED scripts r0–r12 (not r6, which needs the shipped RED) | `STOIC_RED=…CMPFIX.RED]RED.EXE tools/red-drive -o tests/red/cmpfix …` | identical screens apart from r5's file dates. r12 checks the 24-level limit of `[` (defect 49) |
+| RED scripts r0–r12 (not r6, which needs the shipped RED) | `STOIC_RED=…CMPFIX.RED]RED.EXE tools/red-drive -o tests/red/cmpfix …` | identical screens apart from r5's file dates and the `^c` step of r7 (below). r12 checks the 24-level limit of `[` (defect 49) |
+| The interactive checks `tests/interactive/*.tcl` | `STOIC_EXE=…CMPFIX.STOIC]STOIC.EXE tools/vax-interact -o tests/interactive/cmpfix …` | identical to `tests/interactive/patched/` apart from `case`, which shows the console change |
+
+The suite, the defect tests, the RED scripts and the interactive checks
+were run again after the console change, with the results above.
 
 r9 interrupts a loop with ^C after 3 s, so where the loop stops can vary
-by a step from run to run on either build. The patched r9, r10 and r10b
+by a step from run to run on either build. So does r7, which interrupts
+an endless iteration: after the console change its `^c` screen already
+showed "Command aborted.", where the recorded one still showed the loop.
+The unchanged patched RED, run again the same day, gave the new screen
+too. The patched r9, r10 and r10b
 screens were re-recorded for this comparison: r10's word addresses had
 been recorded before defect 49's change to CLEAR_L_STACK.
 

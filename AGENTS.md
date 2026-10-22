@@ -358,5 +358,6 @@ raising the code window and 8 the comparisons as in the manual (cmpfix). Keep it
 - Commit to git as work progresses. Don't commit fetched VAX binaries or
   logs that contain session noise unless they are deliberate test evidence.
 - VMS file names and DCL are case-insensitive, and the VAX shows them in
-  uppercase. STOIC console input is uppercased by RMS, but **LOAD files are
-  not**, so write test files in uppercase.
+  uppercase. STOIC console input is uppercased by RMS (not in cmpfix,
+  whose console keeps its case), but **LOAD files are not**, so write test
+  files in uppercase.

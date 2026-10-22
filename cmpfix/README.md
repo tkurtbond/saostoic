@@ -15,6 +15,10 @@ Mark, with these changes:
   forms, the float `.GT` … forms and `DGE` mean what the manual
   (`stoic/stoic.mem`) and CP/M STOIC say: `B A GT` is true when B > A. The
   1985 VAX exes have them the other way round (`../doc/cmpfix.md`).
+- **The console keeps its case.** The 1985 STOIC uppercases every line
+  typed at the terminal. cmpfix passes it on as typed, so strings keep
+  their lowercase letters, and STOIC's own words must be typed in
+  uppercase (`../doc/cmpfix.md`, "Console case").
 
 This guide builds STOIC.EXE, RED.EXE and REDHIREZ.EXE from these text
 files alone. No binaries are needed: the build assembles the kernel and
@@ -211,9 +215,21 @@ CTRL/Z). To load a file of STOIC source:
 'MYPROG.STO LOAD
 ```
 
-The terminal's lines are uppercased, but a LOAD file's are not, so write
-STOIC source files in uppercase. A lowercase word is undefined, and the
-compile error ends the LOAD.
+STOIC's words are in uppercase, and the dictionary is case-sensitive.
+Neither the terminal's lines nor a LOAD file's are uppercased, so type the
+words in uppercase and write STOIC source files in uppercase. A lowercase
+word is undefined, and in a LOAD file the compile error ends the LOAD.
+Strings keep their case:
+
+```
+0> "Hello, World" MSG CR
+Hello, World
+
+0> decimal 1 2 + = cr
+decimal
+undefined error compiling...  decimal  ...in line
+decimal 1 2 + = cr
+```
 
 **RED.** `RED file` edits a file on a VT100 or compatible terminal;
 `H` on RED's command line leaves it. RED's manual is `red/red.mem`.
@@ -248,3 +264,8 @@ the command tail) gave exactly the output recorded for cmpfix in
 `../tests/cmpfix/`, and the RED screen tests r0 and r1 drew the same
 screens as `../tests/red/cmpfix/`. The examples in step 5 printed what is
 shown there. The tree took 1773 blocks.
+
+The console change (`kernel/rkernel.mar:1228`) was made after that test.
+The tree it was made in, `[.WORK.CMPFIX...]`, then built with the same
+output and sizes, and the suite, the defect tests, the interactive checks
+and the RED tests gave the results recorded in `../doc/cmpfix.md`.

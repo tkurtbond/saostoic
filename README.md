@@ -14,7 +14,8 @@ Use **[`cmpfix/`](cmpfix/)**. It is the 1985 STOIC with these changes:
 
 - 45 of the 49 defects found are fixed;
 - the code and dictionary have more room;
-- the comparison words mean what the manual says they mean.
+- the comparison words mean what the manual says they mean;
+- what you type at the terminal is no longer uppercased.
 
 [`cmpfix/README.md`](cmpfix/README.md) explains how to copy its 34 source
 files to a VAX, build STOIC.EXE and RED.EXE (no binaries are needed), and

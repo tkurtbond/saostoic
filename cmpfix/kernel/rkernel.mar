@@ -1225,7 +1225,7 @@ header PREOPEN
 ;----SETUP_FABS: initializes FABS with special characteristics
 header SETUP_FABS
 	movl	@channel_list(r11),r0	;get RAB 0
-	bisl2	#<rab$m_pmt+rab$m_cvt>,rab$l_rop(r0)
+	bisl2	#rab$m_pmt,rab$l_rop(r0)
 	movl	rab$l_fab(r0),r0
 	moval	console,fab$l_fna(r0)
 	movb	#consize,fab$b_fns(r0)

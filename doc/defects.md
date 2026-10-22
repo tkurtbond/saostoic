@@ -122,8 +122,11 @@ instead ([`errata.md`](errata.md)), and 11 and 21 are closed.
 ### 3. The terminal IOSB overwrites NLEN
 
 - **Repro:** `tests/interactive/tty.tcl`. NLEN (TTCHAN+8, 3F as
-  assembled) has already changed at startup, and it changes after every
-  terminal QIO.
+  assembled) should be the length of the terminal's name, which the check
+  counts up to the colon (NAMELEN). `NLEN @ NAMELEN EQ` gives 0 at
+  startup and after each terminal QIO, and −1 on the patched exe. An
+  earlier version of the check printed NLEN itself: F01 at startup, 1501
+  after TYI and 601 after a CTRL/C.
 - **Cause:** every terminal QIO uses `iosb=ttchan+2(r11)`
   (`tyio.mar:136`, 154, 168, 177, 185, 200, 207, 269). That IOSB is a
   quadword, which covers TTCHAN+2 to TTCHAN+9.

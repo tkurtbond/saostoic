@@ -1,0 +1,26 @@
+ISTOIC
+
+Welcome to STOIC
+ 
+0> CHANNEL_LIST @ @ 4 + @ = CR
+ 40000000
+ 
+0> decimal 1 2 + = cr
+decimal
+undefined error compiling...  decimal  ...in line
+decimal 1 2 + = cr
+ 
+0> "Hello, World" MSG CR
+Hello, World
+ 
+0> 'hello : "lower" MSG CR ;
+ 
+0> 'HELLO : "UPPER" MSG CR ;
+ 
+0> hello HELLO
+lower
+UPPER
+ 
+0> ;F
+STOICVAX> 
+STOICVAX> 

@@ -1,0 +1,62 @@
+SET DEFAULT DUA1:[USERS.CLAUDE.WORK]
+STOICVAX> DEFINE SAO$KERNEL DUA1:[USERS.CLAUDE.WORK.IMG.SHIP]
+STOICVAX> ISTOIC
+
+Welcome to STOIC
+ 
+0> 'SQ : DUP * ;
+ 
+0> 'T9.TMP IMAGE
+Creating writable image
+If installing in system, use /OPEN/HEAD switches only
+IMAGE: SAO$KERNEL:HEAD0.EXE is not the kernel this STOIC was built on
+ 
+0> ;F
+STOICVAX> T9 :== $DUA1:[USERS.CLAUDE.WORK]T9.TMP
+STOICVAX> T9
+%DCL-W-ACTIMAGE, error activating image DUA1:[USERS.CLAUDE.WORK]T9.TMP
+-CLI-E-IMAGEFNF, image file not found DUA1:[USERS.CLAUDE.WORK]T9.TMP;
+STOICVAX> DECIMAL
+%DCL-W-IVVERB, unrecognized command verb - check validity and spelling
+ \DECIMAL\
+STOICVAX> 7 SQ = CR
+%DCL-W-IVVERB, unrecognized command verb - check validity and spelling
+ \7\
+STOICVAX> ;F
+%DCL-W-NOCOMD, no command on line - reenter with alphabetic first character
+STOICVAX> CREATE T9IN.TMP
+DECIMAL
+8 SQ = CR
+;F
+7[7m Exit [m8
+STOICVAX> DIRECTORY/NOHEAD/NOTRAIL T9IN.TMP
+DUA1:[USERS.CLAUDE.WORK]T9IN.TMP;1
+STOICVAX> DEFINE/USER SYS$INPUT T9IN.TMP
+STOICVAX> T9
+%DCL-W-ACTIMAGE, error activating image DUA1:[USERS.CLAUDE.WORK]T9.TMP
+-CLI-E-IMAGEFNF, image file not found DUA1:[USERS.CLAUDE.WORK]T9.TMP;
+STOICVAX> 
+7[7m Interrupt [m8
+
+^@STOICVAX> STOP
+STOICVAX> DEFINE/USER SYS$INPUT T9IN.TMP
+STOICVAX> ISTOIC
+
+Welcome to STOIC
+SQ
+undefined error compiling...  SQ  ...in line
+8 SQ = CR
+STOICVAX> 
+7[7m Interrupt [m8
+
+^@STOICVAX> STOP
+STOICVAX> DIRECTORY/NOHEAD/NOTRAIL/SIZE T9IN.TMP
+DUA1:[USERS.CLAUDE.WORK]T9IN.TMP;1
+                          1
+STOICVAX> DELETE/NOLOG T9.TMP;*,T9IN.TMP;*
+%DELETE-W-SEARCHFAIL, error searching for DUA1:[USERS.CLAUDE.WORK]T9.TMP;*
+-RMS-E-FNF, file not found
+STOICVAX> DEASSIGN SAO$KERNEL
+STOICVAX> SET DEFAULT DUA1:[USERS.CLAUDE]
+STOICVAX> 
+STOICVAX> 

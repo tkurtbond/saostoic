@@ -58,7 +58,9 @@ Consequences:
   `1 % COMMENT % 2 + =` and `1 %X% 2 + =` both print 3 (`tests/lang/L1-LANG.con` C1, C2).
 - Console input is uppercased by RMS; LOAD files are not. The dictionary
   is case-sensitive, so source files must be in uppercase. A lowercase
-  word in a LOAD file usually compiles as a junk float (defect 1).
+  word in a LOAD file usually compiles as a junk float (defect 1). cmpfix
+  does not uppercase the console either, so there the words must be typed
+  in uppercase too (`cmpfix.md`, "Console case").
 
 For each word, `I_COMPILE` (`kernel/rkernel.mar:595-624`):
 
