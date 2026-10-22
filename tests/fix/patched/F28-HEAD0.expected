@@ -1,0 +1,16 @@
+THE REBUILT HEAD0: NO CODE SECTION AT CODE_0Creating writable image
+If installing in system, use /OPEN/HEAD switches only
+IMAGE: SAO$KERNEL:HEAD0.EXE is not the kernel this STOIC was built on
+
+NO F28.TMP
+THE REBUILT STOIC WITH THE PATCHED IMAGE AND THE SHIPPED HEAD0
+Creating writable image
+If installing in system, use /OPEN/HEAD switches only
+IMAGE: SAO$KERNEL:HEAD0.EXE is not the kernel this STOIC was built on
+
+THE SAME WITH THE REBUILT HEAD0
+Creating writable image
+If installing in system, use /OPEN/HEAD switches only
+
+NO F28B.TMP
+F28C.TMP MADE

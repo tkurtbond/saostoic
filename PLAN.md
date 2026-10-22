@@ -19,7 +19,7 @@ Phase 1 passes. Phase 5 is written gradually as results come in.
 | 3 IMAGE | done (see "Phase 3 outcome"; `doc/image.md`, `tests/image/`) |
 | 4 RED | done (see "Phase 4 outcome"; `doc/red.md`, `tests/red/`) |
 | 5 Documentation | done (see "Phase 5 outcome"; `doc/README.md`, `tests/lang/`) |
-| 6 Fixes | in progress: Batches A–E done; decisions taken (all as recommended) |
+| 6 Fixes | in progress: Batches A–F done; decisions taken (all as recommended) |
 
 Update this table as work proceeds.
 
@@ -119,6 +119,28 @@ without typing into the user's tmux pane and without exposing the password.
 - **A side effect we can't avoid.** UCX writes a `UCX$FTPSERVER.LOG` into
   `SYS$LOGIN` for every FTP session. It is outside `[.WORK]`, so the tools
   leave it alone. The user may want to purge it now and then.
+
+### Batch F outcome (2026-10-21)
+
+- Fixed 23, 26 and 28 in `patched/stoic/image`, as planned:
+  - 23: `.IMAGE` refuses when `U_IFI @` ≠ 0.
+  - 26: FIX_DZRO records the region (`DATA_REGION` etc. set REGION) when
+    its growth is ≥ the DZRO's page count, and `.IMAGE` refuses after
+    SCHEDULE_WRITES, before FCREATE.
+  - 28: KERNEL_MATCH compares HEAD0's code ISD (the one at CODE_0) with
+    memory block by block. No such ISD counts as a mismatch, as the
+    rebuilt HEAD0's code is at VPN FE and the patched kernel's at FF.
+  - Messages and branches are factored into small words: string literals
+    inside IF bodies gave "Byte-displacement overflow."
+- Closed 11 (covered by 26 and 28) and 21 (no change).
+- Fixed 42: NOCREF uses block I/O. The NOCREF'd exe needs INSTALL
+  (NOTINSTALL), which the rules here forbid, so it was not run installed.
+- `.IMAGE` drops the condition codes of its FCLOSEs.
+- New tests `tests/fix/F23-IMAGELOAD.dcl`, `F26-DZRO.dcl` and
+  `F28-HEAD0.dcl`; F42 rewritten. F28 includes a control (rebuilt STOIC,
+  patched `image`, rebuilt HEAD0) that is written.
+- The build makes all three exes; the suites, `tests/fix/` and image
+  groups a-pat and e-pat differ only in addresses and sizes.
 
 ### Produces
 

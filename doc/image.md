@@ -295,8 +295,8 @@ tree's own kernel and HEAD0; `E2W` is E2 widened. Results are in
 |---|---|---|---|---|---|---|
 | e-new (rebuild) | E2 | 80200 | D73 | 41 | 2.5 | 491 |
 | | E2W | D0200 | −4F28D | Stack overflow, ACCVIO | −.717E−18 | −4FB6F |
-| e-pat (patched) | E2 | 402200 | F0C | 41 | 2.5 | 629 |
-| | E2W | 402200 | F0C | 41 | 2.5 | 629 |
+| e-pat (patched) | E2 | 402200 | F18 | 41 | 2.5 | 629 |
+| | E2W | 402200 | F18 | 41 | 2.5 | 629 |
 
 The patched kernel's `fix_p0` makes P0 end at 400000 before it allocates
 its regions, so the data region is at the same address in both. BRANCH
@@ -307,6 +307,43 @@ A first attempt linked a pad section in front of the shareables. It does
 not work: the linker always puts the fixup-vector section after the last
 cluster, so the pad moved the fixups too, and the code IMAGE wrote then
 pointed at the wrong ones (LIB$GET_FOREIGN faulted at 2032E).
+
+## The guards (Phase 6)
+
+The patched `image` refuses to write an exe that would not run, and says
+why. Each refusal leaves no file. The tests are in `tests/fix/`; the
+shipped behaviour is in groups b and c1 above.
+
+| Check | Message | Test |
+|---|---|---|
+| IMAGE in a LOAD (23): `U_IFI @` is not 0 | `IMAGE must be run from the console` | F23-IMAGELOAD |
+| A region has outgrown the demand-zero ISD after it (26): FIX_DZRO finds the growth ≥ the DZRO's page count | `IMAGE: the data region has outgrown its demand-zero section in HEAD0` (or `dictionary`, `code`) | F26-DZRO: 4000 longwords refused, 3000 written |
+| HEAD0 is not this STOIC's kernel (28): KERNEL_MATCH finds no resident ISD at CODE_0, or its blocks differ from memory | `IMAGE: SAO$KERNEL:HEAD0.EXE is not the kernel this STOIC was built on` | F28-HEAD0 |
+
+- KERNEL_MATCH reads the code ISD's blocks from HEAD0 and compares each
+  with the running kernel at CODE_0, byte by byte, before
+  SCHEDULE_WRITES changes the header. The kernel's own pages are never
+  written to after startup, so an exe made by IMAGE, at any depth,
+  matches the HEAD0 it was made from (a-pat makes two layers).
+- F28 has three cases:
+  - the patched STOIC with the rebuilt HEAD0, whose code ISD is at VPN FE,
+    not FF, so no section is found;
+  - the rebuilt STOIC, with the patched `image` LOADed, and the shipped
+    HEAD0: both put code at FE, but the bytes differ;
+  - the same STOIC with the rebuilt HEAD0 as a control, which is written.
+- IMAGE still prints "Creating writable image" before it checks, as
+  that message comes from the IMAGE wrapper (`image:217-221`).
+- `.IMAGE` now drops the condition codes of its two FCLOSEs, which the
+  original left on the stack.
+
+NOCREF (42) now opens the exe for block I/O, reads VBN 1 with FREAD,
+clears copy-on-reference in each resident ISD, reopens it and writes
+VBN 1 back with FWRITE, as WIDEN does. `tests/fix/F42-NOCREF.dcl` shows
+the CRF bit (02) cleared in a copy of STOIC.EXE and of HEAD0.EXE. The
+fixup-vector ISD (flags 40A) is writable, so with CRF clear it becomes a
+writable shareable section, and the NOCREF'd exe then runs only if
+INSTALLed: `RUN` gives `SYSTEM-F-NOTINSTALL`. That is what NOCREF was
+for, and installing was not tried, as the rules here forbid it.
 
 ## Not done
 

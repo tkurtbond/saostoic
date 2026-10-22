@@ -348,6 +348,10 @@ recover R11 as the ^C routine does, and make the descriptors consistent.
 - The P0 layout is the same in every generation on one system. It does
   depend on the shareable images linked: a V5 link puts the regions 4F800
   lower. That is what breaks the absolute addresses of 22 and 30.
+- **Closed in Phase 6 (Batch F).** The patched IMAGE checks the two things
+  that can go wrong: the DZRO sizes (26) and HEAD0 itself (28). The
+  one-block header and the ISD layout are those of every HEAD0 this
+  kernel's link produces, and a HEAD0 that differs fails 28's check.
 
 ### 21. IMAGE output from before the V4 fix no longer runs
 
@@ -357,6 +361,8 @@ recover R11 as the ^C routine does, and make the descriptors consistent.
   fix, is built into `image` (`doc/image.md`).
 - **Fix:** rebuild with the current `image`, as Phase 2 did for
   REDHIREZ.
+- **Closed in Phase 6 (Batch F)** with no code change: the patched build
+  makes REDHIREZ.EXE again with IMAGE_WRT.
 
 ### 22. rdef's BRANCH compiles an absolute data address
 
@@ -384,6 +390,8 @@ recover R11 as the ^C routine does, and make the descriptors consistent.
   The child exe starts at LOAD level 1, and its first `;F` reads channel 0,
   which is not open, and loops (24).
 - **Fix:** clear `U_IFI` in the image copy, or refuse IMAGE in a LOAD.
+- **Fixed in Phase 6 (Batch F).** `.IMAGE` refuses when `U_IFI @` is not
+  0: "IMAGE must be run from the console" (`tests/fix/F23-IMAGELOAD.dcl`).
 
 ### 26. FIX_DZRO does not check for underflow
 
@@ -391,12 +399,21 @@ recover R11 as the ^C routine does, and make the descriptors consistent.
   becomes FFF1, and `RUN` gives VA_IN_USE.
 - **Cause:** `image:79-84` subtracts without a check.
 - **Fix:** refuse to IMAGE when a region has outgrown its DZRO.
+- **Fixed in Phase 6 (Batch F).** FIX_DZRO records the region when the
+  growth is at least the DZRO's page count, and `.IMAGE` then refuses:
+  "IMAGE: the data region has outgrown its demand-zero section in HEAD0"
+  (`tests/fix/F26-DZRO.dcl`).
 
 ### 28. IMAGE does not check that HEAD0 matches the running kernel
 
 - **Repro:** `tests/image/` b6. The shipped STOIC with the rebuilt HEAD0
   writes an exe that fails at START with OPCDEC.
 - **Fix:** compare HEAD0's link date or ISDs with the running image.
+- **Fixed in Phase 6 (Batch F).** KERNEL_MATCH compares HEAD0's code
+  section, block by block, with the running kernel at CODE_0, and
+  `.IMAGE` refuses on any difference or if there is no such section:
+  "IMAGE: SAO$KERNEL:HEAD0.EXE is not the kernel this STOIC was built on"
+  (`tests/fix/F28-HEAD0.dcl`, `doc/image.md`, "The guards").
 
 ## RED
 
@@ -582,4 +599,9 @@ recover R11 as the ^C routine does, and make the descriptors consistent.
   linked.
 - **Fix:** open the file for block I/O and read and write VBN 1 with
   FREAD and FWRITE, as `tests/image/widen.sto` does.
+- **Fixed in Phase 6 (Batch F)** that way, with INIT_FRABS first.
+  `tests/fix/F42-NOCREF.dcl` shows CRF cleared in the resident ISDs of an
+  exe made by IMAGE and of a linked one. The result needs INSTALL to run
+  (`SYSTEM-F-NOTINSTALL`), as its fixup-vector section becomes a writable
+  shareable one; installing was not tried (`doc/image.md`).
 
