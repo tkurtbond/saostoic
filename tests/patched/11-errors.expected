@@ -23,62 +23,62 @@ Syntax Error error compiling...  ;  ...in line
 =00000000, PSL=00000000
 MSG CR
 CR
-No word found at 133898
-TYPE		 D=82216, C=151427(52)
-MSG		 D=82234, C=151479(9)
-No word found at 521732
-No word found at 135309
+No word found at 134689
+TYPE		 D=82728, C=152451(52)
+MSG		 D=82746, C=152503(9)
+No word found at 522756
+No word found at 136087
  4
 
-%SYSTEM-F-INTDIV, arithmetic trap, integer divide by zero at PC=00022258, PSL=03
+%SYSTEM-F-INTDIV, arithmetic trap, integer divide by zero at PC=00022658, PSL=03
 C00002
 1 0 / =
 =
-/		 D=74518, C=139861(4)
-No word found at 521742
-No word found at 135309
+/		 D=75030, C=140885(4)
+No word found at 522766
+No word found at 136087
  5
 
 %SYSTEM-F-ACCVIO, access violation, reason mask=00, virtual address=00000000, PC
-=0007F607, PSL=03C00004
+=0007FA07, PSL=03C00004
 0 @ =
 =
-No word found at 521735
-No word found at 135309
+No word found at 522759
+No word found at 136087
  6
 
-%SYSTEM-F-ACCVIO, access violation, reason mask=04, virtual address=0007E808, PC
-=00021AC7, PSL=03C00000
+%SYSTEM-F-ACCVIO, access violation, reason mask=04, virtual address=0007EC08, PC
+=00021DE3, PSL=03C00000
 DROP DROP DROP
 DROP
-I_READLINE	 D=68550, C=137915(42)
-No word found at 135282
+I_READLINE	 D=69062, C=138711(42)
+No word found at 136060
  7
 
-%SYSTEM-F-ACCVIO, access violation, reason mask=04, virtual address=0007E808, PC
-=00021C02, PSL=03C00000
+%SYSTEM-F-ACCVIO, access violation, reason mask=04, virtual address=0007EC08, PC
+=00021F1E, PSL=03C00000
 DROP DROP DROP =
 =
-SPACE		 D=68957, C=138242(7)
-=		 D=68976, C=138249(67)
-No word found at 521741
-No word found at 135309
+SPACE		 D=69469, C=139038(7)
+=		 D=69488, C=139045(67)
+No word found at 522765
+No word found at 136087
  8
 
 %SYSTEM-F-ACCVIO, access violation, reason mask=00, virtual address=00000000, PC
-=0007F60D, PSL=03C00004
+=0007FA0D, PSL=03C00004
 1 2 0 @
 @
-No word found at 521741
-No word found at 135309
+No word found at 522765
+No word found at 136087
  0
  9
 
 %RMS-E-FNF, file not found
 'NOSUCH.STO LOAD
 LOAD
-LOAD		 D=68193, C=137691(24)
-No word found at 521748
-No word found at 135309
+LOAD		 D=68705, C=138481(24)
+No word found at 522772
+No word found at 136087
  10
 

@@ -1,16 +1,2 @@
-
-%RMS-F-FAC, record operation not permitted by specified file access (FAC)
-
-IMAGE
-GET_STRING	 D=10B5F, C=21A5D(41)
-I_READLINE	 D=10BC6, C=21ABB(2A)
-No word found at 21072
-
-%RMS-F-FAC, record operation not permitted by specified file access (FAC)
-
-IMAGE
-GET_STRING	 D=10B5F, C=21A5D(41)
-I_READLINE	 D=10BC6, C=21ABB(2A)
-No word found at 21072
-
-%RMS-F-FAC, record operation not permitted by specified file access (FAC)
+%RMS-F-FNF, file not found
+%RMS-F-FNF, file not found

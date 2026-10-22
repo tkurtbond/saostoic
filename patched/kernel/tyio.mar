@@ -80,7 +80,7 @@ _name::	.blkb	63
 tyiosize==<.-tyiodata>/^x200+1
 
 .extrn	nlen,naddr,nstore,ttname
-.extrn	_rmstype,_rmstyo
+.extrn	_rmstype,_rmstyo,_rmsexh
 
 	.psect	kernel
 ;----tyopen: opens console for i/o
@@ -121,6 +121,9 @@ outinit::
 	$dassgn_s chan=ttchan(r11)	;no use for the channel; get rid of it
 	moval	_rmstyo,tyoaddr(r11)	;set up RMS TYO
 	moval	_rmstype,typeaddr(r11)	;set up RMS TYPE
+	jsb	_rmsexh			;flush its last line at exit
+	movl	(r10)+,r0
+	.errstop
 	addl2	#^x14,sp		;fix the stack
 	rsb
 30$:	moval	_tyo,tyoaddr(r11)	;set up QIO TYO
@@ -240,7 +243,8 @@ _REMSTART::
 
 ;  Open Output Channel
 
-15$:	movl	@nstore(r11),naddr(r11)		;fixup descriptor
+15$:	movl	nstore(r11),naddr(r11)		;fixup descriptor (defect 9:
+					;it was @nstore, the name's text)
 	movl	#63,nlen(r11)
 	$trnlog_s lognam=rmoname(r11),rsllen=nlen(r11),rslbuf=nlen(r11)
 	blbc	r0,30$			;if not successful
@@ -250,32 +254,36 @@ _REMSTART::
 	addl	#4,naddr(r11)		;add 4 to address
 
 20$:	$assign_s devnam=nlen(r11),chan=rmochan(r11) ;assign channel
+	blbc	r0,30$			;if not successful
 
 ;  Input listener
 	$qio_s	chan=rmichan(r11),-		;read first char. from remote
 		func=#io$_readvblk!io$m_noecho!io$m_nofiltr,-
-		iosb=rmichan+2(r11),astadr=rmast,-
+		iosb=rmichan+2(r11),astadr=rmast,astprm=r11,-
 		p1=rmbuf(r11),p2=#1
 30$:	movl	r0,-(r10)		;completion code
 	rsb
 
-	.entry	rmast^m<>		;here on read completion
-	blbs	rmichan+2(r11),10$		;if no error
-	calls	#1,g^lib$signal
-	ret
-
-10$:	$qio_s	chan=ttchan(r11),-		;write one char. to local
+;	Defect 9: the AST routine had no comma between its name and mask,
+;	took R11 for granted (now it is the AST parameter), called
+;	LIB$SIGNAL with no argument, and shared TT_IOSB with the main line
+;	(the local write now has no IOSB; the terminal driver has copied the
+;	character before the next read into RMBUF).  It no longer signals:
+;	the condition handler would unwind out of the AST, skipping
+;	$ASTEXIT (as in defect 2).  On an error it stops listening, and
+;	the status is left in RMICHAN's IOSB, at RMICHAN+2.
+	.entry	rmast,^m<r11>		;here on read completion
+	movl	4(ap),r11		;the user table
+	blbc	rmichan+2(r11),30$	;if the read failed, stop
+	$qio_s	chan=ttchan(r11),-		;write one char. to local
 		func=#io$_writevblk!io$m_noformat,-
-		iosb=tt_iosb(r11),p1=rmbuf(r11),p2=#1
-	blbs	r0,20$
-	calls	#1,g^lib$signal
-
-20$:	$qio_s	chan=rmichan(r11),-		;read next char. from remote
+		p1=rmbuf(r11),p2=#1
+	$qio_s	chan=rmichan(r11),-		;read next char. from remote
 		func=#io$_readvblk!io$m_noecho!io$m_nofiltr,-
-		iosb=rmichan+2(r11),astadr=rmast,-
+		iosb=rmichan+2(r11),astadr=rmast,astprm=r11,-
 		p1=rmbuf(r11),p2=#1
 	blbs	r0,30$
-	calls	#1,g^lib$signal
+	movw	r0,rmichan+2(r11)	;if it could not be queued, stop
 30$:	ret
 
 ;  Type to remote

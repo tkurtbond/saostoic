@@ -9,9 +9,11 @@ The numbers are those of `PLAN.md`'s defect checklist and `AGENTS.md`.
   and 30–36 in Phase 4 (RED).
 - 37–40 were found in Phase 5, while checking the claims in `float.md` and
   `language.md` (`tests/lang/`, output in `tests/lang/phase5.out`).
+- 41 was found in Phase 6, while fixing defect 10.
 
-**Result:** 39 of the 40 are confirmed or characterized. Number 9 is still
-open: it comes from reading the source, and no test exercises it.
+**Result:** all 41 are confirmed or characterized. Number 9 came from
+reading the source; Phase 6 confirmed it with REMSTART on the null device
+(`tests/fix/F09-REMOTE.con`).
 
 Each entry gives:
 - a minimal repro, in uppercase STOIC with the default hex radix, unless
@@ -35,7 +37,7 @@ None of the fixes has been made or tested. Changes to the sources belong in
 | 6 | No check on the 16-bit windows | kernel | silent wrong address, or a hang |
 | 7 | A missing LOAD or OPEN file exits STOIC | kernel | exit |
 | 8 | One record per TYO in batch | kernel | output |
-| 9 | Remote-line code | kernel | open |
+| 9 | Remote-line code | kernel | REMSTART faults, REMTYPE fails |
 | 10 | GETCMD uses the obsolete CLI callback | kernel | works; fragile |
 | 11 | IMAGE's header and layout assumptions | IMAGE | characterized |
 | 12 | MOD and /MOD are unsigned | rdef | wrong value |
@@ -67,6 +69,7 @@ None of the fixes has been made or tested. Changes to the sources belong in
 | 38 | `F->S` writes one byte past `F_STRING` | float | harmless so far |
 | 39 | FS underflow is not caught | kernel, float | later fault |
 | 40 | `>` does not check for an empty branch stack | kernel | console unusable |
+| 41 | DEF_INIT copies a long command tail past LINE_BUFFER | rdef/kernel | corrupted tail, overwritten data |
 
 ## Kernel and rdef
 
@@ -177,10 +180,13 @@ None of the fixes has been made or tested. Changes to the sources belong in
 - **Impact:** batch logs can't be read. The tools avoid batch.
 - **Fix:** buffer TYO output until CR, as obuf does for RED.
 
-### 9. The remote-line code (open)
+### 9. The remote-line code
 
-This comes from reading the source. No test exercises it, and nothing in
-rdef or RED calls REMSTART or REMTYPE (`rkernel.mar:1476-1486`).
+This came from reading the source; nothing in rdef or RED calls REMSTART
+or REMTYPE (`rkernel.mar:1476-1486`). Phase 6 confirmed it without a
+second terminal line, using the null device: `"NLA0:" "NLA0:" REMSTART`
+gives ACCVIO at virtual address 03C00000 in REMSTART, and REMTYPE then
+gives IVCHAN (`tests/fix/F09-REMOTE.con`, `tests/fix/shipped/`).
 
 - `_remstart` builds the output name descriptor with `@nstore`
   (`tyio.mar:243`), but the input one with `nstore` (`tyio.mar:227`). One
@@ -519,3 +525,20 @@ recover R11 as the ^C routine does, and make the descriptors consistent.
   STOIC unusable.
 - **Fix:** compare `vocab_sp` with the stack base and give an error.
 
+## Found in Phase 6
+
+### 41. A long command tail overruns LINE_BUFFER
+
+- **Repro:** a DCL command tail of more than about 130 characters, such as
+  `STOIC DECIMAL 0` followed by 45 copies of ` 1 +` and ` = CR ;F`
+  (203 characters). The shipped exe reports `^@+ECIMAL` undefined and
+  shows a line with NULs spliced into it (`tests/fix/F10-TAIL.dcl`).
+- **Cause:** DEF_INIT moves the whole tail from GETCMD into LINE_BUFFER
+  with MOVE_BYTES (`rdef:1516-1520`). LINE_BUFFER is 132 bytes
+  (`rkernel.mar:80`), and nothing compares the two lengths; GETCMD
+  (`ss.mar:291-296`) returns whatever the CLI gives it.
+- **Impact:** the bytes past the buffer overwrite the data that follows
+  it, and the tail runs corrupted.
+- **Fix:** limit the tail to the buffer's size. The patched GETCMD reads it
+  with LIB$GET_FOREIGN into its own buffer, limited to LINE_BUFFER's size
+  word, and gives `%LIB-W-INPSTRTRU` with an empty line when it is longer.

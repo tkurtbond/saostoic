@@ -3,9 +3,9 @@ Dictionary full.
 'QB : 2 ;
 ;
 No word found at 0
-:		 D=10625, C=2157B(40)
-No word found at 7F60C
-No word found at 2108D
+:		 D=10825, C=21891(40)
+No word found at 7FA0C
+No word found at 21397
 QB
 undefined error compiling...  QB  ...in line
 "QB " MSG QB = CR

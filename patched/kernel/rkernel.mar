@@ -417,7 +417,8 @@ sname:	.word	len
 	moval	tyiname,-(r10)		;->"SYS$INPUT"
 	bsbw	count
 	movl	u_ifi(r11),-(r10)	;channel # (0)
-	jsbext	_wopen_ncr		;don't get CR attribute for it
+	jsbext	_open			;$OPEN for reading (defect 25: was
+				;_wopen_ncr, a $CREATE with PUT only)
 	movl	(r10)+,r0		;fail if error
 	.errstop
 ;	Open console for QIO, i.e. TYI;
@@ -476,6 +477,7 @@ done:	ret
 
 i_cond_handler:				;default condition handler
 	.word	^m<r2>			;entry mask
+	jsbext	_rmsflush		;batch: output before the message
 	movl	4(ap),r0		;0->signal array
 	cmpl	4(r0),#ss$_unwind	;being unwound?
 	beql	20$			;if so, nothing to do
@@ -584,6 +586,7 @@ header SYSERR
 	rsb
 20$:	movl	(sp)+,error_pc(r11)	;where it was called from
 	movl	-4(r10),cond_code(r11)	;the condition code
+	jsbext	_rmsflush		;batch: output before the message
 	clrq	-(sp)			;zeros for any FAO arguments
 	clrq	-(sp)			;(a status has none)
 	pushl	cond_code(r11)		;message vector: the code,
@@ -1501,6 +1504,7 @@ header GET
 
 ;----GET_STRING:  string, chan, GETSTRING
 header	GET_STRING
+	jsbext	_rmsflush		;batch: put any partial output line
 	movq	(r10),r2
 	addl3	s^#2,r3,(r10)		;buffer address
 	movzwl	-2(r3),-(r10)		;buffer length
@@ -1830,7 +1834,13 @@ enab_ctrl_c:
 	ret
 
 header	I_CTRL_C_HNDLR			;initial control_c handler
-;	causes an abort on control_c
+;	causes an abort on control_c.  It finds the frame called from
+;	STOIC's own.  If that is the AST routine's (STOIC code was
+;	interrupted), it changes the PC in the AST's argument list, so
+;	that the AST ends normally, through $ASTEXIT, and its REI lands
+;	in ABORT (defect 2: it changed the AST routine's return PC, so
+;	the process stayed at AST level).  If a called routine was
+;	interrupted, it changes that routine's return PC.
 	movl	fp,r0			;get frame pointer
 20$:	cmpl	^xc(r0),r_stack_0(r11)
 	beql	40$			;found stoic frame
@@ -1838,7 +1848,12 @@ header	I_CTRL_C_HNDLR			;initial control_c handler
 	movl	^x0c(r0),r0		;get next frame
 	brb	20$			;go try it
 40$:					;here on frame found
-	moval	i_abort,^x10(r0)	;force abort
+	cmpl	r0,^x0c(fp)		;the AST routine's frame?
+	bneq	50$			;if not, a called routine's
+	movl	8(fp),r1		;1->AST argument list (astprm,
+	moval	i_abort,16(r1)		;R0, R1, PC, PSL): its PC
+	brb	60$
+50$:	moval	i_abort,^x10(r0)	;force abort
 60$:
 	rsbx
 

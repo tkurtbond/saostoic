@@ -1,0 +1,37 @@
+ISTOIC
+
+Welcome to STOIC
+ 
+0> BEGIN 0 END
+7[7m Cancel [m8
+ 
+0> 1 = CR
+ 1
+ 
+0> BEGIN 0 END
+7[7m Cancel [m8
+ 
+0> 2 = CR
+ 2
+ 
+0> BEGIN 0 END
+7[7m Cancel [m8
+ 
+0> 3 = CR
+ 3
+ 
+0> HEX 4000 DELAY 4 = CR
+7[7m Cancel [m8
+ 
+0> 5 = CR
+ 5
+ 
+0> 
+7[7m Cancel [m8
+ 
+0> 6 = CR
+ 6
+ 
+0> ;F
+STOICVAX> 
+STOICVAX> 

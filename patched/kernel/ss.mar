@@ -104,6 +104,7 @@
 .nlist me
 
 .extrn	dat_end,k_start
+	$dscdef				;for GETCMD's descriptor
 
 ;macro to assemble code to initialize a user table location with
 ;an address
@@ -283,16 +284,42 @@ SS $SETPRT		;Set Protection on Pages
 	.psect	datinit
 
 ssdata::
-	$clireqdesc	rqtype=cli$k_getcmd	;descriptor for CLI GETCMD
+cmdlen:	.word	0			;length of the command tail
+	.word	0
+cmdbuf:	.blkb	256			;the command tail (defect 10)
 
 ssbyte==.-ssdata
 sssize==<.-ssdata>/^x200+1
 	.psect	kernel
+;----GETCMD: GETCMD, address, length
+;	the DCL command tail, from LIB$GET_FOREIGN (it was the CLI
+;	callback CLI$K_GETCMD through CLI$A_UTILSERV(AP); defect 10).
+;	A tail longer than LINE_BUFFER, where DEF_INIT copies it, is an
+;	error (defect 41).
+	.extrn	lib$get_foreign,lib$_inpstrtru,syserr
 header GETCMD
-	pushl	cmddesc(r11)			;->request descriptor
-	calls	#1,@cli$a_utilserv(ap)		;request cli command line
-	addl3	#cli$q_rqdesc,cmddesc(r11),r0	;get address of quadword
-	movq	(r0),-(r10)			;command string descriptor
+	movl	cmddesc(r11),r1			;1->ssdata
+	pushal	cmdbuf-ssdata(r1)		;string descriptor:
+	pushl	#<dsc$k_class_s@24>!<dsc$k_dtype_t@16>
+	movl	line_buffer(r11),r0
+	movw	-2(r0),(sp)			;LINE_BUFFER's size
+	movl	sp,r0
+	pushal	cmdlen-ssdata(r1)		;resultant length
+	clrl	-(sp)				;no prompt
+	pushl	r0				;->descriptor
+	calls	#3,g^lib$get_foreign
+	addl2	#8,sp				;drop the descriptor
+	cmpl	r0,#lib$_inpstrtru		;too long for LINE_BUFFER?
+	bneq	10$
+	bicl2	#7,r0				;then make it a warning
+10$:	blbs	r0,20$
+	movl	line_buffer(r11),r1		;(an empty line for the
+	clrw	(r1)				;traceback)
+	movl	r0,-(r10)			;report the error
+	jsb	syserr				;and abort
+20$:	movl	cmddesc(r11),r1
+	moval	cmdbuf-ssdata(r1),-(r10)	;address
+	movzwl	cmdlen-ssdata(r1),-(r10)	;length
 	rsb
 
 ss_calls:: .long	kernel		;points to linked list of headers

@@ -279,7 +279,7 @@ Details and `file:line` citations are in `doc/` (start at `doc/README.md`).
 Suspected from reading the code. Results are in `PLAN.md`'s defect
 checklist, which also lists defects 12–20, found in Phase 1 (`=` NULs, DGE,
 `.FLIP`, unreported MTH$ errors, `.SQRT` of a negative ending STOIC, and
-others). Confirmed: 1, 2, 3, 4, 5, 6, 7, 8; 11 is characterized. Open: 9.
+others). Confirmed: 1–8, and 9 in Phase 6; 11 is characterized.
 Phase 2 added 21 (the shipped REDHIREZ's BADISD), and Phase 3 added 22–29:
 BRANCH's absolute address, IMAGE in a LOAD, endless console-error and FPD
 fault loops, the PUT-only console, FIX_DZRO underflow, an unchecked HEAD0,
@@ -289,6 +289,7 @@ exe's ACCVIO and the terminal it leaves, a malformed escape, the up arrow,
 differences from the manual (`doc/red.md`). Phase 5 added 37–40:
 `.+ROT`/`.-ROT` losing half a value, `F->S` overrunning `F_STRING`,
 unchecked float-stack underflow, and `>` emptying the branch stack.
+Phase 6 added 41, a long DCL command tail overrunning LINE_BUFFER.
 Each has a repro, cause and fix in `doc/defects.md`.
 
 1. DIGIT treats any character above `Z` as a decimal point, so lowercase

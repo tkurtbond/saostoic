@@ -19,7 +19,7 @@ Phase 1 passes. Phase 5 is written gradually as results come in.
 | 3 IMAGE | done (see "Phase 3 outcome"; `doc/image.md`, `tests/image/`) |
 | 4 RED | done (see "Phase 4 outcome"; `doc/red.md`, `tests/red/`) |
 | 5 Documentation | done (see "Phase 5 outcome"; `doc/README.md`, `tests/lang/`) |
-| 6 Fixes | in progress: Batches A, B and C done; decisions taken (all as recommended) |
+| 6 Fixes | in progress: Batches A–D done; decisions taken (all as recommended) |
 
 Update this table as work proceeds.
 
@@ -405,7 +405,7 @@ that settle them:
 | 6 | Nothing checks the 16-bit windows | image b1, b3, b4 | **confirmed**: a VARIABLE more than 7FFF above R11 gets an address 10000 too low, silently; a header past 1FBFF ACCVIOs into the kernel code; code past 2FBFF ACCVIOs into the fixup page and loops (27) |
 | 7 | LIB$STOP from `.errstop` exits | 10-files, 11-errors | **confirmed**: LOAD or OPEN of a missing file exits STOIC with %RMS-F-FNF |
 | 8 | One record per TYO in batch | Phase 0 (SUBMIT log) | **confirmed** |
-| 9 | Remote-line code bugs | source review only, unless a test can be built | open |
+| 9 | Remote-line code bugs | fix F09-REMOTE (Phase 6) | confirmed: REMSTART on NLA0: gives ACCVIO, REMTYPE then IVCHAN |
 | 10 | GETCMD uses the CLI callback | 13-calc | works on V5.5-2H4, including an empty tail |
 | 11 | IMAGE header and layout assumptions | Phase 3 | **characterized**: both HEAD0s have a one-block header and the resident/DZRO ISD pairs IMAGE expects, and two-layer IMAGE works with each. Unchecked: that HEAD0 matches the running kernel (28) and that a DZRO is big enough (26). The P0 layout is the same in every generation on one system, but depends on the shareable images linked (4F800 lower in a V5 link), which is what breaks absolute addresses (22) |
 | 12 | MOD and /MOD with a negative dividend | 00, 01-arith | **confirmed**: unsigned; `-7 3 MOD` gives 0 |
@@ -437,6 +437,7 @@ that settle them:
 | 38 | `F->S` writes one byte past `F_STRING` | lang F1-FLOAT | **new**, confirmed: `F.EXPADD` becomes 20 hex; no wrong output seen |
 | 39 | FS underflow not caught | lang F4-FSUNDER | **new**, confirmed: `.DROP .=` prints NULs; the next float literal faults |
 | 40 | `>` does not check for an empty branch stack | lang L3-POP | **new**, confirmed: after `> > > >` every line faults in I_LOOKUP |
+| 41 | DEF_INIT copies the command tail into the 132-byte LINE_BUFFER unchecked | fix F10-TAIL | **new** (Phase 6), confirmed: a 203-character tail is corrupted (`^@+ECIMAL` undefined) |
 
 ### Done when
 
@@ -723,6 +724,45 @@ check (5), and no shipped-equivalent exe (6).
 - `tests/image/imgutil.sto`: IORB<< uses IORB<'s own address when it is
   in the current data region, since the new cells moved the cell from
   USER_DATA+491 in the patched exe. a-pat is unchanged apart from
+  addresses and dates.
+
+### Batch D outcome (2026-10-21)
+
+- Fixed 25, 8, 2, 10 and 9, and found and fixed 41. Tests: `tests/fix/`
+  F25-CONFILE, F08-BATCH, F10-TAIL and F09-REMOTE, and the interactive
+  check `tests/interactive/ctrlc3.tcl`. F08, F09 and F10 have a shipped
+  result; F25 does not, since the shipped exe loops for ever.
+- 25: the console is opened with `_open` (`$OPEN` FAC=GET), so
+  `DEFINE/USER SYS$INPUT file` reads console lines from the file.
+  F24-CONERR now gives `%RMS-F-FNF` (twice) and exits, as a missing file
+  should, in place of the RMS-W-FAC loop.
+- 8: `_rmstype` and `_rmstyo` (the batch output path) collect a line in
+  `rmsbuf` (132 bytes) and `$PUT` it at CR, at a lone LF or when it is
+  full; the LF after a CR is dropped. `_rmsflush` puts a partial line; it
+  is called by the condition handler, SYSERR and GET_STRING, and by an
+  exit handler that OUTINIT declares (`_rmsexh`). Under SUBMIT, F08 gives
+  whole lines (`QQA  3`); the shipped exe writes one record per character.
+- 2: decision 3's first choice works. I_CTRL_C_HNDLR finds the frame it
+  is to patch; when that is the AST's own CALLG frame it changes the PC in
+  the AST argument list (16 bytes into it) instead of the frame's return
+  PC, so the AST ends through `$ASTEXIT` and the REI lands in ABORT at
+  normal level. ctrlc3 aborts three `BEGIN 0 END` loops, a DELAY and a
+  prompt in a row; no flag was needed.
+- 10: GETCMD calls LIB$GET_FOREIGN into its own 256-byte buffer, limited
+  to LINE_BUFFER's size. An empty tail, `RED file` and `CALC expr` work
+  (the suite's `.dcl` tests).
+- 41 (new): DEF_INIT (`rdef:1516-1520`) moves the tail into LINE_BUFFER,
+  132 bytes (`rkernel.mar:80`), without a check; a longer tail overwrites
+  what follows. Fixed in GETCMD: a tail longer than LINE_BUFFER gives
+  `%LIB-W-INPSTRTRU` and an empty line.
+- 9: the remote line now names its output device correctly, checks the
+  output `$ASSIGN`, passes R11 to the ASTs as astprm, and `rmast` no longer
+  calls LIB$SIGNAL (the handler would unwind out of the AST); a read error
+  stops the listener and leaves the status in RMICHAN's IOSB. F09 runs
+  REMSTART on NLA0: (no second terminal line needed): REMTYPE works and the
+  read ends with ENDOFFILE (870). The shipped exe gives ACCVIO and IVCHAN.
+- The new cells and buffers make the data section one page longer; the
+  suite diffs were addresses only, and a-pat is unchanged apart from
   addresses and dates.
 
 ### Produces
