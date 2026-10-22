@@ -1,0 +1,36 @@
+.title	DTINIT Initialization Module for VAX STOIC
+
+.enabl	dbg,tbk
+.dsabl	gbl
+
+.extrn	dat_end
+
+.psect	kernel
+
+k_start::
+get_block::
+	addl2	#1,r0		;increment number of pages
+	pushl	#0		;set up a 0 longword
+	moval	-(sp),r6	;set up another, address in r6
+	$expreg_s pagcnt=r0, retadr=(r6), region=#0	;get memory
+	movl	(sp),r3		;save the beginning address
+	addl3	4(sp),#1,r2	;save the first unusable address
+	movl	(sp),4(sp)	;set the addresses equal
+	movl	sp,r6		;get the block address
+	$deltva_s inadr=(r6)	;delete the moat block
+	addl3	r3,#^x200,r1	;retrieve the starting address
+	addl2	#8,sp		;get rid of the values
+	rsb
+
+.psect	datinit
+
+dat_start::
+	.word	dat_end-dat_start	;word containing number of
+					;bytes of data--must be first
+					;in the data region
+
+.psect	dictionary
+
+dict_start::
+
+.end

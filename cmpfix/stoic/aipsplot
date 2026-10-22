@@ -1,0 +1,120 @@
+% STOIC code for interface with VERSATEC plotter
+% Jonathan Mark 1982
+
+IORB<
+
+0 'PLOT_CHANNEL VARIABLE  % channel for plotter
+0 'PLOT_WIDTH VARIABLE
+0 'BAR_START VARIABLE
+100 'PLOTLINE ARRAY
+0 ,D 0 ,D  % set up 8 zeroes bytes at the end
+
+'PLOT_ARGS IORB  % define a request block for the arguments
+'PLOTIN FRAB  % access block for input file
+
+'PLOT.ASSIGN :  % device name string, PLOT.ASSIGN, channel
+  "Assigning the plot device" MSG CR
+  PLOT_CHANNEL @ EQZ_IF  % has the plotter been assigned already?
+    COUNT  % get a string descriptor on the stack
+    MARK  % save its address
+    0 0  % defaults for access mode and mailbox name
+    PLOT_CHANNEL  % push the address to store the channel number in
+    RECALL  % get the string descriptor address
+    4 $ASSIGN SYSERR
+    4 (DROP)  % drop the arguments
+    2DROP  % and drop the string descriptor
+  ELSE
+    "Unable to assign--already assigned by this program." MSG CR
+  THEN
+  ;
+
+'FLIB  :  % string descriptor (assumed even count) FLIB
+%	(flips bytes in string)
+  OVER + SWAP DO  % loop through string
+  I W@  % pickup next two bytes
+  100 /MOD 100 * +  % flip them
+  I W! 2 +LOOP  % put them back
+  ;
+
+'PLOT.SCAN :  % scan line address, byte count, PLOT.SCAN
+  PLOTLINE MOVE_BYTES  % move it where it has 0's after it
+  PLOTLINE 108 FLIB  % flip bytes in string
+  PLOT_ARGS CUR_IORB !  % initialize the IORB
+  INIT_IORB  % reset the request block
+  PLOT_CHANNEL @ CHAN!  % save the channel
+  IO$_WRITEVBLK 40 OR FUNC!  % send function and modifier
+  108 P2!  % byte count goes in p2
+  PLOTLINE P1!  % scan line address to p1
+  1 P5!  % one to p5 (I don't know why, but it was in LV.MAR)
+  PLOT_ARGS QIOW  % do the output call
+  ;
+
+'PLOT.FORMFEED :
+  PLOT_ARGS CUR_IORB !
+  INIT_IORB
+  PLOT_CHANNEL @ CHAN!
+  IO$_WRITEVBLK 80 OR FUNC!
+  10 P3!
+  1 P2!
+  PLOT_ARGS QIOW
+  ;
+
+'PLOT.BARS :  % alternates solid bar and blank line 128 times
+  FREP0VA GETJPI BAR_START !
+  1 EXPREG  % make memory to copy it from
+  BAR_START @ 100 + 100 ( DUP I + 0FF B<- ) DROP  % fill top half with ones
+  40 (  % loop 64 times
+    2 ( BAR_START @ 100 + 100 PLOT.SCAN )  % output the ones part twice
+    2 ( BAR_START @ 100 PLOT.SCAN )  % output the zeroes part twice
+  )
+  BAR_START @ DUP DELTVA  % delete the page
+  ;
+
+'PLOT.DEASSIGN :
+  "De-assigning the plot device" MSG CR
+  PLOT_CHANNEL @ 1 $DASSGN SYSERR  % do the call
+  DROP  % drop the argument
+  PLOT_CHANNEL 0<-  % zero the channel variable
+  ;
+
+'PLOT :  % page address, page height, page width in bytes, PLOT
+  "LVA0:" PLOT.ASSIGN  % assign the plotter
+  "Beginning plot" MSG CR
+  PLOT.FORMFEED % PLOT.BARS   output initial header
+  DUP PLOT_WIDTH !  % save width
+  * OVER +  % get the end-of-page address
+  SWAP DO
+    I PLOT_WIDTH @ PLOT.SCAN %  plot the scan line
+%    I 108 PLOT.SCAN   plot the scan line
+  PLOT_WIDTH @ +LOOP
+ % PLOT.BARS   output final header
+  "Plotting finished" MSG CR
+  PLOT.DEASSIGN
+  ;
+
+'PAGEPLOT :  % end address, start address, PAGEPLOT
+  SWAP OVER - 108 /  % assume width = 108; get height
+  108 PLOT
+  ;
+
+'/AIPSPLOT :  % AIPSPLOT
+  WORD IF  % is filename on command line?
+    ELSE  % yes
+    "Missing Parameter." MSG CR ;F THEN  % no, abort
+  "Opening " MSG DDUP TYPE " for plotting." MSG CR
+  PLOTIN CUR_FRAB !  % set up to use the FRAB
+  FAB.L_FOP FAB.M_UFO OVER @ OR <-  % set it up for mapping
+  FAB.M_GET FOPEN SYSERR  % open the input file
+  MAP_BLOCK 0C + SEC$M_EXPREG OVER @ OR <-  % set up for expand-region mapping
+  0 0 FMAP SYSERR  % map the input file
+  DDUP PAGEPLOT  % plot it as memory
+  "Deleting the plot space" MSG CR
+  DELTVA  % and delete it
+  "Closing the file" MSG CR
+  FCLOSE SYSERR  % close the input file
+  ;F  % exit to command level
+  ; IMMEDIATE
+
+>  % close IORB vocabulary
+
+;F

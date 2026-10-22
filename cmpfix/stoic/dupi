@@ -1,0 +1,17 @@
+ASSEMBLER< DEFINITIONS
+'@B^(P) :  % B^(P), literal byte  (compiles byte-displacement, deferred address)
+  BA CPUSH  % byte displacement w.r.t. P-stack pointer
+  WORD DROP ILITERAL DROP CPUSH  % displacement byte
+  ; IMMEDIATE
+> DEFINITIONS
+
+ASSEMBLER<
+'DUPI+B@ :  % (equivalent to "DUP I + B@")
+  SUBL3 (L) (L) B^ 8 R0  % index of innermost do
+  MOVZBL [R0] @B^(P) 0 -(P)
+  ;
+>
+
+'TEST :
+  COUNT ( DUPI+B@ = CR )
+  ;

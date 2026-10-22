@@ -47,7 +47,7 @@ instead ([`errata.md`](errata.md)), and 11 and 21 are closed.
 | 10 | GETCMD uses the obsolete CLI callback | kernel | works; fragile | fixed (D) |
 | 11 | IMAGE's header and layout assumptions | IMAGE | characterized | closed (F): covered by 26 and 28 |
 | 12 | MOD and /MOD are unsigned | rdef | wrong value | fixed (B) |
-| 13 | Comparisons are the reverse of the manual | rdef | documentation | documented (errata) |
+| 13 | Comparisons are the reverse of the manual | rdef | documentation | documented (errata); fixed in cmpfix |
 | 14 | `=` writes NULs in negative numbers | kernel | output | fixed (A) |
 | 15 | DGE compares the low longwords signed | rdef | wrong value | fixed (A) |
 | 16 | `.FLIP` moves half of each value | float | wrong value | fixed (A) |
@@ -245,7 +245,9 @@ recover R11 as the ^C routine does, and make the descriptors consistent.
 - **Impact:** none for code written for the VAX: every use in the sources
   expects this sense. Code from other STOICs, or written from the manual,
   goes wrong.
-- **Fix:** correct the manual. Changing the words would break the sources.
+- **Fix:** correct the manual. Changing the words alone would break the
+  sources. The cmpfix tree (`cmpfix.md`) changes the words and swaps
+  every use, so it does what the manual says.
 
 ### 14. `=` writes a negative number as `-`, three NULs, then the digits
 

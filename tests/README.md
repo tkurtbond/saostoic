@@ -47,6 +47,14 @@ the shipped RED, which fails (defect 30); the others need the rebuilt one:
 Each writes `tests/red/*.raw` (the session) and `*.scr` (the screens).
 They are compared by eye, not diffed, and described in `doc/red.md`.
 
+The patched and cmpfix builds (Phases 6–8) have their own results:
+`tests/patched/`, `tests/fix/` (with `fix/patched/` and `fix/shipped/`),
+the boundary tests `tests/cmp/` (`cmp/patched/`) and `tests/red/patched/`;
+for cmpfix, `tests/cmpfix/`, `tests/fix/cmpfix/`, `tests/red/cmpfix/` and
+the `cmpfix/` folders of `tests/image/results/` and `tests/big/results/`.
+`tools/patched-suite` runs the first three, and `STOIC_TREE=cmpfix`
+points it and the image and big runners at cmpfix (`doc/cmpfix.md`).
+
 ## Kinds of test
 
 | Kind | How it runs | Use it for |

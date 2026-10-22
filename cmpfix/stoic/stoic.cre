@@ -1,0 +1,10 @@
+!	Commands to load STOIC into the kernel and create the image;
+!	RKERNEL.CRE should have been run first
+$ RUN SAO$KERNEL:RKERNEL
+CR "Loading RDEF" MSG CR 'RDEF LOAD
+'IMAGE LOAD/L
+'FLOAT LOAD/L
+'OBUF LOAD/L
+'VT100 LOAD/L
+"[Creating STOIC.EXE]" MSG CR 'STOIC.EXE IMAGE
+;F

@@ -1,0 +1,90 @@
+%	*****************************************************************
+%	*								*
+%	*	This module is a part of the SAO VAX/VMS		*
+%	*	RED full-screen text editor				*
+%	*								*
+%	*	It was created by					*
+%	*	Roger Hauck						*
+%	*	Smithsonian Institution					*
+%	*	Astrophysical Observatory				*
+%	*	Cambridge, Massachusetts  02138				*
+%	*	(617)495-7151  (FTS 830-7151)				*
+%	*								*
+%	*	This module may be reproduced				*
+%	*	provided that this header is retained.			*
+%	*								*
+%	*****************************************************************
+
+%  EB:  Edit buffer
+% Variables
+0 'C.STRLEN VARIABLE  % length of string last inserted, searched for, or ...
+
+
+'E.M+ :
+  MOVE_UP
+  ;
+
+'E.M- :
+  MOVE_DOWN
+  ;
+
+'E.D+ :
+  TOPOBOT +!
+  ;
+
+'E.D- :
+  BOTOTOP -!
+  ;
+
+'E.I+ :
+  TOPOTOP ASE
+  ;
+
+'E.I- :
+  TOPOBOT ASB
+  ;
+
+%  CLI commands
+
+'C.M+ :
+  BOT_COUNT -ROT MIN DUP E.M+ D.M+
+  ;
+
+'C.M- :
+  TOPOTOP D@ - MIN DUP E.M- TOPOBOT @ SWAP D.M-
+  ;
+
+'C.L+ :
+  BOT_COUNT SFCR DUP E.M+ D.M+
+  ;
+
+'C.L- :
+  TOP_COUNT SRCR DUP E.M- D.M-
+  ;
+
+'C.UP_ARROW :  % n, C.UP_ARROW (to the start of the nth line back)
+  1+ C.L-  % n+1 CRs back, from anywhere in the line
+  ;
+
+'C.D+ :
+  BOT_COUNT -ROT MIN  % descriptor of string to be deleted
+  DUP E.D+ D.D+
+  ;
+
+'C.D- :
+  TOPOTOP D@ - MIN  % # bytes to be deleted
+  BOTOTOP @ OVER - SWAP  % descriptor of string to be deleted
+  DUP E.D- D.D-
+  ;
+
+'C.I+ :
+  DUP MINUS C.STRLEN !  % get the string length
+  DDUP E.I+ D.I+
+  ;
+
+'C.I- :
+  DUP C.STRLEN !  % get the string length
+  DDUP E.I- D.I-
+  ;
+
+;F

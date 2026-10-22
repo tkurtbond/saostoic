@@ -21,7 +21,7 @@ Phase 1 passes. Phase 5 is written gradually as results come in.
 | 5 Documentation | done (see "Phase 5 outcome"; `doc/README.md`, `tests/lang/`) |
 | 6 Fixes | **done** (2026-10-21): Batches A–H; 37 fixed, 3 documented, 2 closed (`doc/patches.md`) |
 | 7 Raise the code window | **done** (2026-10-21): `JSB L^`, longword header displacement, code to K_END 6FF2D with a spare page after it, 128 KB dictionary (`doc/patches.md`) |
-| 8 Comparisons as in the manual (cmpfix) | **in progress** (2026-10-22): boundary tests `tests/cmp/` and r12 recorded on patched; defects 43–49 found and fixed; cmpfix tree to build and test (`doc/cmpfix.md`) |
+| 8 Comparisons as in the manual (cmpfix) | **done** (2026-10-22): boundary tests `tests/cmp/` and r12; defects 43–49 found and fixed; `cmpfix/` built and tested, defect 13 fixed there (`doc/cmpfix.md`) |
 
 Update this table as work proceeds.
 
@@ -411,7 +411,7 @@ that settle them:
 | 10 | GETCMD uses the CLI callback | 13-calc | works on V5.5-2H4, including an empty tail |
 | 11 | IMAGE header and layout assumptions | Phase 3 | **characterized**: both HEAD0s have a one-block header and the resident/DZRO ISD pairs IMAGE expects, and two-layer IMAGE works with each. Unchecked: that HEAD0 matches the running kernel (28) and that a DZRO is big enough (26). The P0 layout is the same in every generation on one system, but depends on the shareable images linked (4F800 lower in a V5 link), which is what breaks absolute addresses (22) |
 | 12 | MOD and /MOD with a negative dividend | 00, 01-arith | **confirmed**: unsigned; `-7 3 MOD` gives 0 |
-| 13 | Comparison sense differs from the manual | 02-compare | **confirmed**: `GT` is true when the top of stack is greater; CP/M STOIC has the manual's sense, so the VAX reversed it (`doc/cpm-compare.md`) |
+| 13 | Comparison sense differs from the manual | 02-compare | **confirmed**: `GT` is true when the top of stack is greater; CP/M STOIC has the manual's sense, so the VAX reversed it (`doc/cpm-compare.md`); fixed in cmpfix (Phase 8, `doc/cmpfix.md`) |
 | 14 | `=` writes a negative number as `-`, three NULs, digits | 01, 02 and others | **new**, confirmed: `EQ_SGN` builds the sign with `movl #^a/-/` (a longword) |
 | 15 | DGE compares the low longwords signed | 02-compare | **new**, confirmed: `0 0 0 -1 DGE` gives 0, `-1 5 -1 3 DGE` gives −1 |
 | 16 | `.FLIP` moves only the first longword of each D_floating value | 12-float | **new**, confirmed: 1.1 becomes 1.0999999… |
@@ -995,6 +995,53 @@ displacement (searched: `W->L`, `CODE_COUNT`, `C8`, `JSB`, `R8@+`).
   dictionary (42 KB and 30.5 KB) bound first; enlarging it moved K_START
   and every kernel address, which changed only addresses and IMAGE's
   page counts in the expectations.
+
+## Phase 8: Comparisons as in the manual (cmpfix)
+
+Goal: a tree, `cmpfix/`, with the comparison words as `stoic.mem` and
+CP/M STOIC have them (defect 13), so that code written from the manual or
+brought from another STOIC runs unchanged. It is `patched/` plus that
+change, and stays alongside it.
+
+### Steps
+
+1. Widen the tests first, so that cmpfix can be checked against patched:
+   boundary tests of the words whose code compares (`tests/cmp/` C1–C8)
+   and a RED edge script (`tests/red/r12-bounds.tcl`), recorded on
+   patched. Any defect they find is fixed in patched.
+2. Change the definitions: GT LT GE LE, their `_IF` and `.` forms change
+   their branch condition; MIN and MAX take the CP/M form.
+3. Swap every use with `tools/cmp-swap`, so each word compiles to the
+   same code as before.
+4. Give the tools a tree option (`STOIC_TREE`), build cmpfix in
+   `[.WORK.CMPFIX...]`, and run every test set on it.
+5. Write `doc/cmpfix.md`.
+
+### Phase 8 outcome (2026-10-22)
+
+- **The wider tests** found defects 43–49 (BPUSH, `.PUT`, BPUSH and `#A`
+  not aborting, SEARCH_STRING's groups, `-.000`, float output in another
+  radix, and RED's `[` overrunning the loop stack). All are fixed in
+  patched and cmpfix, with a test each (`doc/defects.md`,
+  `doc/patches.md`).
+- **The tree:** `cmpfix/` differs from `patched/` in 15 files: 8
+  definitions in rdef and 8 in float changed by hand, MIN and MAX in
+  CP/M form, DGE's `GE` left as it was, and 108 uses swapped by
+  `cmp-swap`. The build gives no messages, and
+  the exes are the size of the patched ones.
+- **Tests on cmpfix**, each compared with patched:
+  - `--cmp`: 8/8 identical.
+  - The suite (18) and the defect tests (38): identical, apart from
+    02-compare, 12-float's CMP line and F15-DGE, which give the manual's
+    sense; 02-compare's rows are CP/M's.
+  - IMAGE groups a-pat, e-pat, f and g, the big application and the
+    code-space fill: identical apart from dates and paths.
+  - RED r0–r12 (not r6): identical apart from file dates.
+- **What the tests needed:** under cmpfix a test that only uses a
+  comparison must be swapped too (04-control's REPEAT loop never ends
+  otherwise). `patched-suite` swaps the tests and the helpers for
+  cmpfix, apart from the tests of the comparison words and F28-HEAD0,
+  which LOADs IMAGE into the old-sense rebuilt STOIC.
 
 ---
 

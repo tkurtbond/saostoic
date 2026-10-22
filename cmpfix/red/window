@@ -1,0 +1,245 @@
+%	*****************************************************************
+%	*								*
+%	*	This module is a part of the SAO VAX/VMS		*
+%	*	RED full-screen text editor				*
+%	*								*
+%	*	It was created by					*
+%	*	Roger Hauck						*
+%	*	Smithsonian Institution					*
+%	*	Astrophysical Observatory				*
+%	*	Cambridge, Massachusetts  02138				*
+%	*	(617)495-7151  (FTS 830-7151)				*
+%	*								*
+%	*	This module may be reproduced				*
+%	*	provided that this header is retained.			*
+%	*								*
+%	*****************************************************************
+
+%  Define Window-related Variables
+
+0 'PNTR VARIABLE
+
+0 'TOPWINDOW VARIABLE  % # of bytes before cursor in window
+0 'BOTWINDOW VARIABLE  % # of bytes after cursor in window
+0 'BLANK_LINES VARIABLE  % # of blank lines in window
+
+'TOPOWINDOW@ :  % TOPOWINDOW@, address of first byte of window
+  BOTOTOP @ TOPWINDOW @ -
+  ;
+
+'TOPOWINDOW! :  % address, TOPWINDOW! (establishes top of window)
+  BOTOTOP @ - MINUS TOPWINDOW !
+  ;
+
+'BOTOWINDOW@ :
+  TOPOBOT @ BOTWINDOW @ +
+  ;
+
+'BOTOWINDOW! :
+  TOPOBOT @ - BOTWINDOW !
+  ;
+
+'TOP_WINDOW_STRING :  % TOP_WINDOW_STRING, descriptor
+%	of string from top of window to cursor
+  TOPWINDOW @ BOTOTOP @ OVER - SWAP
+  ;
+
+'BOT_WINDOW_STRING :  % BOT_WINDOW_STRING, descriptor
+%	of string from cursor to bottom of window
+  TOPOBOT @ BOTWINDOW @
+  ;
+
+
+%  Operations relating to window management.
+
+'S.CUP :  % S.CUP  (puts cursor at preselected position)
+  SROW D@ CUP
+  ;
+
+'E.CR_TYO :
+  CRET TYO  % output CR
+  ;
+
+'E.TAB_TYO :
+  TAB_MODE @ IF  % hard tabs?
+    09 TYO ELSE  % output hard tab
+    BOLD ASCII I TYO STEADY THEN  % output bold I
+  ;
+
+'E.TYO :
+  DISPATCH 0D E.CR_TYO
+  DISPATCH 09 E.TAB_TYO
+  DUP 80 GE_IF  % is mark bit set?
+    7F AND 4 ELSE  % yes, reset bit, request underscore
+    0 THEN SWAP  % no
+  DUP 20 LT_IF  % is it a control character?
+    40 + SWAP 1 OR ELSE  % yes, make upper case and request bold
+    SWAP THEN  % no
+  OVER 7F EQ_IF  % is it a DEL?
+    UNDER 18 SWAP THEN  % yes, display as checkerboard
+  NEZ_IF  % any attribute requests?
+    UNDROP DUP 1 AND NEZ_IF BOLD THEN  % control character
+    4 AND NEZ_IF UNDERSCORE THEN  % parity bit on
+    TYO 0 SGR ELSE  % output byte with attributes
+    TYO THEN  % no, normal
+  ;
+
+'PLINE :
+  BEGIN
+    DUP 1+ SWAP B@  % get next character
+    DUP CRET NE IF
+      E.TYO REPEAT  % output it
+  DROP CR  % drop CR, output NL
+  8 IDLES  %  idle
+  ;
+
+'TW_COUNT :  % TW_COUNT, descriptor of top of window
+  TOPOWINDOW@ TOPWINDOW @
+  ;
+
+'BW_COUNT :  % BW_COUNT, descriptor of bottom of window
+  TOPOBOT @ BOTWINDOW @
+  ;
+
+'E.TYPE :
+  NEZ_IF
+    UNDROP ERASE_REST_OF_LINE
+    (
+      DUP I + B@ DUP E.TYO CRET EQ_IF
+        0A TYO ERASE_THIS_LINE THEN )
+    THEN DROP
+  ;
+
+'SBB_COUNT :
+  GTZ_IF
+    UNDROP (
+      SBB DUP LEZ_IF EXIT THEN
+      )
+    THEN
+  LAST_I
+  ;
+
+09 'TAB CONSTANT
+
+ASSEMBLER<
+'D.TAB :  % current column #, D.TAB, new column #
+  TAB_MODE @ IF  % hard tabs?
+    DECL (P) BICL2 S^ 7 (P) ADDL2 S^ 9 (P) ELSE  % yes
+    1+ THEN  % no
+  ;
+>
+
+'FIND_CURSOR_COLUMN :
+  CRET TOP_COUNT SBB GEZ_IF  % search backwards for carriage return, found?
+    UNDROP + 1+ THEN  % yes, calculate location
+  BOTOTOP @ OVER -  % descriptor of string passed over
+  1 SWAP  % initialize column count
+    (
+      OVER I + B@ TAB EQ_IF
+        D.TAB ELSE  % yes, calculate new column
+        1+ THEN )  % no, increment column #   
+  SCOL !  % record it
+  2DROP  % drop search byte, pointer to beginning of line
+  ;
+
+'DEFINE_TOP_OF_WINDOW :
+  CRET TOP_COUNT TF @ 1+  % setup to search
+  DUP 1+ SROW !  % set cursor row to center of window
+  SBB_COUNT  % do search
+  TF @ - MINUS 0 MAX BLANK_LINES !  % calculate & store # of blank lines
+  + 1+ TOPOWINDOW!  % find top of window
+  DROP  % drop search byte
+  FIND_CURSOR_COLUMN
+  ;
+
+'FILL_BOTTOM_WINDOW :  % (cursor must be correctly positioned first)
+  TOPOBOT @  % save pointer
+  TF @ 1+ (  % loop through bottom lines
+  ERASE_REST_OF_LINE
+    BEGIN
+      BOPOP IF  % anything left?
+        DUP CRET NE ELSE  % yes, indicate whether it's a carriage return
+        CRET 0 THEN  % no, simulate carriage return
+      IF  % was it a carriage return?
+        E.TYO REPEAT  % no, output character
+    TYO I' NEZ_IF  % yes, output carriage return, last line?
+      LFEED TYO THEN  % no, output line feed
+    )
+  TOPOBOT @ SWAP TOPOBOT ! BOTOWINDOW!  % record pointers
+  ;
+
+'ADD_LINE_AT_BOTTOM :
+  TOPOBOT @ BOTOWINDOW@ TOPOBOT !  % temporarily redefine bottom buffer
+  BEGIN
+    BOPOP IF  % anything left?
+      DUP E.TYO  % yes, output it
+      CRET EQ ELSE  % stop if CR
+      -1 THEN  % EOF, stop
+    END
+  TOPOBOT @  % new bottom of window
+  SWAP TOPOBOT !  % restore bottom buffer
+  BOTOWINDOW!  % store bottom of window
+  ;
+
+'FIND_CURSOR :
+  SCOL 1<- SROW 1<-
+  TW_COUNT (  % scan through bottom of window
+    DUP I + B@  % next byte
+    CRET EQ_IF  % is it a CR
+      SCOL 1<- SROW 1+<- ELSE  % yes, reset column, increment row
+      UNDROP TAB EQ_IF  % is it a tab?
+        SCOL @ D.TAB SCOL ! ELSE  % yes, get column #
+        SCOL 1+! THEN THEN  % no, increment column
+    ) DROP
+  SROW BLANK_LINES @ 1+ +<-  % get real row #
+  ;
+
+'SETSCREEN :
+  DISP_FLAG 2 <-
+  ;
+
+'DISP :
+  DISP_FLAG @ 1 OR DISP_FLAG !
+  ;
+
+%****************  TEMPORARY DEFINITIONS  ***************
+'NSCROLL : DROP DISP ;
+'-NSCROLL : DROP DISP ;
+%********************************************************
+
+'REVISE_WINDOW :  % (scrolls if necessary and redraws cursor)
+  1 SROW @ - DUP GEZ IF  % cursor above window?
+    1+ -NSCROLL ELSE  % yes, scroll down
+    WINDOW_SIZE + MINUS DUP GTZ IF  % cursor below window?
+      NSCROLL ELSE DROP THEN THEN  % yes, scroll up
+  S.CUP
+  ;
+
+'SCROLL_DOWN_1 :  % screen must be set up first
+  RI  % scroll down
+  TOPOWINDOW@ DUP 1- TOPOTOP @ MAX DUP TOPOWINDOW!  % reduce at least one
+  BEGIN  % loop till top of file or CR
+    1- DUP TOPOTOP @ LT IF  % past the beginning?
+      -1 ELSE  % yes, signal exit
+      DUP B@ CRET EQ THEN  % signal exit if CR
+    END 1+  % new value for TOPOWINDOW
+  SWAP OVER - GTZ_IF
+    UNDROP ( DUP I + B@ E.TYO ) ELSE  % draw the line
+    BLANK_LINES 1+!
+    THEN  % store new value
+  TOPOWINDOW!
+  ;
+
+'FIND_BOTOWINDOW :  % stores position of first char. below screen in BOTOWINDOW
+  TOPOBOT @  % save TOPOBOT
+  WINDOW_SIZE 2+ SROW @ - (
+    BEGIN
+      BOPOP IF  % any more bytes?
+        CRET EQ ELSE  % signal end if CR
+        -1 THEN  % EOF, signal end
+      END
+    )  % got it
+  TOPOBOT @  % new bottom of window
+  SWAP TOPOBOT !  % restore bottom buffer
+  BOTOWINDOW!  % store bottom of window
+  ;

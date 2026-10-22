@@ -1,0 +1,18 @@
+MAX      -1 -2147483648 -2147483648
+
+Number too large error compiling...  4294967296  ...in line
+"2**32    " MSG 4294967296 <#> TYPE CR
+
+Number too large error compiling...  99999999999  ...in line
+"BIG      " MSG 99999999999 <#> TYPE CR
+
+Number too large error compiling...  -4294967297  ...in line
+"NEG BIG  " MSG -4294967297 <#> TYPE CR
+HEX MAX  -1 -80000000
+
+Number too large error compiling...  100000000  ...in line
+"HEX 33   " MSG 100000000 <#> TYPE CR
+HEX ZEROSFF
+FLOAT     99999999999.00000    
+DONE
+

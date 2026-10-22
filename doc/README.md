@@ -26,6 +26,7 @@ family.
 | [`defects.md`](defects.md) | The 49 defects found, each with a repro, the cause, the impact and a suggested fix. |
 | [`patches.md`](patches.md) | The Phase 6 patches: one for each fixed defect, with its test, and what behaves differently from the shipped exes. |
 | [`errata.md`](errata.md) | Corrections to `stoic.mem` and `red.mem`, in manual order, and which ones the patched build changes. |
+| [`cmpfix.md`](cmpfix.md) | cmpfix: the patched build with the comparison words as in the manual and CP/M STOIC (defect 13), and how it was tested. |
 | [`cpm-compare.md`](cpm-compare.md) | CP/M STOIC's comparison words, which show that the VAX reversed the intended sense. |
 
 `data/stoic-inventory.txt` is the output of INVENTORY in the shipped exe.

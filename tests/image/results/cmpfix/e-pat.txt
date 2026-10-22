@@ -1,0 +1,29 @@
+=== e1-pat ===
+%DCL-I-SUPERSEDE, previous value of SAO$KERNEL has been superseded
+%DCL-I-SUPERSEDE, previous value of SAO$STOIC has been superseded
+Welcome to the STOIC kernel.
+Loading SAO$STOIC:IMAGE
+Loading SAO$STOIC:FLOAT
+Loading SAO$STOIC:OBUF
+Loading SAO$STOIC:VT100
+E2: USER_DATA 402200
+Creating writable image
+If installing in system, use /OPEN/HEAD switches only
+
+=== e3-widen ===
+
+=== e4-run ===
+RUN E2USER_DATA 402200
+O.BUFSTRT-USER_DATA F18
+STACK 41
+VARIABLE  2.500000000000000    
+IORB< 629
+
+%RMS-S-NORMAL, normal successful completion
+RUN E2WUSER_DATA 402200
+O.BUFSTRT-USER_DATA F18
+STACK 41
+VARIABLE  2.500000000000000    
+IORB< 629
+
+%RMS-S-NORMAL, normal successful completion

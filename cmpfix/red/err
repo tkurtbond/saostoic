@@ -1,0 +1,60 @@
+%	*****************************************************************
+%	*								*
+%	*	This module is a part of the SAO VAX/VMS		*
+%	*	RED full-screen text editor				*
+%	*								*
+%	*	It was created by					*
+%	*	Roger Hauck						*
+%	*	Smithsonian Institution					*
+%	*	Astrophysical Observatory				*
+%	*	Cambridge, Massachusetts  02138				*
+%	*	(617)495-7151  (FTS 830-7151)				*
+%	*								*
+%	*	This module may be reproduced				*
+%	*	provided that this header is retained.			*
+%	*								*
+%	*****************************************************************
+
+
+% RED Compile Initialization: first RED code must be here
+
+'RED< BRANCH  % define RED vocabulary branch
+RED< DEFINITIONS  % set definitions to it
+'REDMODULE MODULE  % define a module for FORGET
+
+% End of compile initialization
+
+% NOTE: ERR.MSG moved to EDV display module
+
+'ERR.ABORT  : "Command aborted." 2* ;
+'ERR.ACTIVE : "Active file present." 2* ;
+'ERR.EXTEND : "Using disk-quota overdraft." 2* ;
+'ERR.INVARG : "Invalid argument." 2* ;
+'ERR.INVCOM : "Invalid command." 2* ;
+'ERR.IOERR  : "File I/O error." 2* ;
+'ERR.ITER   : "Iteration error." 2* ;
+'ERR.NEWFIL : "New file." 2* ;
+'ERR.NOBYTE : "Byte not found." 2* ;
+'ERR.NOSTRN : "String not found." 2* ;
+'ERR.NOTACT : "No active file." 2* ;
+'ERR.NOTIMP : "Command not implemented." 2* ;
+'ERR.OPFAIL : "File OPEN failure." 2* ;
+'ERR.TYPCR  : "Type carriage return to continue." 2* ;
+'ERR.X0ONLY : "Command allowed only from X0." 2* ;
+'ERR.CUTFM9 : "Cut not allowed from buffer 9." 2* ;
+'ERR.NOARG  : "Argument not implemented." 2* ;
+'ERR.@TEND  : "@T invalid at end of text buffer." 2* ;
+'ERR.NOLAB  : "No such label." 2* ;
+'ERR.INVBRN : "Invalid branch." 2* ;
+'ERR.INVLAB : "Invalid label." 2* ;
+'ERR.NOTMAC : "Argument only valid inside macro." 2* ;
+'ERR.INVREG : "Invalid register name." 2* ;
+'ERR.STKOVF : "Stack overflow." 2* ;
+'ERR.STKUDF : "Stack underflow." 2* ;
+'ERR.MACOVF : "Macro stack overflow." 2* ;
+'ERR.TC@END : "TC invalid at end of text buffer." 2* ;
+'ERR.^GFKBD : "CTRL/G only valid inside macro." 2* ;
+'ERR.STRWRN : "Warning--bad string argument." 2* ;
+'ERR.INVSTR : "Macros and iterations not nested." 2* ;
+'ERR.LUPOVF : "Too many nested iteration loops." 2* ;
+'ERR.NOTWRT : "File not completely written." 2* ;

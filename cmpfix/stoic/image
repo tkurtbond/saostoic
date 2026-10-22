@@ -1,0 +1,338 @@
+% Image file creation facility
+% Jonathan Mark 1982
+
+% This version has been modified to work under both Version 2 and
+% Version 3 (I hope) of VMS.
+
+% Files
+
+IORB<
+
+'HEAD0_FRAB FRAB  % prototype image header
+'IMAGE_FRAB FRAB  % the output image
+
+0 'BLOCK_ADDR VARIABLE  % variable to hold block number
+
+'FRANDOGET :  % like RANDOGET but uses current FRAB
+  -ROT BLOCK_ADDR !  % put block number in the block buffer
+  BLOCK_ADDR RAB.L_KBF !  % put block number address in FRAB
+  FGET UNDER  % do the GET; drop not-end-of-file
+  ;
+
+'FRANDOPUT :  % like RANDOPUT but uses current FRAB
+  -ROT BLOCK_ADDR !  % put block number in the block buffer
+  BLOCK_ADDR RAB.L_KBF !  % put block number address in FRAB
+  FPUT  % do the PUT
+  ;
+
+'INIT_FRABS :
+  HEAD0_FRAB CUR_FRAB ! RESET_FRAB  % first do input frab
+  4 RAB.B_KSZ B!  % key buffer size
+  RAB.B_RAC DUP B@ RAB.C_KEY OR B<-  % set up key record access
+  IMAGE_FRAB CUR_FRAB ! RESET_FRAB  % then reset output frab
+  ;
+
+% Constant(s)
+
+10 '#WRITES CONSTANT  % number of resident sections allowed in the image
+
+% Variables
+
+.D @ IF 1 .D+! THEN  % make the block start on a word boundary
+80 'HEAD ARRAY  % 80 longwords = 1 block
+80 'BLOCKBUF ARRAY
+0 'ISD VARIABLE  % pointer to section descriptors
+0 'PROTO_ISD VARIABLE  % prototype to supply flags, pointers
+0 'FILE_POS VARIABLE  % keeps track of the block number
+0 'WRT_FLAG VARIABLE  % false means set read-only access
+0 'REGION VARIABLE  % name of the region CHECK_ISD is looking at
+0 'IMAGE_ERR VARIABLE  % set to REGION by FIX_DZRO if a region won't fit
+0 'KDIFF VARIABLE  % bytes of HEAD0's kernel code that differ from memory
+
+0 'WRITE_COUNT VARIABLE  % count of scheduled write operations
+0 'FIND_COUNT VARIABLE  % count of successfully found program regions
+#WRITES 4 * 'SCHED_SOURCES ARRAY  % positive->from memory; negative->from file
+#WRITES 2 * 'SCHED_COUNTS ARRAY  % contains the block counts
+
+% Characteristic access words
+
+'ISD.SIZE : ISD @ ;  % first word is size
+'ISD.PAGCNT : ISD @ 2+ ;  % second word is page count
+'ISD.VPN : ISD @ 4+ ;  % second longword (low 3 bytes) is virtual page number
+'ISD.FLAGS : ISD @ 8 + ;  % third is flags
+'ISD.VBN : ISD @ 0C + ;  % fourth is virtual block number
+
+% Low-level words to change image section characteristics
+
+'SET_NOWRT :  % ISD address, SET_NOWRT
+  8 + DUP @ 08 NOT AND 02 NOT AND <-  % clear isd$m_wrt and isd$m_crf
+  ;
+
+'SET_NOCRF :  % ISD address, SET_NOCRF
+  8 + DUP @ 02 NOT AND <-  % clear isd$m_crf
+  ;
+
+% IMAGE word to create a new image section (copying the header from
+% a prototype in RKERNEL.EXE) containing all STOIC code and data
+% presently compiled
+
+% NOTE: the prototype RKERNEL.EXE must be linked without the debugger,
+% but the STOIC version running IMAGE can be linked with or without it.
+
+'SHRINK_DZRO :  % amount to reduce region by, SHRINK_DZRO
+  WRT_FLAG @ NOT IF ISD @ SET_NOWRT THEN  % if read-only, go set the flag
+  DUP ISD @ 4+ +!  % add region count to BVPN
+  ISD @ 2+ W@ SWAP - ISD @ 2+ W!
+  ;
+
+'FIX_DZRO :  % amount to reduce region by, FIX_DZRO
+  10 ISD +!  % advance to the uninitialized ISD
+  ISD @ 2+ W@ OVER LE IF  % has the region outgrown it?  (amount >= count)
+    REGION @ IMAGE_ERR !  % yes: .IMAGE will refuse to write
+  ELSE
+    SHRINK_DZRO
+  THEN
+  ;
+
+'FIX_COUNT :
+  DUP ISD @ 2+ W@ - SWAP  % find the amount added
+  DUP ISD @ 2+ W!  % save the new count in the ISD
+  ;
+
+'UPDATE_POINTERS :  % sets up protected region boundaries
+  .D @ USER_DATA @ - USER_DATA @ W!  % set up data length
+  DICT_PNTR @ 1FF + 1FF NOT AND USER_DICTIONARY !
+  CODE_PNTR @ 1FF + 1FF NOT AND USER_CODE !
+  ;
+
+'SCHEDULE_WRITE :  % start address, length in blocks, SCHEDULE_WRITE
+%  "Write scheduled: " MSG DDUP = = CR
+  OVER HEAD NE_IF FILE_POS @ ISD.VBN ! THEN  % if not the header, set up ISD
+  DUP FILE_POS +!  % calculate where the next one will be
+  WRITE_COUNT @ 2* SCHED_COUNTS + W!  % save the length
+  WRITE_COUNT @ 4 * SCHED_SOURCES + !  % save the start address
+  WRITE_COUNT 1+!  % increment the count
+  ;
+
+'SCHEDULE_COPY :  % old block number, length in blocks, SCHEDULE_COPY
+%  "Copy scheduled: " MSG DDUP = = CR
+  FILE_POS @ ISD.VBN !  % tell it where it's going to start
+  DUP FILE_POS +!  % calculate where the next one will be
+  WRITE_COUNT @ 2* SCHED_COUNTS + W!  % save the length
+  MINUS  % negate the block number to indicate what it is
+  WRITE_COUNT @ 4 * SCHED_SOURCES + !  % save it
+  WRITE_COUNT 1+!  % and increment the count
+  ;
+
+% This next word looks at an ISD in the prototype header and compares
+% it with the region address and length that it is given.  Note that
+% the data region is a special case.  The other two regions have not
+% been moved in memory, so that the values to be written into the image
+% are at the address given in the ISD.  The data ISD, however, starts
+% at the data prototype address--but the region to be loaded into it
+% is the actual, writable data region, not the prototype.	-JM
+
+'CHECK_ISD :  % start address, section length in bytes, CHECK_ISD
+  1- 200 / 1+  % get start address, length in blocks
+  OVER 200 / ISD.VPN @ FFFFFF AND
+  EQ_IF  % is this the one?
+    OVER DATA_0 @ EQ_IF UNDER USER_DATA @ SWAP THEN  % data is a special case
+    ISD @ SET_NOWRT  % it's one of ours, so make it read-only
+    DDUP SCHEDULE_WRITE  % it's going to be written from memory
+    FIX_COUNT DROP FIX_DZRO DROP  % update this section and the one after it
+    FIND_COUNT 1+!
+    -1  % signal that we found it
+  ELSE
+    2DROP 0  % drop data and signal failure if it's not it
+  THEN
+  ;
+
+'DATA_REGION : "data" REGION ! ;  % names for FIX_DZRO's error
+'DICT_REGION : "dictionary" REGION ! ;
+'CODE_REGION : "code" REGION ! ;
+
+'DO_RESIDENT :  % schedule a write for a resident section
+  DATA_REGION  DATA_0 @ .D @ USER_DATA @ - CHECK_ISD  % is it the data section?
+  NOT IF
+    DICT_REGION  DICT_0 @ DICT_PNTR @ OVER - CHECK_ISD  % is it the dictionary section?
+    NOT IF
+      CODE_REGION  CODE_0 @ CODE_PNTR @ OVER - CHECK_ISD  % is it the code section?
+      NOT IF
+        ISD.VBN @ ISD.PAGCNT W@ SCHEDULE_COPY  % if none of these, copy it
+      THEN
+    THEN
+  THEN
+  ;
+
+'SCHEDULE_WRITES :  % look at all the ISDs; see which ones are resident
+  0 WRITE_COUNT ! 1 FILE_POS !  % no writes so far
+  HEAD 1 SCHEDULE_WRITE  % we're going to have to write out the image header
+  HEAD DUP W@ + ISD !  % ISD points to the first Image Section Descriptor
+  BEGIN  % loop through all ISDs
+    ISD.SIZE W@ 10 EQ_IF  % is it a resident section?
+      DO_RESIDENT  % if it is, go process it
+    THEN
+    ISD.SIZE W@ ISD +!  % move on to the next one
+    ISD.SIZE W@ EQZ  % end the loop if there are no more
+  END
+  ;
+
+'WRITE_BLOCK :  % address, block count, WRITE_BLOCK
+  IMAGE_FRAB CUR_FRAB !  % set up which block to use
+  200 * FWRITE SYSERR  % out it goes, all at once
+  ;
+
+'COPY_BLOCK :  % starting block number, block count, COPY_BLOCK
+  (  % we've got to do the blocks one by one
+    HEAD0_FRAB CUR_FRAB !  % first look at input file
+    DUP I + BLOCKBUF 200 FRANDOGET SYSERR DROP  % read it
+    IMAGE_FRAB CUR_FRAB !  % then look at output file
+    BLOCKBUF 200 FWRITE SYSERR    % write it
+  ) DROP  % end and drop starting block number
+  ;
+
+'WRITE_IMAGE :  % actually performs all the scheduled writes
+  WRITE_COUNT @ (
+    I 4 * SCHED_SOURCES + @  % get the source address of block number
+    GEZ_IF  % what is it? (if negative, its absolute val. is a block number)
+      UNDROP I 2 * SCHED_COUNTS + W@ WRITE_BLOCK  % it's an address; write it
+    ELSE
+      UNDROP MINUS I 2 * SCHED_COUNTS + W@ COPY_BLOCK  % else copy it
+    THEN
+  )
+  FIND_COUNT @ 3 NE_IF "Error: " MSG FIND_COUNT ? 
+    " image sections found; there should have been 3" MSG
+  THEN
+  ;
+
+% KERNEL_MATCH compares the code ISD of HEAD0 (the one at CODE_0) block
+% by block with the running kernel's code.  If they differ, or HEAD0 has
+% no code section at CODE_0, HEAD0 is not the kernel this STOIC was built
+% on, and the image would not run.
+
+'KCMP_BLOCK :  % memory address, KCMP_BLOCK (compares 200 bytes with BLOCKBUF)
+  200 0 DO DUP I + B@ BLOCKBUF I + B@ NE IF KDIFF 1+! THEN LOOP DROP
+  ;
+
+'KCMP_ISD :  % compare the section at ISD with memory
+  KDIFF 0<-  % found it
+  ISD.PAGCNT W@ 0 DO
+    ISD.VBN @ I + BLOCKBUF 200 FRANDOGET SYSERR DROP
+    CODE_0 @ I 200 * + KCMP_BLOCK
+  LOOP
+  ;
+
+'KERNEL_MATCH :  % KERNEL_MATCH, flag (HEAD holds HEAD0's header)
+  -1 KDIFF !  HEAD DUP W@ + ISD !  % no code section at CODE_0 is a mismatch
+  BEGIN
+    ISD.SIZE W@ 10 EQ  ISD.VPN @ FFFFFF AND 200 * CODE_0 @ EQ  AND
+    IF KCMP_ISD THEN
+    ISD.SIZE W@ ISD +!  ISD.SIZE W@ EQZ
+  END
+  KDIFF @ EQZ
+  ;
+
+'WRITE_NEW :  % file name, WRITE_NEW (the schedule is ready)
+  IMAGE_FRAB CUR_FRAB !  % set up for output
+  COUNT FAB.M_PUT FAB.M_BIO OR FCREATE SYSERR  % open the file to be written
+  DATE D@  % save the current image's date
+  SET_REVISION  % set a new date for the new image
+  WRITE_IMAGE  % write out the new image file
+  DATE D!  % and restore the status of the current image
+  IMAGE_FRAB CUR_FRAB !
+  FCLOSE DROP  % close the output file
+  ;
+
+'OUTGROWN :  % file name, OUTGROWN
+  DROP "IMAGE: the " MSG IMAGE_ERR @ MSG
+  " region has outgrown its demand-zero section in HEAD0" MSG CR
+  ;
+
+'MISMATCH :  % file name, MISMATCH
+  DROP "IMAGE: SAO$KERNEL:HEAD0.EXE is not the kernel this STOIC was built on" MSG CR
+  ;
+
+'NOT_CONSOLE :  % file name, NOT_CONSOLE
+  DROP "IMAGE must be run from the console" MSG CR
+  ;
+
+'OPEN_HEAD0 :  % OPEN_HEAD0 (opens HEAD0 and reads its header into HEAD)
+  FIND_COUNT 0<-  IMAGE_ERR 0<-  % reset the section count and the error
+  UPDATE_POINTERS  % indicate how much code the new image should protect
+  INIT_FRABS  % set up the FRAB blocks
+  HEAD0_FRAB CUR_FRAB !  % set up to open prototype file
+  "SAO$KERNEL:HEAD0.EXE" COUNT FAB.M_GET FOPEN SYSERR  % open prototype image file
+  1 HEAD 200 FRANDOGET SYSERR DROP  % read in the image header
+  ;
+
+'IMAGE_HEAD0 :  % file name, IMAGE_HEAD0 (HEAD0 is open, HEAD read)
+  KERNEL_MATCH IF
+    SCHEDULE_WRITES  % go through the ISDs
+    IMAGE_ERR @ IF OUTGROWN ELSE WRITE_NEW THEN
+  ELSE
+    MISMATCH
+  THEN
+  ;
+
+'.IMAGE :  % file name, access flag (-1 or 0), .IMAGE
+  WRT_FLAG !  % save the flag value
+  U_IFI @ IF  % in a LOAD, the new image would start at this LOAD level
+    NOT_CONSOLE
+  ELSE
+    OPEN_HEAD0
+    IMAGE_HEAD0
+    HEAD0_FRAB CUR_FRAB !
+    FCLOSE DROP  % close the prototype image file
+  THEN
+  ;
+
+'IMAGE : 0 .IMAGE ;  % for normal image, cause read-only access
+'IMAGE_WRT : -1 .IMAGE ;  % also allow for writable images
+'IMAGE :
+  "Creating writable image" MSG CR
+  "If installing in system, use /OPEN/HEAD switches only" MSG CR
+  IMAGE_WRT
+  ;
+
+% Word to disable copy-on-referenceness in image files
+
+'NOCREF :  % file name, NOCREF
+  INIT_FRABS  IMAGE_FRAB CUR_FRAB !
+  DUP COUNT FAB.M_GET FAB.M_BIO OR FOPEN SYSERR  % block I/O: an exe made
+  HEAD 200 FREAD SYSERR  FCLOSE DROP  % by IMAGE has variable-length records
+  HEAD DUP W@ +  % get first ISD address
+  BEGIN
+    DUP W@ NEZ
+  IF
+    DUP W@ 10 EQ_IF DUP SET_NOCRF THEN  % if resident, make not copy-on-ref
+    DUP W@ +  % advance to the next one
+  REPEAT DROP
+  COUNT FAB.M_PUT FAB.M_BIO OR FOPEN SYSERR  % reopen to write VBN 1
+  HEAD 200 FWRITE SYSERR  % write the header back out
+  FCLOSE DROP  % close the file
+  ;
+
+% Words to display image section characteristics
+
+'DISPLAY_ISD :  % address, DISPLAY_ISD, next ISD address
+  DUP <#> TYPE ": " MSG
+  "SIZE=" MSG DUP W@ <#> TYPE
+  "; PAGCNT=" MSG DUP 2+ W@ <#> TYPE
+  "; VPN=" MSG DUP 4+ @ <#> TYPE
+  "; FLAGS=" MSG DUP 8 + @ 00FFFFFF AND <#> TYPE
+  DUP W@ 10 EQ_IF "; VBN=" MSG DUP 0C + @ <#> TYPE THEN
+  DUP W@ +  % advance
+  ;
+
+'SHOW :  % shows all ISD's in block starting at HEAD
+  HEAD DUP W@ +  % initial pointer
+  BEGIN
+    DUP W@ NEZ
+  IF
+    DISPLAY_ISD CR
+  REPEAT DROP
+  ;
+
+>  % close IORB
+
+;F

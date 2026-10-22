@@ -16,6 +16,9 @@ The **Patched build** column says what the Phase 6 build
   entry applies only to the shipped exes;
 - *changed*: a fix changed the behaviour, but not to the manual's.
 
+The cmpfix build ([`cmpfix.md`](cmpfix.md)) is the patched build with the
+comparison words as in the manual; the two rows where it differs say so.
+
 Line numbers are those of the Unix-text copies. Rows without one
 correct something the manual implies rather than states.
 
@@ -30,10 +33,10 @@ stack, and B, the item below it, are as the manual uses them.
 | 109 | integer literals must be in range | out-of-range literals wrap mod 2³² without an error | changed: "Number too large", a compile error | 5; `tests/06-numio` "BIG" |
 | 521 | `MOD` is the remainder of B/A | the dividend is unsigned: `-7 3 MOD` is 0 and `-7 2 MOD` is 1 | now as the manual: `-7 3 MOD` is −1 | 12; `tests/01-arith` |
 | 521 | `/MOD`: signed, by implication from MOD | the dividend is unsigned: `-42 6 I=` prints `967254` | now as the manual (signed); `I=` and `<#>` still print unsigned | 12; `tests/06-numio` |
-| 567, and LT, GE, LE | `GT` gives −1 if B is greater than A | the reverse: −1 if **A** is greater than B, so `1 2 GT` is −1. Every use in the sources expects this. CP/M STOIC does what the manual says, so the VAX words are the opposite of CP/M's (see below) | as corrected | 13; `tests/02-compare`, `rdef:487-497`, `cpm-compare.md` |
+| 567, and LT, GE, LE | `GT` gives −1 if B is greater than A | the reverse: −1 if **A** is greater than B, so `1 2 GT` is −1. Every use in the sources expects this. CP/M STOIC does what the manual says, so the VAX words are the opposite of CP/M's (see below) | as corrected; cmpfix: now as the manual | 13; `tests/02-compare`, `rdef:487-497`, `cpm-compare.md` |
 | 855 | prints the number, signed | a negative number prints as `-`, three NULs, then the digits | now as the manual | 14; `tests/01-arith` |
 | 881, 937, 2067, 2289-2297 | `FILL`, `0FILL`, `MVBYTES`, `OCTAL`, `ERR` | not in the exe; `MOVE_BYTES` exists | as corrected | `doc/data/stoic-inventory.txt` |
-| 1263 | `MAX` is `DDUP GT IF DROP ELSE UNDER THEN` | that is CP/M STOIC's MAX. With the VAX sense of GT it keeps the smaller value; rdef's MAX swaps the branches | as corrected | 13; `rdef:654-658` |
+| 1263 | `MAX` is `DDUP GT IF DROP ELSE UNDER THEN` | that is CP/M STOIC's MAX. With the VAX sense of GT it keeps the smaller value; rdef's MAX swaps the branches | as corrected; cmpfix: now as the manual | 13; `rdef:654-658` |
 | 1627 | `J'` and `K'` exist | not defined; only `I'` | as corrected | `doc/data/stoic-inventory.txt` |
 | 1634-1636 | inside `( )`, I runs from n down to 1 | I runs from 0 up to n − 1 | as corrected | `tests/04-control` "PAREN"; `rdef:711` |
 | 1669-1670 | `5 0 DO I = LOOP` prints `1 2 3 4` | prints `0 1 2 3 4` (a typo) | as corrected | `tests/04-control` "DO" |
@@ -78,6 +81,10 @@ STOIC under RunCPM and against `tests/02-compare` on the VAX
   build therefore keeps it. Code written for CP/M STOIC, or from the
   manual, must swap `GT` with `LT` and `GE` with `LE` (or swap the
   operands) to run on the VAX.
+- The cmpfix build ([`cmpfix.md`](cmpfix.md)) has the CP/M sense: its
+  `tests/cmpfix/02-compare.expected` gives the CP/M column above, and its
+  MAX is CP/M's. There the manual is right, and code from CP/M STOIC runs
+  unchanged.
 
 ## red.mem
 

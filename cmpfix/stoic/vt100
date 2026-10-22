@@ -1,0 +1,365 @@
+%	*****************************************************************
+%	*								*
+%	*	This module is a part of the SAO VAX/VMS STOIC SYSTEM	*
+%	*								*
+%	*	It was created by					*
+%	*	Roger Hauck						*
+%	*	Smithsonian Institution					*
+%	*	Astrophysical Observatory				*
+%	*	Cambridge, Massachusetts  02138				*
+%	*	(617)495-7151  (FTS 830-7151)				*
+%	*								*
+%	*	This module may be reproduced				*
+%	*	provided that this header is retained.			*
+%	*								*
+%	*****************************************************************
+
+%  VT100: stuff for controlling the VT100
+
+%  lower-level words
+
+'D<#> :  % value, D<#>, string ptr., count
+%	(converts value to a decimal string)
+  RADIX @ SWAP DECIMAL  % save radix, switch to decimal
+  <#> -ROT RADIX !  % convert number, restore radix
+  ;
+
+'ESC : 1B TYO ;
+
+'ESC[ : ESC ASCII [ TYO ;
+
+'SC :  % SAVE CURSOR
+  ESC ASCII 7 TYO
+  ;
+
+'RC :  % RESTORE CURSOR
+  ESC ASCII 8 TYO
+  ;
+
+'RI :  % REVERSE INDEX
+  ESC ASCII M TYO
+  ;
+
+'STBM :  % bottom margin, top margin, STBM
+  ESC[  % OUTPUT PREFIX
+  D<#> TYPE  % output top line number
+  ASCII ; TYO  % separator
+  D<#> TYPE  % bottom line #
+  ASCII r TYO  % SUFFIX
+  ;
+
+'SGR :  % select graphic rendition
+  ESC[ #A TYO ASCII m TYO
+  ;
+
+'ED :  % erase in display
+  ESC[ #A TYO ASCII J TYO
+  ;
+
+'SET_MODE :  % value, SET_MODE
+  ESC[ ASCII ? TYO #A TYO ASCII h TYO
+  ;
+
+'RESET_MODE :  % value, RESET_MODE
+  ESC[ ASCII ? TYO #A TYO ASCII l TYO
+  ;
+
+'LIGHT_BACKGROUND : 5 SET_MODE ;
+
+'DARK_BACKGROUND : 5 RESET_MODE ;
+
+'WRAP_OFF :  7 RESET_MODE ;
+
+% Low-level VT100 words (continued)
+
+'EL :  % erase in line
+  ESC[ #A TYO ASCII K TYO
+  ;
+
+'CUP :  % cursor position
+  ESC[ D<#> TYPE ASCII ; TYO D<#> TYPE ASCII H TYO
+  ;
+
+'DHLT :  % double-height line, top
+  ESC '#3 MSG ;
+
+'DHLB :  % double-height line, bottom
+  ESC '#4 MSG ;
+
+'DWL :  % double-width line
+  ESC '#6 MSG ;
+
+'SWL :  % single-width line
+  ESC '#5 MSG ;
+
+'GRAPHICS :
+  ESC  ASCII ( TYO  ASCII 0 TYO
+  ;
+
+'LCASE :
+  ESC  ASCII ( TYO  ASCII B TYO
+  ;
+
+'ERASE_THIS_LINE :  2 EL ;
+'ERASE_REST_OF_LINE :  0 EL ;
+'ERASE_SCREEN :  2 ED ;
+'ERASE_REST_OF_SCREEN :  0 ED ;
+'BOLD : 1 SGR ;
+'UNDERSCORE : 4 SGR ;
+'BLINK : 5 SGR ;
+'REVERSE : 7 SGR ;
+'STEADY : 0 SGR ;
+
+%  Higher-level VT100 words
+2 'TBM ARRAY  % top of scrolling region, bottom of scrolling region
+
+'STBM :  % top, bottom, STBM  (sets scrolling region on VT100)
+%	keeps track of parameters and does I/O only when necessary
+  OVER TBM 4 + @ EQ  % true if bottom has not changed
+  OVER TBM     @ EQ AND IF  % have either top or bottom changed?
+    2DROP ELSE  % no, do nothing
+    DDUP TBM D! STBM THEN  % yes, output to VT100 & record new values
+  ; 
+
+'SCROLL :  % m, n, SCROLL
+%	causes lines m through n to scroll in the direction from m to n
+  DDUP LT_IF  % n>m?
+    OVER STBM  % yes, set scrolling region
+    1 SWAP CUP RI ELSE  % go to top line, issue reverse index
+    DDUP GT_IF  % m>n?
+      OVER SWAP STBM  % yes, set scrolling region
+      1 SWAP CUP 0A TYO ELSE  % go to bottom line, issue line feed
+      DROP 1 SWAP CUP ERASE_REST_OF_LINE THEN  % m=n, delete line
+    THEN
+  ;
+
+%  Words relating VT100 to Editor
+
+8 'TF VARIABLE
+
+'WINDOW_SIZE :  % WINDOW_SIZE, # of lines in window
+  TF @ 2* 1+
+  ;
+
+50 'FNSIZE CONSTANT
+  FNSIZE 'FILE_NAME SVARIABLE
+
+0 'BUFFER# VARIABLE
+
+'SET_MODE :
+  ESC[ ASCII ? TYO TYO ASCII h TYO
+  ;
+
+'RESET_MODE :
+  ESC[ ASCII ? TYO TYO ASCII l TYO
+  ;
+
+'SMOOTH_SCROLL :
+  ASCII 4 SET_MODE
+  ;
+
+'ANSI_VT100 :  % switch VT100 from VT52 to ANSI
+  ESC ASCII < TYO
+  ;
+
+'RESET_VT100 :
+  ESC ASCII c TYO
+  ;
+
+'APPLICATION_KEYPAD :
+  ESC ASCII = TYO
+  ;
+
+'DMSG :  % double-width, double-height message
+  CR DWL DHLT DUP MSG
+  CR DWL DHLB MSG
+  ;
+
+% Specialized VT100 setup routines
+
+% First some more-or-less trivial routines for setting up fixed-length
+% tables of strings and then initializing the strings into them.
+
+% random definitions
+
+'W,D :  % value, W,D  (pushes word onto dictionary)
+  .D @   2 .D+!   W!
+  ;
+
+% definition of [ ] pair to count stack entries -- so [ 5 6 ] yields
+% 5, 6, 2
+
+'[[ : MARK ;
+']] : MARK RECALL RECALL SWAP - 4 / ;
+
+% now the string table stuff
+
+'STORE_DATA :
+  .D@  % find where to put it
+  OVER .D+!
+  MOVE_BYTES
+  ;
+
+'STRINGTAB :  % number of strings, name, STRINGTAB
+  SWAP 1+ SWAP ARRAY  % make an array with an extra word for current count
+  ;
+
+'.ADD_STRING :  % string address, count, string table address, .ADD_STRING
+  DUP @ DDUP 4+ <- + 4+  % use count longword to get the desired address
+  .D@ <-  % store the current data pointer
+  DUP W,D  % put count there as a word
+  STORE_DATA  % and put the string in the data area
+  ;
+
+'ADD_STRING :  % string, table address, ADD_STRING
+  SWAP COUNT -ROT .ADD_STRING
+  ;
+
+'ADD_BYTES :  % byte1, byte2 ... byten, byte count, table address, ADD_BYTES
+  DUP @ DDUP 4+ <- + 4+ .D@ <-  % set up address in table
+  DUP W,D  % store string count
+  DUP .D+!  % update data pointer
+  ( .D@ I - 1- B! )  % and store all the bytes in reverse order
+  ;
+
+% VT100-specific stuff
+
+% Definitions of tables for VT100 setup bits
+% (first some tools)
+
+11 'NUM_SETUPS CONSTANT
+
+NUM_SETUPS 'SET_TAB STRINGTAB  % contains sequences for turning bits on
+NUM_SETUPS 'CLEAR_TAB STRINGTAB  % contains sequences for turning bits off
+
+NUM_SETUPS 'V_STRING SVARIABLE  % make a couple of working strings
+NUM_SETUPS 'V2_STRING SVARIABLE
+
+'MAKE_SEQ :  % attribute number, MAKE_SEQ: puts it in the tables
+  V_STRING 0W<-  % clear the string
+  1B V_STRING STAB ASCII [ V_STRING STAB ASCII ? V_STRING STAB  % make ESC [?
+  <#> V_STRING .STRAP  % put on the number
+  V_STRING V2_STRING MOVE_STRING  % make a copy of it
+  ASCII h V_STRING STAB V_STRING SET_TAB ADD_STRING  % add set code
+  ASCII l V2_STRING STAB V2_STRING CLEAR_TAB ADD_STRING  % add reset code
+  ;
+
+'MAKE_ERR :
+  "ERR" SET_TAB ADD_STRING
+  "ERR" CLEAR_TAB ADD_STRING
+  ;
+
+% Actual setup codes.  These must be done in order.
+
+4 MAKE_SEQ  % Scroll
+8 MAKE_SEQ  % Autorepeat
+5 MAKE_SEQ  % Screen background
+MAKE_ERR  % Cursor block/underline -- cannot be changed by host computer
+MAKE_ERR  % Margin bell -- unavailable
+MAKE_ERR  % Keyclick -- unavailable
+[[ 1B ASCII < ]] SET_TAB ADD_BYTES  % enter ANSI mode
+    [[ 1B ASCII [ ASCII 2 ASCII l ]] CLEAR_TAB ADD_BYTES  % enter VT52 mode
+MAKE_ERR  % Auto XON/XOFF -- unavailable
+MAKE_ERR  % sharp/pound -- I can't find in the manual how to do this
+7 MAKE_SEQ  % Wraparound
+[[ 1B ASCII [ ASCII 2 ASCII 0 ASCII h ]] SET_TAB ADD_BYTES  % LF/Newline
+    [[ 1B ASCII [ ASCII 2 ASCII 0 ASCII l ]] CLEAR_TAB ADD_BYTES
+9 MAKE_SEQ  % Interlace
+MAKE_ERR  % parity sense
+MAKE_ERR  % parity
+MAKE_ERR  % bits per character
+MAKE_ERR  % power
+[[ 1B ASCII = ]] SET_TAB ADD_BYTES  % Keypad
+    [[ 1B ASCII > ]] CLEAR_TAB ADD_BYTES
+
+% Higher-level control words for more intelligent handling of setup bits
+
+% Arrays to store characteristics, 1 byte/bit: 0 means "clear"
+% 1 means "set", and -1 means "don't know"
+
+NUM_SETUPS 1- 4 / 1+ DUP 'CUR_BITS ARRAY 'USER_BITS ARRAY
+
+30 'LOG_TRAN SVARIABLE
+'VT100_LOGNAME : "VT100_BITS" ;
+
+'DO_1_BIT :
+      OVER I + B@ ASCII 0 EQ_IF  % have we got a zero?
+        DUP USER_BITS + 0 B<-  % if so, store zero in byte
+        1+  % and increment bit count
+      ELSE
+        UNDROP ASCII 1 EQ_IF  % is it a one?
+          DUP USER_BITS + 1 B<-  % if so, store it
+          1+  % inc bit count
+        THEN
+      THEN
+  ;
+
+'SET_VTBITS :  % address of 1/0 string, count, SET_VTBITS
+  0 SWAP (  % push a bit count and begin looping
+    DUP NUM_SETUPS GE_IF  % have we done the last bit?
+      EXIT  % if so, quit
+    ELSE
+      DO_1_BIT
+    THEN
+  ) 2DROP
+  ;
+
+'INIT_VT100 :
+  ANSI_VT100  % set to ANSI so we can deal with it
+  VT100_LOGNAME LOG_TRAN TRNLOG  % try to get the logical name
+  LOG_TRAN COUNT VT100_LOGNAME COUNT .STREQ IF  % did we get something?
+    NUM_SETUPS ( USER_BITS I + -1 B<- )  % if not, set all to "don't know"
+  ELSE
+    LOG_TRAN COUNT SET_VTBITS
+  THEN
+  NUM_SETUPS ( USER_BITS I + B@ CUR_BITS I + B! )  % assume cur same as user
+  ;
+
+'SET_VT100_CHAR :  % bit number (starting at 1), SET_VT100_CHAR
+  DUP 4 * SET_TAB + @ MSG  % do it on the screen
+  1- CUR_BITS + 1 B<-  % and remember it
+  ;
+
+'CLEAR_VT100_CHAR :  % bit number, CLEAR_VT100_CHAR
+  DUP 4 * CLEAR_TAB + @ MSG
+  1- CUR_BITS + 0 B<-
+  ;
+
+'WAIT_FOR_RESET :
+  800 DELAY  % wait for VT100 to reset (about 2 seconds)
+  ;
+
+'ASSURE_BIT :
+        I USER_BITS + B@ 0 EQ_IF  % yes, clear it?
+          I 1+ CLEAR_VT100_CHAR
+        ELSE
+          I 1+ SET_VT100_CHAR  % else set it
+        THEN
+  ;
+
+'RESTORE_VT100 :
+  18 1 STBM  % make entire screen scrolling window
+  1 17 CUP  % go near end of screen
+  NUM_SETUPS (  % loop through all bits
+    I USER_BITS + B@ I CUR_BITS + B@ NE_IF  % is it different?
+      I USER_BITS + B@ FF NE_IF  % do we know what it should be?
+        ASSURE_BIT
+      ELSE
+        RESET_VT100  % we don't know what it is; do a reset
+        O.FLAG @ IF FLUSH THEN WAIT_FOR_RESET  % cause buffer flush, and wait
+        EXIT  % quit looping
+      THEN
+    THEN
+  )
+  ;
+
+% Refinition of lower-level VT100 setup words
+
+'LIGHT_BACKGROUND : 3 SET_VT100_CHAR ;
+'DARK_BACKGROUND : 3 CLEAR_VT100_CHAR ;
+'WRAP_OFF : 0A CLEAR_VT100_CHAR ;
+'SMOOTH_SCROLL : 1 SET_VT100_CHAR ;
+'ANSI_VT100 : 7 SET_VT100_CHAR ;
+'APPLICATION_KEYPAD : 11 SET_VT100_CHAR ;
+
+;F

@@ -1,0 +1,51 @@
+%	*****************************************************************
+%	*								*
+%	*	This module is a part of the SAO VAX/VMS		*
+%	*	RED full-screen text editor				*
+%	*								*
+%	*	It was created by					*
+%	*	Roger Hauck						*
+%	*	Smithsonian Institution					*
+%	*	Astrophysical Observatory				*
+%	*	Cambridge, Massachusetts  02138				*
+%	*	(617)495-7151  (FTS 830-7151)				*
+%	*								*
+%	*	This module may be reproduced				*
+%	*	provided that this header is retained.			*
+%	*								*
+%	*****************************************************************
+
+%  Words for inserting or deleting a single character in IMMEDIATE mode
+
+'I.FIND_TOPOWINDOW :  % knowing cursor row, find first character in window
+  TOP_COUNT SROW @ 1- (  % loop, n = line # of cursor within window
+    BEGIN  % search for CR or beginning of file
+      1- DUP LTZ_IF  % BOF?
+        -1 ELSE  % yes, keep count
+        DDUP + B@ CRET EQ THEN END  % drop out on CR or BOF
+    )
+  DUP LTZ_IF  % underflow?
+    MINUS 1- BLANK_LINES ! ELSE  % yes
+    + 1+ BLANK_LINES 0<- THEN
+  DUP PNTR ! TOPOWINDOW!
+  ;
+
+'I.INSERT :
+  IO_CTRL_C IF DROP ELSE  % if interrupted, do nothing
+    MARK RECALL 1 C.I+ DROP  % make it a string and insert
+  THEN
+  ;
+
+'I.DELETE :  % (delete a character)
+  TOPOP IF  % is anything there?
+    BOTOTOP @ 1 D.D- DROP THEN  % delete from screen
+  ;
+
+'I.DIAG :  % types values of variables in command pane
+  "        TOP_COUNT" MSG TOP_COUNT = =
+  ",         BOT_COUNT" MSG BOT_COUNT = =
+  "           CURSOR ROW" MSG SROW ? CR
+  "TOP_WINDOW_STRING" MSG TOP_WINDOW_STRING = =
+  ", BOT_WINDOW_STRING" MSG BOT_WINDOW_STRING = =
+  "        CURSOR ROW" MSG SCOL ?
+  ;

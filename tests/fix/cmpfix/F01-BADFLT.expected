@@ -1,0 +1,5 @@
+GOOD     1000.000000000000    
+
+invalid floating-point literal error compiling...  1E5.  ...in line
+"BAD     " MSG 1E5. .= CR
+

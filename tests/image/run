@@ -37,6 +37,11 @@ if [ "$tree" != patched ]; then
 else
   P=tests/image
 fi
+# imgutil.sto compares; cmpfix gets a copy with its comparisons swapped
+U=$T/imgutil.sto
+if [ "$tree" = cmpfix ]; then
+  U=$P/imgutil.sto; cp $T/imgutil.sto $U; tools/cmp-swap $U >&2
+fi
 NEW='DUA1:[USERS.CLAUDE.WORK.SAOSTOIC.STOIC]STOIC.EXE'
 PAT="DUA1:[USERS.CLAUDE.WORK.$TREE.STOIC]STOIC.EXE"
 mkdir -p $R
@@ -44,10 +49,10 @@ mkdir -p $R
 A="$T/a2-show.sto $T/a3-make1.con $T/a4-run1.dcl $T/a5-make2.con $T/a6-run2.dcl $T/a7-xload.con"
 for g; do
   case $g in
-    a-ship) tools/stoic-run -m -f $T/imgutil.sto $T/a1-ship.dcl $A > $R/$g.txt 2>&1 ;;
-    a-new)  tools/stoic-run -m -f $T/imgutil.sto -x "$NEW" $T/a1-new.dcl $A > $R/$g.txt 2>&1 ;;
-    a-pat)  tools/stoic-run -m -f $T/imgutil.sto -x "$PAT" $P/a1-pat.dcl $A > $R/$g.txt 2>&1 ;;
-    b)      tools/stoic-run -m -f $T/imgutil.sto $T/a1-ship.dcl $T/b1-datawin.sto $T/b2-bigdata.con \
+    a-ship) tools/stoic-run -m -f $U $T/a1-ship.dcl $A > $R/$g.txt 2>&1 ;;
+    a-new)  tools/stoic-run -m -f $U -x "$NEW" $T/a1-new.dcl $A > $R/$g.txt 2>&1 ;;
+    a-pat)  tools/stoic-run -m -f $U -x "$PAT" $P/a1-pat.dcl $A > $R/$g.txt 2>&1 ;;
+    b)      tools/stoic-run -m -f $U $T/a1-ship.dcl $T/b1-datawin.sto $T/b2-bigdata.con \
               $T/b2-run.dcl $T/b4-dict.con $T/c1-nested.sto $T/c1-run.dcl \
               $T/b5-empty.dcl $T/b5-image.con $T/a1-new.dcl $T/b6-mix.con \
               $T/b6-run.dcl > $R/$g.txt 2>&1 ;;
@@ -63,9 +68,9 @@ for g; do
                      "$PAT" "DUA1:[USERS.CLAUDE.WORK.$TREE.RED]RED.EXE"; do
                 echo "--- $x"; tools/stoic-run -x "$x" $T/f1-room.con
               done > $R/$g.txt 2>&1 ;;
-    g)      tools/stoic-run -m -f $T/imgutil.sto -x "$PAT" $P/a1-pat.dcl $T/g1-high.con \
+    g)      tools/stoic-run -m -f $U -x "$PAT" $P/a1-pat.dcl $T/g1-high.con \
               $T/g2-run.dcl > $R/$g.txt 2>&1 ;;
-    loop)   VAX_DO_TIMEOUT=60 tools/stoic-run -m -f $T/imgutil.sto $T/b3-code.con 2>&1 | head -40 > $R/$g.txt ;;
+    loop)   VAX_DO_TIMEOUT=60 tools/stoic-run -m -f $U $T/b3-code.con 2>&1 | head -40 > $R/$g.txt ;;
     *) echo "tests/image/run: no group $g" >&2; exit 2 ;;
   esac
   echo "$g: exit $?, $(wc -l < $R/$g.txt) lines in $R/$g.txt"

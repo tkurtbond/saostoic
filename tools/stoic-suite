@@ -3,12 +3,13 @@
 # VAX job by tools/stoic-run, each in a STOIC of its own, and compares each
 # one's output with tests/<name>.expected.
 #
-#   tools/stoic-suite [-x <exe>] [-r <exe>] [-d <dir>] [-e <dir>] [--update] [<name>...]
+#   tools/stoic-suite [-x <exe>] [-r <exe>] [-d <dir>] [-e <dir>] [-F <dir>] [--update] [<name>...]
 #
 # -d takes the tests from <dir> instead of tests/ (tests/files/ is still
 # copied), and -e compares with (or --update writes) the .expected files in
 # <dir> instead of the tests' own directory: tests/patched/ holds what the
-# Phase 6 patched build should print. If STOIC_SUITE_SED is set, each
+# Phase 6 patched build should print. -F copies the files in <dir> in
+# place of tests/files/. If STOIC_SUITE_SED is set, each
 # test's output is passed through sed with it before it is compared.
 #
 # A <name> is a test's name, such as 01-arith. Every file in tests/files/ is
@@ -31,7 +32,8 @@ while [ $# -gt 0 ]; do
     -r) [ $# -ge 2 ] || { echo "stoic-suite: -r needs an exe" >&2; exit 2; }; xflag="$xflag -r $2"; shift 2 ;;
     -d) [ $# -ge 2 ] || { echo "stoic-suite: -d needs a directory" >&2; exit 2; }; tests=$2; shift 2 ;;
     -e) [ $# -ge 2 ] || { echo "stoic-suite: -e needs a directory" >&2; exit 2; }; expdir=$2; shift 2 ;;
-    -*) echo "usage: tools/stoic-suite [-x <exe>] [-r <exe>] [-d <dir>] [-e <dir>] [--update] [<name>...]" >&2; exit 2 ;;
+    -F) [ $# -ge 2 ] || { echo "stoic-suite: -F needs a directory" >&2; exit 2; }; files=$2; shift 2 ;;
+    -*) echo "usage: tools/stoic-suite [-x <exe>] [-r <exe>] [-d <dir>] [-e <dir>] [-F <dir>] [--update] [<name>...]" >&2; exit 2 ;;
     *) break ;;
   esac
 done

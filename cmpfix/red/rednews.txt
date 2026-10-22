@@ -1,0 +1,20 @@
+RED now displays unique graphics for each of the 256
+possible character codes. The graphics are as follows:
+
+HEX	Character Type	How displayed
+=====	=============== ====================================================
+00-0C	Control		Bold @, A-L.
+
+0D-0D	Carriage return	Carriage return, line feed
+
+0E-1F	Control		Bold N-Z, [, \, ], ^, _.
+
+20-7E	Normal	 	Normally
+
+7F-7F	DELETE		Checkerboard pattern.
+
+80-9F	Control		Bold @, A-Z, [, \, ], ^, _; with underline.
+
+A0-FE	Normal		Normally, but with underline.
+
+FF-FF	DELETE		Checkerboard pattern with underline.

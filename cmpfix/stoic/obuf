@@ -1,0 +1,125 @@
+
+
+
+
+
+
+
+
+
+
+%	*****************************************************************
+%	*								*
+%	*	This module is a part of the SAO VAX/VMS STOIC SYSTEM	*
+%	*								*
+%	*	It was created by					*
+%	*	Roger Hauck						*
+%	*	Smithsonian Institution					*
+%	*	Astrophysical Observatory				*
+%	*	Cambridge, Massachusetts  02138				*
+%	*	(617)495-7151  (FTS 830-7151)				*
+%	*								*
+%	*	This module may be reproduced				*
+%	*	provided that this header is retained.			*
+%	*								*
+%	*****************************************************************
+
+% Buffer output to screen
+
+0 'O.FLAG VARIABLE
+
+DECIMAL
+%  The following constant sets the buffer length for output to the terminal.
+%  It must be set to a value at least 52 less than the SYSGEN parameter MAXBUF.
+%  The default for O.BUFSIZE is 1000 and DEC's default for MAXBUF is 1056.
+  1000 'O.BUFSIZE CONSTANT
+HEX
+
+0 'O.BUFCUR VARIABLE
+
+.D@ 'O.BUFSTRT CONSTANT
+O.BUFSIZE .D+!
+.D@ 'O.BUFEND CONSTANT
+
+'FLUSH :
+  O.BUFSTRT O.BUFCUR @ OVER - NEZ_IF  % anything there?
+    UNDROP TYPE  % output buffer
+    O.BUFSTRT O.BUFCUR ! ELSE  % reset buffer
+    DROP THEN  % no action
+  ;
+
+'BUFFER_ON :
+  -1 O.FLAG !
+  O.BUFSTRT O.BUFCUR !
+  ;
+
+'BUFFER_OFF :
+  FLUSH O.FLAG 0<-
+  ;
+
+'TYO :
+  O.FLAG @ IF  % is buffering turned on?
+    O.BUFCUR @ O.BUFEND OVER - LEZ_IF  % yes, out of room?
+      DROP FLUSH O.BUFSTRT THEN  % yes, flush
+    DUP 1+ O.BUFCUR ! B! ELSE  % put byte in buffer
+    TYO THEN  % buffering turned off, do normal tyo
+  ;
+
+'CR :
+  D TYO A TYO
+  ;
+
+'SPACE : 20 TYO ;
+'SPACES : GTZ_IF UNDROP ( SPACE ) THEN ;
+
+'OLD_TYPE : TYPE ;
+
+'TYPE :
+  O.FLAG @ IF  % is buffering on?
+    GTZ_IF  % anything there?
+      UNDROP (  % yes, loop through string
+        DUP B@ TYO 1+ ) THEN  % type next byte
+    DROP ELSE
+    TYPE THEN  % buffering off, do normal TYPE
+  ;
+
+'MSG :
+  COUNT TYPE
+  ;
+
+'TYI :
+  O.BUFCUR @ O.BUFSTRT - GEZ
+  O.FLAG @ AND
+  IF %  is there a buffer?
+    O.BUFSTRT O.BUFCUR @ OVER - TYPE_TYI %  yes
+    O.BUFCUR O.BUFSTRT <- %  reset buffer
+  ELSE
+    TYI
+  THEN
+  ;
+
+% TYPE_GETLINE is a special case for buffer handling, since it uses two
+% buffers: the prompt buffer and the input buffer.  The sum of the sizes
+% of the two, plus 16, must be less than the SYSGEN parameter MAXBUF.
+
+'GETLINE :
+  O.BUFCUR @ O.BUFSTRT - GEZ
+  O.FLAG @ AND  % get code for whether there's a buffer or not
+  O.FLAG @ IF  % if buffering, check sum of sizes
+    OVER  % get length of input buffer
+    O.BUFCUR @ O.BUFSTRT -  % get length of prompt buffer
+    + 16 + O.BUFSIZE GE_IF  % is the sum of the buffers too big?
+      FLUSH DROP 0  % if so, flush the output buffer and indicate it's empty
+    THEN
+  THEN
+  IF
+    O.BUFSTRT +ROT O.BUFCUR @ O.BUFSTRT - +ROT
+    TYPE_GETLINE  % yes
+    O.BUFCUR O.BUFSTRT <-  % reset buffer
+  ELSE
+    O.BUFSTRT +ROT 0 +ROT  % stuff the prompt address and count
+    TYPE_GETLINE  % output null string if no buffer
+  THEN
+  ;
+
+;F

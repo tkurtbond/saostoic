@@ -1,0 +1,31 @@
+      1 2  2 1  2 2 -1 1
+EQ   0 0 -1 0
+NE   -1 -1 0 -1
+GT   0 -1 0 0
+LT   -1 0 0 -1
+GE   0 -1 -1 0
+LE   -1 0 -1 -1
+      -1 0 1
+EQZ  0 -1 0
+NEZ  -1 0 -1
+GTZ  0 0 -1
+LTZ  -1 0 0
+GEZ  0 -1 -1
+LEZ  -1 -1 0
+IF   1 0 1 0 1 0
+EQ_IF  0 0 1
+NE_IF  1 1 0
+GT_IF  0 1 0
+LT_IF  1 0 0
+GE_IF  0 1 1
+LE_IF  1 0 1
+EQZ_IF  0 1 0
+NEZ_IF  1 0 1
+GTZ_IF  0 0 1
+LTZ_IF  1 0 0
+GEZ_IF  0 1 1
+LEZ_IF  1 1 0
+UNDROP  2
+DGE  -1 0 -1
+DGE LOW  0 -1
+

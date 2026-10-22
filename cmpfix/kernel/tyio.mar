@@ -1,0 +1,297 @@
+	.title	TYIO: Terminal driver for SAO VAX/VMS STOIC
+;	*****************************************************************
+;	*								*
+;	*	This is a module of SAO VAX/VMS STOIC			*
+;	*								*
+;	*	It was created by					*
+;	*	Roger Hauck						*
+;	*	Smithsonian Institution					*
+;	*	Astrophysical Observatory				*
+;	*	Cambridge, Massachusetts  02138				*
+;	*	(617)495-7151  (FTS 830-7151)				*
+;	*								*
+;	*	This module may be reproduced				*
+;	*	provided that this title page is retained.		*
+;	*								*
+;	*****************************************************************
+
+.macro	newpage	title
+	.page
+	.sbttl	title
+	.endm
+
+	.ident	/01/
+	.enabl	dbg
+	.mcall	$iodef,$trnlog,$assign,$qiow_s
+	$iodef
+	$dcdef
+
+	.macro	descriptor text,?label1,?label2
+	.long	label2-label1
+	.long	label1
+label1:	.ascii	/text/
+label2:
+	.endm
+	.macro	.errstop	?p1
+	blbs	r0,p1
+	pushl	r0
+	calls	#1,g^lib$stop
+p1:
+	.endm
+
+;macro to assemble code to initialize a user table location with
+;an address
+
+.macro	addr_to_ut addr,dest
+	.save			;save current location
+	.psect setup		;go to setup psect
+	moval	l^<addr-dat_end-^x8000>(r11),w^dest(r11)	;do move
+	.restore		;return to where we were
+.endm
+
+;macro to give one block in the data area the address of another
+
+.macro	addr_to_addr addr,dest
+	.save
+	.psect setup
+	moval	l^<addr-dat_end-^x8000>(r11),l^<dest-dat_end-^x8000>(r11)
+	.restore
+.endm
+
+	newpage	<User console driver>
+	.psect	datinit
+
+tyiodata::
+
+	.extrn	sssize
+ttname0:: descriptor <SYS$COMMAND>	;descriptor for terminal name
+ttchan0:: .blkw	1			;receive channel number here
+
+ttiosb:	.blkw	1			;first word of iosb, status
+ttiolen:
+	.blkw	1			;second word, get length
+	.blkl	1			;second longword of iosb
+
+devdesc:				;descriptor
+_nlen:	.long	63			;buffer length
+_naddr:	.long	0			;address of buffer
+_name::	.blkb	63
+
+tyiosize==<.-tyiodata>/^x200+1
+
+.extrn	nlen,naddr,nstore,ttname
+.extrn	_rmstype,_rmstyo,_rmsexh
+
+	.psect	kernel
+;----tyopen: opens console for i/o
+_TYOPEN::
+	movl	#63,nlen(r11)		;initialize the length
+	$trnlog_s lognam=@ttname(r11),rsllen=nlen(r11),rslbuf=nlen(r11)
+	blbc	r0,20$			;if not successful
+	cmpb	@nstore(r11),#^x1b	;does name begin with escape?
+	bneq	10$			;no, skip
+	subl	#4,nlen(r11)		;otherwise, subtract 4 from length
+	addl	#4,naddr(r11)		;add 4 to address
+
+10$:	$assign_s devnam=nlen(r11),chan=ttchan(r11) ;assign channel
+20$:	movl	r0,-(r10)		;completion code
+	rsb
+
+;----OUTINIT: open a terminal channel to SYS$COMMAND, and use it to
+;	find out if the process is interactive or batch.  If
+;	batch, initialize TYPEADDR and TYOADDR with the addresses
+;	of RMSTYPE and RMSTYO (and de-assign the terminal channel);
+;	if interactive, use normal TYPE and TYO.
+outinit::
+	jsb	_tyopen
+	movl	(r10)+,r0
+	.errstop
+	;	(The following code was taken largely from CONTROLC)
+	clrq	-(sp)			;allocate 8-byte buffer & clear it
+	movl	sp,r2			;r2->buffer
+	movl	sp,-(sp)		;-4(r2)-> buffer
+	movl	#8,-(sp)		;-8(r2)<length of buffer
+	clrl	-(sp)			;-c(r2)<returned length, clear it
+	$getchn_s chan=ttchan(r11),-
+		prilen=-12(r2),-
+		pribuf=-08(r2)
+					;ignore error condition
+	cmpb	#DC$_TERM,4(r2)	;is it a terminal?
+	beql	30$		;yes; set up for normal output routines
+	$dassgn_s chan=ttchan(r11)	;no use for the channel; get rid of it
+	moval	_rmstyo,tyoaddr(r11)	;set up RMS TYO
+	moval	_rmstype,typeaddr(r11)	;set up RMS TYPE
+	jsb	_rmsexh			;flush its last line at exit
+	movl	(r10)+,r0
+	.errstop
+	addl2	#^x14,sp		;fix the stack
+	rsb
+30$:	moval	_tyo,tyoaddr(r11)	;set up QIO TYO
+	moval	_type,typeaddr(r11)	;QIO TYPE
+	addl2	#^x14,sp		;fix the stack
+	rsb
+
+;----tyi:  inputs one character from console without echo
+_tyi::
+	clrl	-(r10)				;clear longword to receive byte
+	$qiow_s	chan=ttchan(r11),-
+		func=#io$_readvblk!io$m_noecho!io$m_nofiltr,-
+		iosb=tt_iosb(r11),p1=(r10),p2=#1
+	movl	r0,-(r10)			;condition code
+	rsb
+
+.save
+.psect datinit
+rdterm::	.long ^x10	;use long form of terminator descriptor
+		.long rdt2
+rdt2:		.long -1	;terminate on control characters ...
+		.long 0
+		.long 0
+		.long ^x80000000	;also terminate on escape
+.restore
+
+;----type_getline:  uses QIO to read a line of input
+_type_getline::
+	$qiow_s	chan=ttchan(r11),-	;read with selected terminators
+		func=#<io$_readprompt!io$m_nofiltr!io$m_trmnoecho>,-
+		iosb=tt_iosb(r11),-
+		p1=@4(r10),p2=(r10),p4=#rdterm,-
+		p5=12(r10),p6=8(r10)
+	addl2	#^x10,r10		;pop buffer addresses, lengths
+	movzwl	tt_iosb+2(r11),-(r10)	;get transfer count
+	movl	r0,-(r10)		;push status
+	rsb
+
+_type_tyi::
+	movl	(r10)+,r0	;put length in r0
+	movl	(r10)+,r1	;put prompt address in r1
+	clrl	-(r10)		;clear longword to recieve byte
+	$qiow_s	chan=ttchan(r11),-
+		func=#<io$_readprompt!io$m_noecho!io$m_nofiltr!io$m_noformat>-^X100,-
+		iosb=tt_iosb(r11),p1=(r10),p2=#1,-
+		p5=r1,p6=r0
+; QIOW FUNCTIONS:  <io$_readprompt!io$m_noecho!io$m_nofiltr!io$m_noformat>-100,-
+	movl	r0,-(r10)	;save condition code on stack
+	rsb
+
+_tyo::
+	$qiow_s chan=ttchan(r11),-
+		func=#io$_writevblk!io$m_noformat-
+		iosb=tt_iosb(r11),p1=(r10)+,p2=#1
+	movl	r0,-(r10)
+	jsb	syserr
+	rsb
+
+_type::
+	$qiow_s chan=ttchan(r11),-
+		func=#io$_writevblk!io$m_noformat-
+		iosb=tt_iosb(r11),p1=@(r10)+,p2=(r10)+
+	movl	r0,-(r10)
+	jsb	syserr
+	rsb
+
+_io_ctrl_c::
+	cmpl	tt_iosb(r11),#^x651	; does the code indicate control-C?
+	beql	$20			; if yes, go push -1
+	clrl	-(r10)			; otherwise push 0
+	rsb
+$20:	mnegl	#1,-(r10)
+	rsb
+
+_getmode::
+	$qiow_s chan=ttchan(r11),-
+		func=#io$_sensemode,iosb=tt_iosb(r11),p1=@(r10)+,-
+		p2=#^x0c	;necessary for version 3 of VMS
+	movl	r0,-(r10)
+	rsb
+
+_setmode::
+	$qiow_s chan=ttchan(r11),-
+		func=#io$_setmode,iosb=tt_iosb(r11),-
+		p1=@(r10)+,p2=#^x0c
+	movl	r0,-(r10)
+	rsb
+
+	newpage	<Remote line driver>
+
+.extrn	rminame,rmichan,rmoname,rmochan,rmbuf
+
+;----rmopen: opens remote line for i/o
+_REMSTART::
+
+;  Open Input Channel
+	movl	(r10)+,r0		;address of input name as STOIC string
+	movw	(r0)+,rminame(r11)	;length of name
+	movl	r0,rminame+4(r11)	;address of name
+	movl	(r10)+,r0		;address of output name as STOIC string
+	movw	(r0)+,rmoname(r11)	;length of name
+	movl	r0,rmoname+4(r11)	;address of name
+
+	movl	nstore(r11),naddr(r11)	;fixup descriptor
+	movl	#63,nlen(r11)
+	$trnlog_s lognam=rminame(r11),rsllen=nlen(r11),rslbuf=nlen(r11)
+	blbc	r0,13$			;if not successful
+	cmpb	@nstore(r11),#^x1b	;does name begin with escape?
+	bneq	10$			;no, skip
+	subl	#4,nlen(r11)		;otherwise, subtract 4 from length
+	addl	#4,naddr(r11)		;add 4 to address
+
+10$:	$assign_s devnam=nlen(r11),chan=rmichan(r11) ;assign channel
+	blbs	r0,15$			;if not successful
+13$:	movl	r0,-(r10)
+	rsb
+
+;  Open Output Channel
+
+15$:	movl	nstore(r11),naddr(r11)		;fixup descriptor (defect 9:
+					;it was @nstore, the name's text)
+	movl	#63,nlen(r11)
+	$trnlog_s lognam=rmoname(r11),rsllen=nlen(r11),rslbuf=nlen(r11)
+	blbc	r0,30$			;if not successful
+	cmpb	@nstore(r11),#^x1b	;does name begin with escape?
+	bneq	20$			;no, skip
+	subl	#4,nlen(r11)		;otherwise, subtract 4 from length
+	addl	#4,naddr(r11)		;add 4 to address
+
+20$:	$assign_s devnam=nlen(r11),chan=rmochan(r11) ;assign channel
+	blbc	r0,30$			;if not successful
+
+;  Input listener
+	$qio_s	chan=rmichan(r11),-		;read first char. from remote
+		func=#io$_readvblk!io$m_noecho!io$m_nofiltr,-
+		iosb=rmichan+2(r11),astadr=rmast,astprm=r11,-
+		p1=rmbuf(r11),p2=#1
+30$:	movl	r0,-(r10)		;completion code
+	rsb
+
+;	Defect 9: the AST routine had no comma between its name and mask,
+;	took R11 for granted (now it is the AST parameter), called
+;	LIB$SIGNAL with no argument, and shared TT_IOSB with the main line
+;	(the local write now has no IOSB; the terminal driver has copied the
+;	character before the next read into RMBUF).  It no longer signals:
+;	the condition handler would unwind out of the AST, skipping
+;	$ASTEXIT (as in defect 2).  On an error it stops listening, and
+;	the status is left in RMICHAN's IOSB, at RMICHAN+2.
+	.entry	rmast,^m<r11>		;here on read completion
+	movl	4(ap),r11		;the user table
+	blbc	rmichan+2(r11),30$	;if the read failed, stop
+	$qio_s	chan=ttchan(r11),-		;write one char. to local
+		func=#io$_writevblk!io$m_noformat,-
+		p1=rmbuf(r11),p2=#1
+	$qio_s	chan=rmichan(r11),-		;read next char. from remote
+		func=#io$_readvblk!io$m_noecho!io$m_nofiltr,-
+		iosb=rmichan+2(r11),astadr=rmast,astprm=r11,-
+		p1=rmbuf(r11),p2=#1
+	blbs	r0,30$
+	movw	r0,rmichan+2(r11)	;if it could not be queued, stop
+30$:	ret
+
+;  Type to remote
+_remtype::
+	$qiow_s chan=rmochan(r11),-
+		func=#io$_writevblk!io$m_noformat-
+		iosb=rmochan+2(r11),p1=@(r10)+,p2=(r10)+
+	movl	r0,-(r10)
+	rsb
+
+	.end

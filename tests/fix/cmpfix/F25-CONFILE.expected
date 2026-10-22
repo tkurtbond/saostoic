@@ -1,0 +1,3 @@
+FROM FILE  5
+SECOND     20
+

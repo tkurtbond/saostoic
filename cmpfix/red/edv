@@ -1,0 +1,543 @@
+%	*****************************************************************
+%	*								*
+%	*	This module is a part of the SAO VAX/VMS		*
+%	*	RED full-screen text editor				*
+%	*								*
+%	*	It was created by					*
+%	*	Roger Hauck						*
+%	*	Smithsonian Institution					*
+%	*	Astrophysical Observatory				*
+%	*	Cambridge, Massachusetts  02138				*
+%	*	(617)495-7151  (FTS 830-7151)				*
+%	*								*
+%	*	This module may be reproduced				*
+%	*	provided that this header is retained.			*
+%	*								*
+%	*****************************************************************
+
+%  VT100 Display Module
+
+'BLINK :  % (redefines BLINK to allow for light or dark background)
+  BLINK
+  BACKGROUND @ NOT IF  % dark background?
+  REVERSE THEN
+  ;
+
+'RESET_TERMINAL :
+  RESET_VT100 FLUSH
+  ;
+
+ASSEMBLER<
+
+'2OVER : MOVL B^(P) 8 -(P) ;
+
+>
+
+'SFCR :  % n, string descriptor, SFCR,
+%	descriptor of string passed over to find nth CR
+%	(If there are not n CR's in string, full string descriptor is returned)
+  -ROT NOTE  % save count
+  OVER SWAP  % save string location
+  CRET +ROT  % setup to search for CR
+  RECALL (  % do it n times
+    SBF LTZ_IF  % search, anything left?
+      1- -1 EXIT ELSE  % no, correct position, exit
+      UNDROP THEN )  % yes, continue
+  DROP UNDER  % drop remaining string length & search byte
+  OVER -  % descriptor of string passed over
+  ;
+
+'SRCR :  % n, string descriptor, SRCR,
+%	descriptor of string passed over to find nth CR
+%	(If there are not n CR's in string, full string descriptor is returned)
+  DDUP + NOTE  % save end of string
+  -ROT NOTE  % save loop count
+  CRET +ROT  % setup to search
+  RECALL  % bring forth loop count
+  ( SBB ) 1+  % descriptor of remaining string
+  -ROT DROP  % drop search byte
+  + RECALL OVER -  % string passed over
+  ;
+
+'D.TYPE :
+  (  % loop through string
+      DUP I + B@ E.TYO )  % output next character
+    DROP
+  ;
+
+'D.CR_TYPE :  % outputs line feeds after CR's
+  ( DUP I + B@ DUP 0D EQ_IF ERASE_REST_OF_LINE LFEED TYO THEN E.TYO ) DROP
+  ;
+
+'DRAW_LINE_FROM_CURSOR :
+  FIND_CURSOR S.CUP  % find where cursor should be and put it there
+  ERASE_REST_OF_LINE
+  TOPOBOT @ CRET OVER BOTWINDOW @ SBF DROP 1-  % point to first char. beyond
+  UNDER OVER -  % drop CR, descriptor of rest of line without CR
+  D.TYPE  % draw rest of line
+  S.CUP  % reposition cursor
+  ;
+
+'EXTEND_LINE :  % subset of DRAW_LINE_FROM_CURSOR
+  TOPOBOT @ CRET OVER BOTWINDOW @ SBF DROP 1-  % point to first char. beyond
+  UNDER OVER -  % drop CR, descriptor of rest of line without CR
+  DUP +ROT (  % save count; loop through string
+    DUP I + B@
+    DUP 09 EQ_IF ERASE_REST_OF_LINE THEN E.TYO  % if tab, erase line
+  ) DROP  % get rid of address
+  FIND_CURSOR NEZ_IF S.CUP THEN  % reposition cursor if not already there
+  ;
+
+'DRAW_LINE_WITH_CURSOR :
+  1 SROW @ CUP  % position cursor at beginning of line
+  1 TW_COUNT SRCR  % get beginning of line
+  D.TYPE  % draw beginning of line
+  ERASE_REST_OF_LINE
+  TOPOBOT @ CRET OVER BOTWINDOW @ SBF DROP 1-  % point to first char. beyond
+  UNDER OVER -  % drop CR, descriptor of rest of line without CR
+  D.TYPE  % draw rest of line
+  FIND_CURSOR_COLUMN S.CUP  % find where cursor should be and put it there
+  ;
+
+ASSEMBLER<
+'DISP_IF_EXIT_THEN :  % string descriptor, DISP_IF_EXIT_THEN
+		      % (exit from calling word if DISP_FLAG is set)
+  DISP_FLAG @ NEZ_IF  % is it set?
+    ADDL2 S^ 4 SP  % yes, pop the return stack
+    ADDL2 S^ 8 P THEN  % also drop string descriptor
+  ;
+>
+
+'ADD_LINE_AT_TOP :
+  TOPOWINDOW@ 1- TOPOTOP @ DDUP -  % descriptor of string above new window
+  LEZ_IF  % anything there?
+    2DROP BLANK_LINES 1+! ELSE  % no, increase blank-line count
+    UNDROP CRET +ROT SBB + 1+ DUP TOPOWINDOW!  % new top of window
+    UNDER  % get rid of CR (search byte)
+    SWAP 1+ SWAP
+    DO  % loop: new top of window thru old
+      I B@ E.TYO  % draw next character
+      LOOP THEN
+  ;
+
+'REMOVE_LINE_AT_TOP :
+  BLANK_LINES @ GTZ_IF  % any lines there?
+    UNDROP 1- BLANK_LINES ! ELSE  % no, reduce blank line count
+    1 TOP_WINDOW_STRING SFCR  % yes, search for 1st CR
+    TOPWINDOW -! DROP THEN  % remove 1st line
+  ;
+
+'REMOVE_LINE_AT_BOTTOM :
+  BOTOWINDOW@ 1-  % address of final CR
+  BEGIN  % loop until the preceding one is found
+    1- DUP B@  % decrement pointer and obtain byte
+    0D EQ  % if CR, stop
+  END
+  1+ BOTOWINDOW!  % increment result and store in pointer
+  ;
+
+% NOTE: there's probably a better way to do this ...
+'CR_COUNT :  % string descriptor, CR_COUNT, number of CR's in string
+  0 +ROT ( DUP I + B@ 0D EQ_IF SWAP 1+ SWAP THEN ) DROP
+  ;
+
+'SCROLL_TOP_TO_CURSOR :
+  2 SROW @ SCROLL
+  ;
+
+'SCROLL_CURSOR_TO_TOP :
+  SROW @ 2 SCROLL
+  ;
+
+'WRITE_LINE_FROM_CURSOR :  % (write_line_from_cursor for immediate mode)
+%	(cursor must be positioned first)
+  TOPOBOT D@ DDUP NE_IF  % EOF ?
+    OVER B@ CRET NE_IF  % no, leading CR?
+      SC DO  % no, save cursor, loop through bottom buffer
+        I B@ CRET EQ_IF EXIT ELSE  % stop on CR
+          UNDROP E.TYO THEN
+        LOOP
+      RC ELSE  % restore cursor
+      2DROP THEN ELSE  % leading CR, no action
+    2DROP THEN  % EOF, no action required
+  ;
+
+'ERASE_LINE_FROM_CURSOR :
+  BOPOP IF  % EOF?
+    DUP BOPUSH CRET NE_IF  % no, CR?
+      ERASE_REST_OF_LINE THEN
+    THEN
+  ;
+
+% Logic to insert strings into the buffer (called from the XG command
+% in CLI) -- this is the smart VT100 version that calls for a refresh
+% only if the string is bigger than the window.
+
+'CHECK_INSERT_STRING :  % number of CR's in string, CHECK_INSERT_STRING
+  SROW @ 2- GT_IF  % does entire string fit window?
+    DISP  % if not, bypass display routine by signaling for refresh
+  THEN
+  ;
+
+
+ 'D.M+ :
+   DISP_IF_EXIT_THEN
+   UNDER GTZ_IF  % anything there?
+     UNDROP DUP TOPWINDOW +! BOTWINDOW -!   % adjust window
+     BOTWINDOW @ GEZ_IF   % is cursor within window?
+       FIND_CURSOR  % maybe, where is it
+       WINDOW_SIZE 1+ SROW @ GE_IF  % is cursor beyond window
+         S.CUP ELSE  % no, draw cursor
+         DISP THEN ELSE  % yes, refresh
+       DISP THEN THEN
+   ;
+
+'D.M- :
+  DISP_IF_EXIT_THEN
+  UNDER GTZ_IF  % anything there?
+    UNDROP DUP TOPWINDOW -! BOTWINDOW +!  % adjust window
+    TOPWINDOW @ GEZ_IF  % is cursor within window?
+     FIND_CURSOR  % yes, where is it
+     S.CUP ELSE  % draw cursor
+     DISP THEN THEN
+  ;
+
+'D.D+ :
+  DISP_IF_EXIT_THEN
+  DUP BOTWINDOW -!  % adjust window
+  DDUP CR_COUNT WINDOW_SIZE SROW @ - 1+ GT_IF  % not enough space?
+    2DROP DISP  % if so, refresh window
+  ELSE
+    UNDROP NEZ_IF  % any CR's in string?
+      UNDROP
+      WINDOW_SIZE 1+ SROW @ STBM 1 WINDOW_SIZE 1+ CUP
+      ( 0A TYO ADD_LINE_AT_BOTTOM )
+      2DROP  % remove pointer
+      DRAW_LINE_WITH_CURSOR
+    ELSE 2DROP DRAW_LINE_FROM_CURSOR
+    THEN
+  THEN
+  ;
+
+'DELETE_STRING_TO_CURSOR :
+  UNDROP  % get number of CR's
+  SROW @ 2 STBM 1 2 CUP
+  ( SCROLL_DOWN_1 )
+  2DROP  % get rid of the string pointer
+  DRAW_LINE_WITH_CURSOR  % fix current line
+  S.CUP
+  ;
+
+'D.D- :
+  DISP_IF_EXIT_THEN
+  DUP TOPWINDOW -!  % adjust window
+  DDUP CR_COUNT SROW @ GT_IF  % not enough space?
+    2DROP DISP  % yes, refresh window
+  ELSE
+    UNDROP NEZ_IF
+      DELETE_STRING_TO_CURSOR
+    ELSE 2DROP DRAW_LINE_FROM_CURSOR
+    THEN
+  THEN
+  ;
+
+'D.INSERT_CR :
+  ERASE_LINE_FROM_CURSOR SCROLL_CURSOR_TO_TOP
+  REMOVE_LINE_AT_TOP
+  SCOL 1<- S.CUP
+  WRITE_LINE_FROM_CURSOR
+  ;
+
+'ADD_STRING_AT_CURSOR :  % string desc., ADD_STRING_AT_CURSOR
+  0 +ROT (  % push a CR count and loop through the string
+    DUP I + B@  % classic get-byte operation
+    0D EQ_IF  % is it a carriage return?
+      ERASE_REST_OF_LINE
+      SROW @ 2 STBM  % top of window is scrolling region
+      S.CUP CR REMOVE_LINE_AT_TOP  % push the screen up
+      SWAP 1+ SWAP  % add 1 to the stored CR count
+    ELSE
+      UNDROP  % get the character back
+      DUP 09 EQ_IF ERASE_REST_OF_LINE THEN %  if tab, erase passed bytes
+      E.TYO  % if not carriage return, type it out
+    THEN
+  ) DROP EQZ_IF EXTEND_LINE ELSE DRAW_LINE_FROM_CURSOR THEN
+  ;
+
+'D.I+ :
+  DISP_IF_EXIT_THEN
+  DUP TOPWINDOW +!  % adjust window
+  DDUP CR_COUNT
+  SROW @ 2-  % get number of lines above cursor
+  SWAP LT_IF  % is the insert within the window?
+    2DROP DISP  % if so get rid of everything and signal refresh
+  ELSE
+    ADD_STRING_AT_CURSOR
+  THEN
+  ;
+
+'D.I- :
+  DISP_IF_EXIT_THEN
+  DUP BOTWINDOW +!  % adjust window
+  CRET +ROT SBF UNDER UNDER GEZ_IF
+    DISP ELSE
+    DRAW_LINE_FROM_CURSOR THEN
+  ;
+
+'DRAW_BUFFER# :  % NOTE: this routine is terminal dependent
+  27 1 CUP
+  BUFFER# @ GEZ_IF  % is it a text buffer?
+    UNDROP ASCII X TYO <# # #> TYPE  % yes; output it's number
+  ELSE
+    UNDROP ASCII K TYO 2+ <# # #> TYPE  % else type Kn+2
+  THEN
+  ;
+
+'SET_BUFFER# :
+  DUP BUFFER# ! 10 * X0 + CURBUF !
+  DRAW_BUFFER#
+  ;
+  
+'IDISP :
+  DEFINE_TOP_OF_WINDOW
+  18 TF @ 2* 4+ STBM  % set scrolling region to command window
+  1 2 CUP  % position cursor at beginning of text window
+  BLANK_LINES @  % any blank lines?
+    ( ERASE_REST_OF_LINE LFEED TYO )  % draw blank lines at top
+  TW_COUNT E.TYPE  % fill top of window
+  FILL_BOTTOM_WINDOW
+  S.CUP
+  BLINK_OK 0<-
+  ;
+
+'DISP_FLUSH :
+  DISP_FLAG @ DUP 2 AND NEZ_IF  % tableau refresh required?
+    SETSCREEN THEN  % yes
+  IF  % window refresh required?
+  IDISP THEN  % yes
+  DISP_FLAG 0<-  % reset flag
+  ;
+
+0 'TIME_FLAG VARIABLE  % true means draw cpu time when drawing command
+
+'S.CPU_TIME :  % (draws elapsed cpu time in seconds at end of pane divider)
+  RADIX @ DECIMAL  % push decimal
+  CPUTIM GETJPI 32 + 64 /  % get cpu time rounded to seconds
+  DUP 10 ( 0A / LEZ_IF EXIT ELSE UNDROP THEN ) LAST_I 1+  % count # of digits
+  28 SWAP - WINDOW_SIZE 2+ CUP  % position cursor
+  ASCII { TYO <#> TYPE  % output time
+  RADIX !  % restore radix
+  ;
+
+'SELECT_COMMAND :  % (sets up for command entry)
+  18 WINDOW_SIZE 3 + STBM
+  ;
+
+'DRAW_COMMAND_CURSOR :  % real cursor must be positioned first
+  SC  % save command-cursor position
+  1A TYO  % draw command cursor
+  S.CUP  % restore window cursor
+  ;
+
+'ERASE_COMMAND :  % (clears command pane from display)
+  TIME_FLAG @ IF S.CPU_TIME THEN  % draw cpu time
+  SELECT_COMMAND  % scrolling area is command pane
+  1 TF @ 2 * 4 +  % get row number
+  CUP SC  % cursor to origin of command pane
+  ERASE_REST_OF_SCREEN  % erase command pane
+  ;
+
+'CUT_SRC_MSG :
+  "CUT MODE " MSG
+  SEARCH_DIR @ GEZ_IF "Forward search" ELSE "Backward search" THEN MSG
+  "; end string with LINE FEED, repeat LF to repeat search." MSG CR
+  ;
+
+'DRAW_COMMAND :
+  ERASE_COMMAND  % clear command panel, position cursor
+  18 TF @ 2* 3 + -  % find out how many CR's will be OK
+  CUT_FLAG @ IF "CUT MODE" MSG CR 1- THEN  % if cutting, type message, sub 1
+  KBUF D.COUNT  % anything on command line?
+  SRCR  % don't get more CR's than fit in the command area
+    (  %  loop through
+      DUP I + B@  % get next byte
+      A EQ_IF  % is it a terminator?
+        ASCII ~ TYO ELSE  % yes, echo tilde
+        UNDROP DUP E.TYO  % no, do normal echo
+        CRET EQ_IF LFEED TYO THEN THEN  % if CR, echo LF also
+      )
+    DROP
+  DRAW_COMMAND_CURSOR
+  ;
+
+'D.COM_POS :  % position cursor at end of command
+  RC  % use hardware restore-cursor function
+  ;
+
+'D.COM_DEL :  % delete last character from command line
+  D.COM_POS  % go there
+  DUP CRET EQ_IF
+    DROP -1  % redraw if CR
+  ELSE
+    TAB EQ_IF
+      TAB_MODE @ IF -1 ELSE 0 THEN  % redraw if hard tab
+    ELSE 0 THEN  % just delete it if anything else
+  THEN
+  IF  % do we draw it?
+    DRAW_COMMAND  % no; reset the entire line
+  ELSE
+    8 TYO  % go back one character
+    ERASE_REST_OF_LINE DRAW_COMMAND_CURSOR
+  THEN
+  ;
+
+'D.COM_APPEND :  % append a byte to the command string
+  D.COM_POS  % go there
+  DUP CRET EQ_IF ERASE_REST_OF_SCREEN CR DROP  % is it CR?
+  ELSE
+    DUP TAB EQ_IF ERASE_REST_OF_LINE THEN  % clear cursor if it's a tab
+    E.TYO  % draw it
+  THEN
+  DRAW_COMMAND_CURSOR  % and reposition
+  ;
+
+'DRAW_DIVIDER :  % DRAW_DIVIDER
+%	(draws bar dividing text pane from command pane)
+  1 TF @ 2* 3 + CUP  % position cursor
+  DWL SPACE
+  GRAPHICS "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq" MSG LCASE
+  ;
+
+'BAR : "                                        " MSG ;
+
+'SETSCREEN :
+  ANSI_VT100 APPLICATION_KEYPAD
+  ERASE_SCREEN
+  3 ( 0 TYO )
+  1 1 CUP  % home
+  SPACE SPACE
+  7 SGR SPACE SPACE
+  FILE_NAME COUNT GTZ_IF  % filename?
+    UNDROP TYPE ELSE DROP THEN  % yes, write it
+  BAR DWL 0 SGR
+  DRAW_BUFFER#
+  DRAW_DIVIDER
+  SELECT_COMMAND
+  ;
+
+'ERR.MSG :  % error #, ERR.MSG
+%	(writes message, waits for CR, deletes message)
+  4 TF @ 2* 3 + CUP  % position cursor in bar
+  BLINK 2 / MSG STEADY  % draw the blinking message
+  BEGIN TYI D EQ END  % stall till CR
+  DRAW_DIVIDER  % delete message
+  ;
+
+'CENTER_UP :  % center cursor in window
+  SROW @ TF @ 2+ - GTZ_IF  % do we need to scroll?
+    UNDROP  % preserve count
+    WINDOW_SIZE 1+ DUP 2 STBM  % window becomes scrolling region
+    1 SWAP CUP  %  place cursor at lower left of window
+    ( 0A TYO ADD_LINE_AT_BOTTOM )  % scroll up
+    DEFINE_TOP_OF_WINDOW THEN  % find new TOPOWINDOW
+  ;
+
+'CENTER_DOWN :  % scroll down until cursor in window
+  TF @ 2+ SROW @ - GTZ_IF  % do we need to scroll?
+    UNDROP  % preserve count
+    WINDOW_SIZE 1+ 2 STBM  % window becomes scrolling region
+    1 2 CUP
+    ( SCROLL_DOWN_1 ) % scroll down
+    TF @ 2+ SROW ! S.CUP THEN  % post cursor position
+  FIND_BOTOWINDOW
+  ;
+
+'WRITE_CHR :  % writes out the current character or a space if at end/buffer
+  TOPOBOT @ BOTOBOT @ NE TOPOBOT @ B@ CRET NE AND  % can it be printed?
+  TOPOBOT @ B@ TAB NE AND IF
+    TOPOBOT @ B@ E.TYO  % yes, print out the first one
+  ELSE
+    " " MSG  % no, output a space
+  THEN
+  ;
+
+'BLINK_CHR :  % blinks the character at the cursor (doesn't restore it)
+  S.CUP  % go where the cursor is
+  BLINK  % make the next character blink
+  WRITE_CHR  % output the character
+  S.CUP  % reposition the cursor
+  STEADY  % and restore the printing to normal
+  ;
+
+'TYPEKEY_MSG :
+  BLINK 4 TF @ 2* 3 + CUP "Type a key: " MSG STEADY CR
+  ;
+
+'COND_REPLACE_MSG :
+  BLINK 4 TF @ 2* 3 + CUP "Type a key: " MSG STEADY CR
+  ERASE_COMMAND
+  LFEED TYO
+  "		RETURN or ESC		to replace the string" MSG CR
+  "		LINE FEED		to skip the string" MSG CR
+  "		Space bar		to exit" MSG CR
+  ;
+
+'NUMBER_MSG :
+  BLINK 4 TF @ 2* 3 + CUP "Type a number: " MSG STEADY
+  ;
+
+'SHOW_OPTIONS :  % prints out the 2nd cut options in the command area
+  ERASE_COMMAND
+  1 15 CUP
+  "	RETURN			to replace the previous cut"
+  MSG CR
+  "	A			to append to the previous cut"
+  MSG CR
+  "	Q			to abort this cut" MSG CR
+  4 TF @ 2* 3 + CUP "2nd cut without paste; Type a key:" MSG STEADY
+  ;
+
+'WAIT_FOR_RESET :
+  800 DELAY  % wait for VT100 to reset (about 2 seconds)
+  ;
+
+'E.ERASE_ARG :
+  1E 1 CUP REVERSE 8 SPACES STEADY LFEED TYO  % clear argument, leave wide area
+  ;
+
+'E.SHOW_ARG :
+  RADIX A <-  % set radix to decimal
+  1E 1 CUP  % position cursor to top row
+  REVERSE FLUSH  % get inverse video
+  C.ARG @ <#> DUP NOTE TYPE  % show the number
+  RECALL 8 SWAP - SPACES  % fill extra space with spaces
+  STEADY C.ARG_WRITTEN -1<-
+  RADIX 10 <-  % reset the radix
+  LFEED TYO  % and leave the wide area
+  ;
+
+'E.DRAW_ARG :  % draw the command argument if there's one
+  C.ARG_EXISTS @ IF  % is there an argument?
+    E.SHOW_ARG
+  ELSE
+    C.ARG_WRITTEN @ IF
+      E.ERASE_ARG C.ARG_WRITTEN 0<-
+    THEN
+  THEN
+  ;
+
+'E.SET_CHARS :  % get terminal modes, save, set the necessary ones for RED
+  OLD_T_ARRAY GETMODE  % get mode into 8-byte array
+  OLD_T_ARRAY 0C NEW_T_ARRAY MOVE_BYTES  % remember the original settings
+  NEW_T_ARRAY 4+ DUP @ 200 NOT AND <-  % clear TT$M_WRAP
+  NEW_T_ARRAY 1+ 0 B<-  % set type to "UNKNOWN"
+  NEW_T_ARRAY 4+ DUP @ 10 OR 100 OR 1000 OR <-  % set HOSTSYNC, MECHTAB, SCOPE
+  NEW_T_ARRAY 8 + DUP @ 01000000 NOT AND <-  % clear ANSI_CRT
+  NEW_T_ARRAY SETMODE  %  put the new characteristics into effect
+  ;
+
+'E.RESET_CHARS :
+  OLD_T_ARRAY SETMODE
+  ;
+
+;F

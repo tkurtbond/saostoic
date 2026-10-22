@@ -1,0 +1,23 @@
+W2  77
+W1  24
+W3  9B
+W2		 D=15615, C=3FDF0(8)
+W1		 D=15627, C=3FDF8(46)
+W3		 D=15639, C=3FE3E(C)
+W4  BF
+W4		 D=1564B, C=6FF00(E)
+CP 6FF0E
+W8  17E
+CP 6FF0E
+Code space full.
+'W9 : 1 2 + 3 4 + 5 6 + 7 8 + + + + ;
+;
+No word found at 0
+:		 D=1095D, C=31924(40)
+No word found at 40140C
+No word found at 313A4
+W9
+W5  136
+W5		 D=1565D, C=36204(E)
+AFTER
+

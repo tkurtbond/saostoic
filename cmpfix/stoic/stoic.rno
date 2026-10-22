@@ -1,0 +1,2048 @@
+.c
+^&STOIC\&
+.c
+^&(STACK ORIENTED INTERACTIVE COMPILER)\&
+.s 2
+.c
+SAO VAX/VMS version implemented by
+.c
+Roger Hauck
+.c
+Smithsonian Institution
+.c
+Astrophysical Observatory
+.c
+Cambridge, Massachusetts
+.c
+June, 1980
+.s 3
+.p
+STOIC is a general purpose interactive program
+which incorporates the capabilities of a compiler,
+assembler, debugger, loader, and operating system within
+a single consistent architecture.  It is core-efficient
+while retaining high running speeds.  In addition, the
+language is extremely flexible, permitting the user to
+develop a working vocabulary of subroutines tailored to
+his specific application.
+.p
+The single most prominent feature of STOIC is its
+principal data structure, called the dictionary.  The
+dictionary is an ordered list of entries called words.
+Associated with the dictionary entry for each word is a
+name; a legal name for a word is any string of up to 255
+ASCII characters.  Punctuation, numerics, and most other
+special characters may be freely used within a name.
+Illegal characters within a name are:
+.nf
+ 
+        SPACE
+        TAB
+        CARRIAGE RETURN
+        FORM FEED
+        LINE FEED
+        RUBOUT
+        NULL
+.f
+.p
+A literal is a sequence of characters which describes
+a constant.  The basic STOIC supports two types of literal;
+32-bit integer and string.  The language may be extended to
+include other data types such as floating point or double
+precision integer.  NOTE: floating point literals (double-precision
+or "D"-floating) have now been implemented on the VAX version.
+.p
+An integer literal is a sequence of digits
+optionally preceded by a plus or minus sign.  All digits
+must be less than the current radix.  No spaces may be
+embedded within the literal.  Integer literals must be in
+the range of -2,147,483,654 to 2,147,483,653.
+^&Although the default radix is 16 (hexadecimal);
+to avoid confusion, the examples presented in this manual
+use a default radix of 10 (decimal).\&
+.nf
+ 
+EXAMPLES:
+ 
+ 
+-1234   is a legal literal
++-100   is not a legal literal
+-AFC0   is a legal literal if radix is hexadecimal
+ 
+.f
+.p
+String literals may take one of two forms:
+.nf
+ 
+1) A string enclosed in double quotes:
+ 
+ "STRING"
+ 
+2) A string preceded by single quote and terminated by space or tab:
+ 
+ 'STRING
+ 
+.f
+In either of the above types of string literal, the end of the
+line (return or form feed) may serve as a terminator.
+ 
+.nf
+EXAMPLES:
+.lm 8
+ 
+"THIS IS A STRING LITERAL"
+'&177&&15&
+.f
+.lm 0
+.p
+STOIC syntax is quite simple.  A legal command
+line consists of a sequence of literals and/or names of words
+separated by spaces or tabs, and terminated by carriage
+return.
+.p
+Programming in STOIC consists primarily of
+defining a set of new words based on words which have
+already been defined.  An initial vocabulary of about one
+hundred words called the KERNEL enables the user to get
+started.
+.p
+The principal vehicle for communication between
+words is the parameter stack, frequently called "THE
+STACK".   Typically, the parameters upon which a word will
+operate are pushed on the stack, the word pops its
+parameters from the stack and pushes its results on the
+stack.  Communication through variables in fixed
+locations is also used.
+.p
+STOIC uses reverse-polish notation for all
+operations.  This means that all operands precede their
+operators;  parentheses are never necessary.
+.nf
+ 
+ 
+ 
+ 
+ 
+ 
+EXAMPLES:
+ 
+1 1 + 2 *   in algebraic notation is   (1+1)*2
+1 2 3 * -   in algebraic notation is   1-(2*3)
+.f
+.p
+Unlike most other higher-level languages, STOIC
+enables the user to manipulate addresses as well as data.
+it is very important however for the user to remain aware
+of the distinction between an address and its contents.
+.p
+There are three common types of words which push
+numbers on the stack; literals, constants, and variables.
+a reference to a literal or a constant causes its value
+to be pushed on the stack.  A reference to a variable
+causes its address to be pushed on the stack.  The three
+operators "@", "!" and "<-" are used to obtain and modify the
+value of a variable.  They are defined as follows:
+.s
+.lm 16
+.i -8
+@#######Replace the address on the top of the
+stack by the contents of that address.
+this word is used to load the contents
+of a memory location onto the stack.
+.s
+.i -8
+!#######Store at the address on the top of the
+stack the number next to top of the
+stack.  Both numbers are removed from
+the stack.
+.s
+.i -8
+<-######Store the number on the top of the
+stack at the address next to top of the
+stack.  Both numbers are removed from
+the stack.
+.lm 0
+.s 2
+EXAMPLES:
+ 
+.b
+In the following examples, X, Y, and Z are variables,
+while A, B, and C are constants.
+.s
+.lm 16
+.i -16
+100 X !#########set value of X to 100.
+.s
+.i -16
+X 100 <-########set value of X to 100.
+.s
+.i -16
+X 100 !#########store the address of X in location 100
+(under normal circumstances, this would
+result in a memory-access violation).
+.s
+.i -16
+X @ Y !#########set the value of Y to the value of X
+.s
+.i -16
+X Y !###########set the value of Y to the address of X
+.s
+.i -16
+X @ Y @ + Z !###add the values of X and Y and store the
+result in Z.
+.s
+.i -16
+X A + Y !#######store (address of X)+A in Y.
+.s
+.i -16
+X A B + + @ Y !#set value of Y to the contents of
+location X+A+B.
+.page
+.hl1 OPERATORS
+.lm 0
+.p
+STOIC provides the user with an unusually large
+number of fixed-point operators from which the following
+more common examples have been extracted.  Unless otherwise
+specified, all numbers are 32-bit integers.
+.hl2 Unary Operators
+.p
+The following operators replace the top of the stack
+with their result.  The number on the top of the
+stack is called "A".
+.nf
+ 
+        MINUS   -A
+ 
+        ABS     Absolute value of A
+ 
+        NOT     Logical complement of A
+ 
+        2*      A*2
+ 
+	4*	A*4
+       
+        2/      A/2
+ 
+	4/	A/4
+ 
+        1+      A+1
+ 
+	2+	A+2
+ 
+	4+	A+4
+ 
+        1-      A-1
+ 
+	2-	A-2
+ 
+	4-	A-4
+ 
+        EQZ     -1 if A equal to 0
+                 0 otherwise
+ 
+        NEZ     -1 if A not equal to 0
+                 0 otherwise
+ 
+        LTZ     -1 if A less than 0
+                 0 otherwise
+ 
+        LEZ     -1 if A less or equal to 0
+                 0 otherwise
+ 
+        GEZ     -1 if A greater or equal to 0
+                 0 otherwise
+ 
+        GTZ     -1 if A greater than 0
+                 0 otherwise
+ 
+.hl2 Binary Operators
+.f
+.p
+The following operators replace the top two numbers on
+the stack with their result.  The number on the top of
+the stack is called "A", the next to top is called "B".
+.nf
+ 
+        +       B+A
+ 
+        -       B-A
+ 
+        *       B*A
+ 
+        /       B/A
+ 
+        MAX     maximum (B,A) (signed)
+ 
+        MIN     minimum (B,A) (SIGNED)
+ 
+	MOD	remainder of B/A
+ 
+        AND     logical AND of B,A
+ 
+        OR      logical OR of B,A
+ 
+        XOR     logical EXCLUSIVE OR of B,A
+ 
+        EQ      -1 if B equal to A
+                 0 otherwise
+ 
+        NE      -1 if B not equal to A
+                 0 otherwise
+ 
+        LT      -1 if B less than a
+                 0 otherwise
+ 
+        LE      -1 if B less or equal to A
+                 0 otherwise
+ 
+        GE      -1 if B greater or equal to A
+                 0 otherwise
+ 
+        GT      -1 if B greater than A
+                 0 otherwise
+.f
+.hl2 Stack Order Operators
+.p
+A number of operators are also provided whose
+sole function is to reorganize the elements of the stack:
+.nf
+ 
+                STACK   STACK
+        NAME    BEFORE  AFTER   DESCRIPTION
+ 
+        DUP     A       A       duplicates top of stack
+                        A
+ 
+        OVER    A       B       duplicates top - 1
+                B       A
+                        B
+ 
+        2OVER   A       C       duplicates top - 2
+                B       A
+                C       B
+                        C
+ 
+        3OVER   A       D       duplicates top - 3
+                B       A
+                C       B
+                D       C
+                        D
+ 
+        UNDER   A       A       stores top at top - 1
+                B
+ 
+        2UNDER  A       B       stores top at top - 2
+                B       A
+                C
+ 
+        3UNDER  A       B       stores top at top - 3
+                B       C
+                C       A
+                D
+ 
+        DROP    A       B       discards top
+                B
+ 
+        2DROP   A       C       discards top 2 stack entries
+                B
+                C
+ 
+        3DROP   A       D       discards top 3 stack entries
+                B
+                C
+                D
+ 
+	UNDROP	A	X	restores a stack entry;
+			A	usable after EQ__IF or
+				EQZ__IF--see "CONDITIONALS"
+ 
+	2UNDROP	A	Y	restores two stack entries
+			X	as "UNDROP", above
+			A
+ 
+        SWAP    A       B       exchanges top and top - 1
+                B       A
+ 
+        2SWAP   A       A       exchanges top - 1 and
+                B       C       top - 2
+                C       B
+ 
+        FLIP    A       C       exchanges top and top - 2
+                B       B
+                C       A
+ 
+        +ROT    A       B       roll top 3 stack entries up
+                B       C
+                C       A
+ 
+        -ROT    A       C       roll top 3 stack entries
+                B       A       down
+                C       B
+ 
+        DDUP    A       A       duplicate the top 2 stack
+                B       B       entries
+                        A
+                        B
+ 
+.f
+.lm 0
+.hl3 [ and ]
+.p
+The words [ and ] (square brackets) are special stack
+manipulation words used to count parameters.  When a ]
+is found, the number of words on the stack after the
+last occurrence of [ is pushed onto the top of the
+stack.
+.s
+.lm 8
+.i -8
+EXAMPLE:
+.s
+0> [ 2 3 4 ] = = = =
+.b
+3 4 3 2
+.s
+NOTE:  Since [ and ] use the loop stack (see appendix A),
+the ] must occur at the same level of nesting as the [
+it corresponds to.
+.lm 0
+.s
+.hl2 I/O Words
+.lm 16
+.i -16
+"N" is the number on the top of the stack.
+.s
+.i -8
+COLUMN##Variable containing the current column number.
+NOTE: "COLUMN" is not yet implemented in
+VAX STOIC.
+.s
+.i -8
+TYO#####Output the ASCII character in the rightmost
+8 bits of N.  Column is incremented unless the
+character output is a return in which case it
+is zeroed.
+.s
+.i -8
+CR######Output a return followed by a line feed.
+column is zeroed.
+.s
+.i -8
+IFCR####Outputs a return, line feed if column is non-zero.
+NOTE:  "IFCR" is currently not implemented in VAX STOIC.
+.s
+.i -8
+SPACE###Output a space.
+.s
+.i -8
+SPACES##Output N spaces.
+.s
+.i -8
+TAB#####Tab to column N.  If already at or beyond column
+N, nothing is output.  NOTE:  "TAB" is not yet implemented in VAX STOIC.
+.s
+.i -8
+TYI#####Input a character.  The ASCII value of the character is placed
+in N.
+.s
+.i -8
+=#######Output N in the current radix followed by space.
+.s
+.i -8
+?#######Output the contents of the location
+addressed by N followed by space.
+.s
+.i -8
+TYPE####Output N characters starting at byte
+pointer at top - 1.
+.i -16
+.hl2 Words Which Change The Current Radix
+.i -8
+OCTAL###Set current radix to OCTAL
+.s
+.i -8
+DECIMAL#Set current radix to DECIMAL
+.s
+.i -8
+HEX#####Set current radix to HEXADECIMAL
+.lm 0
+.hl2 Words Used To Reference Memory Locations
+A represents the top of the stack, B represents
+the next to top.
+.s
+.lm 16
+.i -8
+0<-#####store 0 at location A
+.s
+.i -8
+-1<-####store -1 at location A
+.s
+.i -8
++!######add B to the contents of location A
+.s
+.i -8
+1+!#####increment location A
+.s
+.i -8
+1-!#####decrement location A
+.s
+.i -8
+MOVE####copy the contents of the location addressed
+by B to the location addressed by A.
+.s
+.lm 15
+.i -8
+EXCHANGE#exchange the contents of locations A and B.
+.s
+.lm 16
+.i -8
+MVBYTES#copies bytes sequentially from one area to another.  The
+byte count is at top, source byte address at top - 2,
+destination byte address at top - 1.
+.nf
+.lm 0
+.s
+EXAMPLES:
+.s
+.lm8
+0> 1 MINUS =
+-1
+.s
+0> -1 ABS =
+1
+.s
+0> -1 EQZ =
+0
+.s
+0> 0 EQZ =
+-1
+.s
+0> 1 1 + =
+2
+.s
+0> 1 1 1 + + =
+3
+.s
+0> 1 2 3 = = =
+3 2 1
+.s
+0> 1 2 SWAP = =
+1 2
+.s
+0> 1 2 DUP = = =
+2 2 1
+.s
+0> 1 2 1 - EQ =
+-1
+.s
+0> 100 X ! X ?
+100
+.s
+0> -1 5 MAX =
+.b
+5
+.s
+0> -1 5 MIN =
+.b
+-1
+.f
+.s
+.lm 0
+.hl2 Words Used To Move Bytes
+.s
+The words used to move single bytes are:
+.s
+1B!#####-1B!#####0B!#####B!######B<-#####B@######
+.s
+.p
+These words perform like their longword-moving
+counterparts, but they reference 8-bit bytes rather than
+full longwords.
+.page
+.lm 8
+.hl1 COLON DEFINITIONS
+.lm 0
+.f
+.p
+STOIC provides the capability of defining a new
+word in terms of previously defined words by means of
+the colon definition.  Its syntax is as follows:
+.nf
+.s
+'NEWWORD : WORD1 WORD2 ... WORDN ;
+.f
+.p
+This creates a new dictionary entry called NEWWORD
+which, when executed, will in turn execute WORD1, WORD2,
+ ..., WORDN.
+Each of the WORDs WORD1, WORD2, ... must already exist
+as entries in the dictionary.  If not, a fatal error
+message will be generated.
+For example, if in the above example, WORD2
+is not yet defined when NEWWORD is defined,
+the fatal error message will be
+.s
+.nf
+WORD2
+undefined, compiling... WORD 2 ...in line
+'NEWWORD : WORD1 WORD2 ... WORDN ;
+.f
+.p
+A word may be redefined at any time.  In this
+case, all prior definitions which referenced that word
+will still execute the old version.  All subsequent
+definitions however will execute the most recently
+defined version.
+.s
+EXAMPLES:
+.s
+.lm8
+'AVERAGE : + 2/ ;
+.s
+This defines the word average which computes
+The average of the top 2 numbers on the stack.
+.s
+        0> 2 4 AVERAGE =
+.br
+        3
+.s
+'SPACE : 32 TYO ;
+.s
+.lm 0
+This defines the word "SPACE" which types a space.
+(The ASCII code for space is 32 decimal).
+.P
+If the name of a word being redefined appears
+within the new definition, its old meaning will be used.
+The procedure for making recursive calls is described
+below under "RECURSION".
+.lm 8
+.page
+.hl1 CONDITIONALS
+.lm 0
+.hl2 IF ... ELSE ... THEN
+.p
+STOIC has a powerful IF ... ELSE ... THEN construction
+which allows complicated logical tests to be performed.
+Conditionals may be nested subject to the normal 
+restrictions on overlapping ranges, i.e. any conditional
+which is initiated within the range of another conditional
+must be terminated within that same range.  For the
+purposes of the conditional, "TRUE" is considered
+to be any odd value; "FALSE" is any even value.
+.s
+.lm 8
+.i -8
+N IF T1 T2 ... TN THEN
+.s
+The top of the stack, "N" is tested.
+.s
+If true (odd) the words T1, T2, ... TN are
+executed.
+.s
+If false (even) control passes to the word
+following "THEN".
+.s
+.i -8
+N IF T1 T2 ... TN ELSE F1 F2 ... FN THEN
+.s
+The top of the stack, "N" is tested.
+.s
+If true (odd) the words T1, T2, ... TN
+are executed; control then passes to the word
+following "THEN".
+.s
+If false (even) control passes to the word
+following "ELSE".  The words F1, F2, ... FN are
+executed.
+.s
+.lm 0
+NOTE: Since byte relative jumps are used to save space in
+the compiled code, no more than 128 bytes can
+be used inside any "IF" conditional or in any loop.
+Using more will invoke the error message "Byte
+Displacement Overflow".  If more space is necessary,
+a new word should be defined for the contents of the
+conditional or loop.
+.s
+.lm 8
+.i -8
+EXAMPLES:
+.s
+'ABS : DUP LTZ IF MINUS THEN ;
+.s
+This defines the word "ABS" which replaces the
+top of the stack with its absolute value.
+.s
+'MAX : DDUP GT IF DROP ELSE UNDER THEN ;
+.s
+This defines the word "MAX" which compares the
+top two stack entries and leaves the larger of
+the two.
+.s
+.lm 0
+.hl2 EQ__IF, EQZ__IF, and UNDROP
+.p
+The words EQ__IF and EQZ__IF combine the functions
+of a test and a conditional.  However, the values
+that are popped off the stack for the call are
+stored, and can be retrieved by using the word
+UNDROP directly after the EQ__IF, EQZ__IF, or
+ELSE associated with either of these.
+.p
+The words "NE__IF", "GT__IF", "LE__IF", "GE__IF",
+"LT__IF", "NEZ__IF", "GTZ__IF", "LEZ__IF", "GEZ__IF",
+and "LTZ__IF" can be used the same way; combining
+their respective tests and the conditional "IF".
+.page
+.lm 8
+.hl1 ITERATION
+.p
+.lm 0
+STOIC provides five means for iterative
+execution of a sequence of words, namely:
+.lm 8
+.s
+.i -8
+N ( ... )
+.s
+Execute the words included in parentheses N times.
+.s
+.i -8
+BEGIN ... END
+.s
+Execute words between "BEGIN" and "END" until a condition
+is satisfied.
+.s
+.i -8
+BEGIN ... IF ... REPEAT
+.s
+Execute words between "BEGIN" and "IF".
+If the condition is met, execute the words
+between "IF" and "REPEAT", then loop back to begin.
+If the condition is not met, exit, skipping the words
+between "IF" and "REPEAT".
+.s
+.i -8
+DO ... LOOP
+.s
+Execute the words between "DO" and "LOOP", running
+index from a lower to an upper limit, incrementing
+by 1 each time.
+.s
+.i -8
+DO ... N +LOOP
+.s
+Execute the words between "DO" and "+LOOP", running
+an index from a lower to an upper limit, incrementing
+by N each time.
+.s
+.lm 0
+.hl2 ( ... )
+.p
+A sequence of words may be executed repetitively
+using the following syntax:
+.s
+N ( WORD1 WORD2 ... WORDN )
+.s
+.p
+This causes the sequence WORD1, WORD2, ... to be
+executed N times where N is the number on the top of the
+stack.  If N is zero or negative, the sequence of words
+is not executed at all and control passes to the word
+following the ")".
+.s
+EXAMPLES:
+.s
+.lm 8
+'DINGDING : 2 ( DING ) ;
+.s
+This definition is functionally equivalent to:
+.s
+'DINGDING : DING DING ;
+.s
+In either case, executing "DINGDING" causes the
+word "DING" to be executed twice.
+.s
+'SPACES : ( SPACE ) ;
+.s
+This is a definition of the word "SPACES".
+thus "20 SPACES" CAUSES "SPACE" to be executed
+20 times.
+.lm 0
+.hl2 BEGIN ... END
+.p
+The BEGIN ... END syntax permits the user to execute
+a sequence of words and then, depending on a computed
+logical variable, either loop back or continue on:
+.s
+BEGIN WORD1 WORD2 ... WORDN END
+.p
+The sequence WORD1, WORD2, ... is executed once.
+when the "END" is reached, the top of the stack is
+popped and  tested.  If it is true (odd) then
+control passes to the word following "END".  If it is
+false (even) control passes back to the word following
+"BEGIN".
+.s
+.lm 8
+.i -8
+EXAMPLE:
+.s
+ 
+'EXAMPLE : BEGIN 1- DUP DUP = EQZ END DROP ;
+.s
+This defines the word "EXAMPLE" which might be
+called as follows:
+.s
+.lm 8
+0> 5 EXAMPLE
+.br
+4 3 2 1 0
+.s
+Each time through the loop, the top of the stack
+(initially the number 5) is decremented, printed,
+and compared to zero.  If it is not zero, the
+loop is repeated,  when it becomes zero, the loop
+terminates.
+.lm 0
+.hl2 BEGIN ... IF ... REPEAT
+.p
+        BEGIN ... IF ... REPEAT is similar to BEGIN ...
+END except that the test is made in the middle of the
+loop rather than at the end.  The words from "BEGIN" to
+"IF" are executed.  If the top of the stack is true
+(odd) the words between "IF" and "REPEAT" are
+executed and control then passes back to the word
+following "BEGIN".  If the top of the stack is false
+(even), control passes to the word following "REPEAT".
+.s
+EXAMPLE:
+.s
+.lm8
+0> BEGIN EOF NOT IF READ__RECORD REPEAT
+.s
+This example might be used to read the contents
+of a file.  "EOF" returns a -1 if end of file
+has been encountered; a 0 otherwise.  "READ__RECORD"
+reads the next entry in the file.  By testing
+for eof at the beginning of the loop, the
+case of a zero-length file is properly
+handled.
+.s
+.lm 0
+.hl2 DO loops
+.p
+A do loop facility is provided by STOIC for
+indexing through a sequence of words.  There are two
+forms of do loop:
+.s
+HIGH LOW DO WORD1 WORD2 ... WORDN LOOP
+.s
+HIGH LOW DO WORD1 WORD2 ... WORDN INCR +LOOP
+.p
+The limits "HIGH" and "LOW" (the top two stack
+entries) are compared.  If "HIGH" is less than or equal to
+"LOW", control passes to the word following "LOOP" or
+"+LOOP".  Otherwise, the sequence WORD1, WORD2, ... is
+executed.  "LOOP" causes the lower limit ("LOW") to be
+incremented by 1 and compared to the upper limit ("HIGH").
+if "LOW" is equal to or greater than "HIGH", the loop is
+terminated.  Otherwise another iteration is performed.
+"+LOOP" is identical to "LOOP" with the exception that
+"LOW" is incremented by the word on the top of the stack
+("INCR").  "INCR" is normally a positive number.
+.p
+Within the range of the loop, the current value
+of the loop index is available by using the word "I".
+if do loops are nested, "I" always contains the value
+of the innermost index.  The next outer indices are
+available using the words "J" and "K".  The word "I'"
+is used to obtain the value of "HIGH"+"LOW"-I-1.  This is
+used to run an index backwards from "HIGH"-1 to "LOW".
+the words "J'" and "K'" are similarly defined.  When
+parentheses are nested with "DO" loops, they count as
+one level of indexing.  "I" used within the range
+of a parenthesis iteration will return the current value
+of the iteration count (which runs from its initial value
+downwards to one).
+.s
+.p
+The word "EXIT", causes the innermost loop in
+which it is embedded to unconditionally terminate on the
+next cycle, whether a do loop or a parenthesis loop.
+.p
+The word "LAST__I", if executed immediately after leaving
+a loop, will push onto the stack the value of "I" at the
+time the word "EXIT" was executed.
+If the word "EXIT" was never executed, LAST__I will push
+the value of "HIGH".
+.s
+EXAMPLES:
+.s
+.lm8
+0>5 0 DO I = LOOP
+.b
+ 1 2 3 4
+.s
+0> 4 0 DO 4 0 DO J 4 * I + = LOOP CR LOOP
+.b
+ 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
+.s
+0> 5 0 DO I' = LOOP
+.b
+4 3 2 1 0
+.s
+0>0 21 1 DO I + DUP = 2 +LOOP DROP
+.b
+1 4 9 25 36 49 64 81 100
+.s
+.lm 0
+.p
+When using "I'" (or "J'" or "K'") in conjunction with
+"+LOOP", "HIGH" should be replaced by "HIGH"-"INCR"+1, if it
+is desired to produce the same set of indices as with "I".
+.s
+EXAMPLES:
+.lm 8
+.s
+0> 24 0 DO I = 4 +LOOP
+.br
+0 4 8 12 16 20
+.s
+0> 24 0 DO I' = 4 +LOOP
+.br
+23 19 15 11 7 3
+.s
+0> 24 4 - 1 + 0 DO I' = 4 +LOOP
+.br
+20 16 12 8 4 0
+.s
+Iterations may be nested subject to the same restrictions
+under which conditionals may be nested.
+.page
+.hl1 RECURSION
+.lm 0
+.p
+Since STOIC is a stack oriented language,
+recursion is handled quite easily.  The word "EXEC"
+takes as an argument on the stack the address of a word
+to be executed and calls it.  By placing the address of
+the calling routine itself on the stack, a recursive
+call is generated.
+.s
+EXAMPLE:
+.s
+.lm8
+.nf
+0 'SELF VARIABLE
+'FACTORIAL : DUP 1 NE IF DUP 1- SELF @ EXEC * THEN ;
+() FACTORIAL SELF !
+.s
+.f
+This defines a recursive factorial routine.
+.s 2
+.page
+.hl1 USING STOIC FROM THE KEYBOARD
+.lm 0
+.p
+When typing in a command from the keyboard,
+the rubout key may be used to delete the last character;
+typing a CTRL-U deletes the entire command line.
+.p
+When activated, STOIC types a prompt message
+consisting of the current nesting depth (see below)
+followed by ">#" to indicate that it is awaiting keyboard
+input.  At this point the operator types in a command line.
+as soon as RETURN is typed, STOIC compiles
+the command line and, in the absence of compilation errors,
+executes it.  Upon completion of command execution, the
+compiled code from the last command is discarded and STOIC
+again types its prompt message and waits for the next command
+line.
+.s 1
+.hl2 Comments
+.lm 0
+.p
+The word "%" appearing on a line causes all text up to
+and including a second appearance of the word "%"
+to be ignored.
+If there is no second occurence of the word "%", the
+remainder of that line will be ignored.  Note that the "%",
+to be recognized as a word, must be preceded and followed
+by space or tab.
+.s
+.lm 8
+.i -8
+EXAMPLES:
+.s
+X @ Y !         % this is a comment
+.br
+X @ % this is a comment % 
+.lm 0
+.s 2
+.hl2 Nesting Depth and Continuation Lines
+.p
+STOIC maintains a nesting depth which is used
+for syntax checking and to determine when a multi-line
+command has been completed and is ready to execute.
+initially, the nesting depth is set to zero; it is incremented
+whenever any of the following words are encountered during
+compilation:
+.s
+.lm 8
+IF      ELSE    (      BEGIN   DO      :
+.lm 0
+.s
+The nesting depth is decremented by the following words:
+.s
+.lm 8
+THEN    ELSE    )       END     LOOP    +LOOP   ;
+.lm 0
+.br
+REPEAT (decrements nesting depth by 2)
+.s
+.p
+If the nesting depth ever becomes negative, the fatal
+error "SYNTAX ERROR" is given.  A "SYNTAX ERROR" is also
+generated if the nesting depth is non-zero either at the
+beginning or at the end of a colon definition.
+.p
+After compiling a line, STOIC checks the nesting
+depth; if it is zero, the line is executed, if non-zero,
+it continues compilation on the next line.  For example:
+.s
+.nf
+.lm 8
+0> 3 0 DO
+1> 2 0 DO
+2> I =
+2> LOOP
+1> CR
+1> LOOP
+0 1
+0 1
+0 1
+0>
+.s
+.f
+.lm 0
+.p
+Thus, the execution of the do loop is automatically
+postponed until the nesting depth returns to zero,
+i.e. when the "LOOP" matching the first "DO" is encountered.
+similarly, a multi-line colon definition is extended to
+include all words up to the matching ";".
+.p
+Execution of compiled code may be postponed
+even if the nesting depth is zero by using the word
+"_^".  If "_^" is used anywhere on a line, compilation
+will unconditionally continue on to the next line.
+this feature may be used as follows:
+.s
+.nf
+.lm 8
+0> 5 0 DO I = LOOP _^
+0> 5 0 DO I = LOOP
+0 1 2 3 4 0 1 2 3 4
+0>
+.f
+.lm 0
+.p
+A more reasonable application of "_^" involves
+the use of string literals.  Since compiled code outside
+of a colon definition is discarded after execution,
+string literals typed in on one line are not accesible to
+subsequent lines unless "_^" is used to force the
+compiled string literal to be saved.  For example:
+.s
+.lm 8
+.nf
+0> "THIS IS A LONG MESSAGE WHICH USES THE ENTIRE LINE." _^
+0> MSG
+THIS IS A LONG MESSAGE WHICH USES THE ENTIRE LINE.
+0>
+.f
+.p
+.lm 0
+NOTE: The "_^" feature described in the preceding paragraphs
+has not yet been implemented in VMS STOIC.
+.hl2 Repeating The Last Command Line
+.p
+Typing a line feed causes STOIC to recompile and re-execute
+the last command line executed. NOTE: The LINE FEED word
+is not yet implemented in VMS STOIC.
+.s
+EXAMPLES:
+.s
+.nf
+.lm 8
+0> 2 2 + =
+4
+.S
+0>              (line feed typed)
+4
+.S
+0>              (line feed typed)
+4
+.s
+.lm0
+.f 
+.hl2 Error Handling
+.p
+The following words are used to handle fatal
+errors in STOIC:
+.s
+.lm 16
+.i -8
+ABORT###clears the parameter, return, and loop
+stacks, resets the nesting depth to zero,
+and forces control to return to the
+keyboard.  "ABORT" is invoked by CTRL-C.
+.s
+.i -8
+ERR#####Types the string at the top of the stack
+followed by the name of the word last
+scanned from the input stream, and, if
+input is not coming from the keyboard,
+the line last compiled from the input file.
+"ABORT" is then invoked to reset STOIC.
+.s
+.i -8
+WHERE###Types the address of the word named
+by the string on top of the stack.
+.s
+.i -8
+WHAT####Types the name of the last word whose address
+is at or before the address on the top of the stack.
+.s
+.p
+Also, the word ERROR__TRACE types all words entered, in
+reverse order.
+.s
+.lm 8
+.page
+.hl1 DEFINING CONSTANTS, VARIABLES, AND ARRAYS
+.lm 0
+.s
+.hl2 Constants
+.p
+A constant is a dictionary entry which causes a
+32-bit integer to be pushed on the parameter stack.  To
+define a constant, the word "CONSTANT" is used:
+.s
+.i 8
+VALUE 'NAME CONSTANT
+.p
+Here, "VALUE" is the number on the top of the
+stack and "NAME" is the name to be assigned to the
+constant.
+.s
+EXAMPLE:
+.s
+5 'NPTS CONSTANT
+.s
+This sets up a dictionary entry with name
+"NPTS".  Executing the word "NPTS" will cause
+a 5 to be pushed on the stack.
+.s
+.hl2 Variables
+.lm 0
+.p
+A variable is a dictionary entry which contains
+a 32-bit integer as its value.  When executed, it causes
+the address of its value to be pushed on the parameter
+stack.  Variables are defined as follows:
+.s
+VALUE 'NAME VARIABLE
+.p
+"VALUE" is the number on the top of the stack
+and "NAME" is the name to be assigned to the variable.
+"VALUE" is used to set the initial value of the variable.
+.s
+EXAMPLE:
+.s
+.lm 8
+100 'X VARIABLE
+.s
+This defines a variable "X" with an initial
+value of 100.
+.s2
+.lm 0
+.hl2 Arrays
+.lm 8
+.i -8
+.hl3 Defining Arrays
+.lm 0
+.p
+While STOIC does not have a built-in array
+handling facility, its ability to perform address
+arithmetic makes subscripting possible.  There
+are several methods for setting aside storage for
+an array.  The simplest is to use the word ARRAY":
+.s
+LENGTH 'NAME ARRAY
+.s
+This defines and zeros an array whose length (in
+16-bit words) and name are specified.  The array is
+just a variable with extra storage locations
+reserved.  Referencing an array thus causes
+the address of the zeroth element to be pushed.
+.s
+EXAMPLE:
+.s
+.lm8
+100 'BUFFER ARRAY
+.s
+This defines and zeroes a 100-word array named
+"BUFFER".
+.s
+.lm0
+.p
+A convenient technique for defining small arrays is:
+.s
+0 '3VEC VARIABLE 1 ,D 2 ,D
+.s
+This definition sets up a 3-vector called "3VEC"
+whose initial value is (0,1,2).  The word ",D"
+takes a number from the top of the stack and
+appends it to the end of the data area,
+automatically extending the length of the
+most recent definition.  This serves the
+dual functions of reserving space in the
+dictionary and initializing the array.
+.s
+.lm0
+The contents of an array may be initialized to zero or
+any constant value using the following words:
+.s
+.lm16
+.i-8
+FILL####Fills an array whose address is at top-2
+and has length (in words) at top-1 with the
+constant value at top.
+.s
+.i-8
+0FILL###Zero fills an array whose address is at
+top-1 and has length (in words) at top.
+.s
+.lm0
+EXAMPLE:
+.s
+.lm8
+100 'X ARRAY
+.s
+X 100 -1 FILL
+.s
+This defines a 100-word array "X" which is then
+filled with -1's.  Equivalently, the same action
+is performed by:
+.s
+-1 'X VARIABLE 99 ( -1 ,D )
+.lm 0
+.s
+.hl3 Referencing Array Elements
+.p
+To reference an element of an array, all that is
+necessary is to add an appropriate offset to the address
+of the zeroth element.  Note that since the first element
+has offset zero, the Nth element has offset N-1.
+.s
+EXAMPLE:
+.s
+.lm8
+10 'X ARRAY
+.s
+10 0 DO I X I 4* + ! LOOP
+.s
+The above code defines a 10 element array "X"
+and fills it with the numbers 0 to 9.
+.s
+Note that since addresses are in bytes, the
+index must be multiplied by 4.
+.s
+.lm0
+.p
+Multidimensional subscripting is handled in a
+similar fashion.
+.s
+EXAMPLE:
+.s
+.lm8
+100 'X ARRAY
+.s
+10 0 DO 10 0 DO I J + J 10 * I + 4 * X + ! LOOP LOOP
+.s
+This example sets up a 100 element array "X"
+which is treated as a 10 by 10 matrix and
+then stores I+J in the element (I,J).
+.s
+.lm 8
+.page
+.hl1 THE DICTIONARY
+.lm 0
+.p
+The dictionary starts in low core and grows
+upward toward the top of memory.  Each definition, as
+it is made, is appended to the end of the dictionary.
+the variable ".D" is a pointer to the first free word
+following the end of the dictionary.
+.s
+.p
+The address of a dictionary entry may be
+obtained by invoking the following word:
+.s
+() name
+.s
+pushes on the stack the address of
+the parameter field of the named
+word.  This word makes it possible to modify the value
+of a constant.
+.s
+EXAMPLE:
+.lm8
+0>#100 'N CONSTANT
+.br
+0>#200 () N !
+.s
+.lm 0
+The first line defines a constant "N" whose
+value is 100.  The next line resets the value
+to 200.
+.s
+This feature should not be used in any program
+which will subsequently be committed to read-
+only memory, or saved as a core image using
+the "IMAGE" word.
+.s
+The following word is used to obtain the
+address of a word in the dictionary given
+its name:
+.s
+.lm 8
+.i -8
+ADDRESS#Takes a string argument on
+the stack which is looked
+up in the dictionary.  If
+not found, an error messsage
+is typed.  If found, the address
+of the parameter field of the
+word is returned on the stack.
+NOTE: "ADDRESS" is not yet implemented in VAX STOIC.
+.s
+.lm 0
+EXAMPLE:
+.s
+.i 8
+'NEWVAL : ADDRESS 200 SWAP ! ;
+.s
+This defines a word "NEWVAL" which sets the
+parameter field of its argument to 200.
+thus,
+.s
+.i 8
+'N NEWVAL
+.s
+is equivalent to the previous example.
+.s
+.i 8
+.page
+.hl1 EXECUTING PROGRAMS
+.p
+Stoic programs are stored as ASCII source
+files.  Executing a file causes STOIC to accept its
+commands from the file instead of the keyboard.
+file execution is controlled by the following words:
+.s
+.lm16
+.i-8
+LOAD####Execute a program; address of name is
+on top of stack.
+.s
+.i -8
+LIST####Lists the contents of a program on the terminal; address
+of name is on top of stack.
+.s
+.i-8
+;F######Terminates execution of the current file
+and returns control to the calling input
+file or to the system keyboard.
+(If ";F" is typed on the keyboard,
+it causes STOIC to terminate.)
+.s
+.lm0
+.p
+STOIC maintains a "file stack".
+Each time LOAD is executed a new file is opened;
+when STOIC finishes compiling and executing the line
+which contains the word "LOAD",
+compilation will continue from the newly opened file.
+Upon reaching end of file or the word ";F",
+the file is closed and popped from the file stack.
+Compilation continues from the file now on top
+of the file stack.
+Currently the file stack has the capability of four levels.
+Upon invoking STOIC, the file stack has only one entry,
+namely the console.
+.s
+EXAMPLES:
+.s
+.lm8
+'DEFS LOAD
+.s
+This executes a file called "DEFS"
+.s
+'LDDEFS : . = 'DEFS LOAD ;
+.s
+This defines "LDDEFS" which types out the
+current value of the dictionary pointer and
+executes "DEFS".
+.s
+'A LOAD 'B LOAD 'C LOAD
+.s
+This command line causes the contents of file
+"C" to be executed, then file "B", then file "A".
+.s
+.page
+.hl1 STRING HANDLING
+.lm 0
+.s
+Stoic strings are stored in memory in the
+following format:
+.i 8
+.s
+<LENGTH(16-bit word)>STRING
+.s
+The string may include nulls.
+The length field must be less than
+65,536 decimal.
+.s
+EXAMPLE:
+.i 8
+.s
+<4>ABCD
+.s
+This is the internal representation of the
+string "ABCD".
+.s
+.lm0
+.p
+Executing a string literal causes a pointer to
+The length word of the string to be pushed on the stack.
+This pointer may be converted into byte-pointer,
+byte-count form by using the word "COUNT" described
+below.
+.s
+.lm16
+.i-8
+COUNT###takes a pointer to a string as input on
+the stack and leaves the length of the string on the top
+of the stack, and a byte pointer to the first character
+following the length byte at top - 1.
+.s
+.i-8
+MSG#####is equivalent to "COUNT TYPE".
+given a pointer to a string at top, it causes
+the string to be typed.
+.s
+ASCII###converts the next word in the input
+stream to a single character and pushes its
+ASCII value onto the stack.
+.lm 0
+.s
+EXAMPLES:
+.s
+.lm8
+'LARK : 'NONSENSE MSG ;
+.s
+Executing "LARK" causes "NONSENSE" to be typed.
+.s
+DECIMAL ASCII A =
+.s
+This causes a 65 (the ASCII value of "A", in decimal)
+to be typed out.
+.lm 0
+.s 2
+.hl2 String Variables
+.p
+String variables are stored in memory
+in the following format:
+.s
+<MAX LENGTH(word)><CURRENT LENGTH(word)>STRING
+.s
+A string variable is defined as follows:
+.s
+80 'NAME SVARIABLE
+.s
+This defines a string variable of maximum length 80
+and current length 0.
+"NAME" causes a pointer to the current-length word
+to be pushed onto the stack.
+.s
+.lm24
+.i-16
+MOVE__STRING#####causes the string whose address
+is at top-1 to replace the contents of the string
+variable whose address is at top.
+.s
+.i-16
+ .MOVE__STRING####causes the string whose starting address
+is at top-2 and whose byte count is at top-1 to replace
+the contents of the string variable whose address is at top.
+.s
+.i-16
+STRAP###########causes the string whose address
+is at top-1 to be appended to the string variable
+whose address is at top.
+.s
+.i-16
+ .STRAP##########causes the string whose starting address
+is at top-2 and whose byte count is at top-1 to be appended
+to the string variable whose address is at top.
+.s
+.i-16
+STAB############causes the byte (low-order 8 bits of the
+32-bit longword) at top-1 to be appended to the string variable
+whose address is at top.
+.s
+.i -16
+_.STREQ##########compares the string with byte count
+at top and address at top-1 to the string with byte
+count at top-2 and address at top-3; returns -1 if the
+strings are equal or 0 if they are not.
+.s
+.i -16
+SEARCH__STRING###searches the string with byte count
+at top and address at top-1 for occurrences of the
+string with byte count at top-2 and address at top-3.
+Returns a true or false value at top indicating whether
+the string was found or not, a byte count and address
+for the remainder of the source string at top-1 and
+top-2, and a byte count and address for the unchanged
+pattern string at top-3 and top-4.  Note that 
+SEARCH__STRING could be immediately executed again
+after the logical value is popped off.
+.s
+.lm0
+EXAMPLES:
+.s
+.lm8
+.nf
+ 
+0> 80 'SBUF SVARIABLE
+0> "HELLO" SBUF MOVE__STRING
+0> SBUF MSG
+HELLO
+0> " - GOODBYE" SBUF STRAP
+0> SBUF MSG
+HELLO - GOODBYE
+0> 33 SBUF STAB  (33 decimal is ASCII !)
+0> SBUF MSG
+HELLO - GOODBYE!
+0> " " SBUF MOVE__STRING
+0> SBUF MSG
+.s
+0> "L" COUNT SBUF COUNT SEARCH__STRING =
+-1
+0> TYPE CR TYPE
+LO - GOODBYE
+L
+.s
+.f
+.lm 0
+.hl2 Number Output Conversion
+.p
+Stoic preforms number conversion using a small
+but powerful set of words which permit a wide variety of
+output formats to be generated.  Number conversion
+proceeds from right to left, converting one digit at a time.
+the conversion takes place in the current radix.  Digits
+are stored in the number conversion stack, a string variable which is
+set up by "<_#".
+.s
+.lm16
+.i-8
+RADIX###Variable which contains current input and
+        output radix.
+.s
+.i-8
+<_#######Initiate number conversion.
+.s
+.i-8
+_#PUT####Output a character from top of stack.
+.s
+.i-8
+_#A######Convert the number on the top of the stack
+to an ASCII digit.
+.s
+.i-8
+_########Compute the next digit and output it.
+An integer is input from the top of the stack
+and divided by "RADIX".  The remainder is
+converted to a digit and output; the
+quotient remains on the stack.
+.s
+.i-8
+_#S######Compute digits and output them until the
+remaining number is zero.  "_#S" always outputs
+at least one digit.
+.s
+.i-8
+_#>######Terminate the number conversion, leaving a
+byte count on top of stack, a byte pointer at
+top - 1.
+.s
+.lm0
+Higher level words are used to provide number output
+in a default format:
+.s
+.lm16
+.i-8
+<_#>#####Convert the signed number on the top of the stack
+and leave byte count and byte pointer on the stack.
+"<_#>" is defined as:
+.s
+'<_#> : DUP <L <_# _#S  L> LTZ IF 55 _#PUT THEN _#> ;
+.s
+.i-8
+=#######Convert and output the number on the top of the
+stack. (signed)
+.s
+.i-8
+?#######Convert and output the number addressed by the
+top of the stack.  (signed)
+.s 2
+.lm0
+EXAMPLE:
+.s
+.lm8
+'$= : <_# _# _#  46  PUT _#S 36 _#PUT _#> TYPE ;
+.s
+0> 100 $=
+.b
+$1.00
+.b
+0> 1000 $=
+.b
+$10.00
+.s
+"$=" Types the top of the stack in an unsigned
+dollar and cents format.  Number conversion is
+initiated by "<#", the cents are output by the
+two "#"'s, a period is output by "46  PUT", the
+remaining dollars are output by " S", and the
+dollar sign is output by "36  PUT".  "#>" terminates
+the conversion process and leaves a byte pointer
+and byte count for the resultant string on the stack
+as input to "TYPE" which outputs the string.
+.s
+.lm 0
+Justification of numeric output may be achieved
+as follows:
+.s
+'4= : <_#> 4 OVER - SPACES TYPE ;
+.s
+The word "4=" will type out numbers right
+justified in a four column field by typing
+a variable number of spaces preceding the
+number.
+.s
+.hl2 TYI and TYO
+.lm 0
+.s
+.lm16
+.i-8
+TYI#####causes a character to be input from the
+terminal and pushed onto the stack as the low-order byte
+of a longword with zero fill.
+.s
+.i-8
+TYO#####causes the low-order byte of the longword
+at top to be typed on the terminal.
+.s
+.page
+.lm 0
+.hl1 VOCABULARIES
+.p
+In addition to the parameter stack, STOIC uses
+another stack called the vocabulary stack.  This stack
+is used to control dictionary lookup operations.
+.p
+When STOIC looks up a word in the dictionary, it
+starts its search at a location whose address in stored
+on the top of the vocabulary stack.  If the search
+fails, it searches again using the next to top of the
+vocabulary stack, etc. until the bottom of the
+vocabulary stack is reached.  If the name is still
+not found, the search fails.
+.p
+The dictionary may have any number of branches.
+different words having exactly the same names may be
+resolved if they are on separate branches of the
+dictionary.  A branch of the dictionary is called a
+vocabulary.
+.p
+When STOIC defines a new word, the dictionary
+entry is appended to the branch pointed to by the
+variable "CURRENT".
+.p
+The kernel has two vocabularies, called "STOIC<",
+and "ASSEMBLER<".  Initially, the vocabulary stack
+contains only the address of "STOIC<".  "ASSEMBLER<" is
+used when making code definitions and contains special
+words used only by the STOIC assembler.  "STOIC<" is the
+main branch of the dictionary, and "ASSEMBLER<" is a
+side-branch.
+.s
+A new branch of the dictionary is created as
+follows:
+.s
+'NAME BRANCH
+.s
+Referencing a vocabulary causes its address to
+be pushed on the vocabulary stack.  The new
+branch is attached at the end of the existing
+branch pointed to by "CURRENT".
+.s
+.lm16
+.i-8
+>#######discards the top of the vocabulary stack
+.s
+.lm 0
+Attempting to pop the last entry off the bottom
+of the vocabulary stack causes the error:
+.s
+"VOCABULARY STACK EMPTY".
+.s
+To set "CURRENT" to  point to a new vocabulary,
+the following word is used:
+.s
+.lm24
+.i-16
+DEFINITIONS#####Sets "CURRENT" to link new definitions
+onto the same branch of the dictionary
+as is pointed to by the top of the
+vocabulary stack.
+.s
+.lm0
+The normal procedure when setting up a new
+vocabulary is as follows:
+.s
+.lm8
+1) Define the vocabulary using "BRANCH"
+.s
+2) Push the address of the vocabulary on the
+   vocabulary stack by referencing the vocabulary.
+.s
+3) Set "CURRENT" using "DEFINITIONS".
+.s
+4) Define all the words in the vocabulary.
+.s
+5) Pop the vocabulary stack using ">".
+.s
+6) Reset "CURRENT" using DEFINITIONS.
+.s
+.i-8
+EXAMPLE:
+.s
+.nf
+'VOCAB< BRANCH
+VOCAB< DEFINITIONS
+ .
+ .
+ .
+> DEFINITIONS
+.s
+.f
+This defines a new branch of the dictionary
+called "VOCAB".
+.s
+.lm0
+Entire sections of the dictionary may be deleted
+by using the following words:
+.s
+'NAME#MODULE
+.b
+<Intervening code>
+.b
+NAME#FORGET
+.s
+This discards the named dictionary entry and all subsequent
+entries.  If code is defined into more than one vocabulary in
+the intervening space, a MODULE should be defined after each
+switch of "DEFINITIONS", and the MODULES should be forgotten
+in reverse order, with the active vocabulary for FORGET the same
+as the active vocabulary at the MODULE definition.
+.s
+Note that the name given to FORGET is not quoted.
+.s
+.p
+Forget is useful when trying out definitions
+from the keyboard.  The procedure is to
+first make a module definition:
+.s
+'TEST MODULE
+.s
+Next, test definitions are made (typically by
+loading a program).  If they are unsuccessful,
+"TEST FORGET" will delete them from the
+dictionary, and the process is repeated.
+for convenience, the module definition may be
+placed at the beginning of the program.
+.s
+"FORGET" may also be used to provide an overlay
+facility.  Say that a program has been loaded.
+it may then be deleted by forgetting the
+initial module definition, after which the dictionary
+space will be free to load another program.
+.lm0
+.appendix THE LOOP STACK
+.p
+The loop stack is a secondary stack which contains
+the high values, low values, and current index values
+for any DO loops or ( ) loops currently being executed.
+It also can be used by the program as a second stack,
+as long as care is taken to restore the stack when
+the end of any loop currently being executed is reached.
+.s
+.hl1 Values Kept On The Loop Stack
+.p
+When either of the words "DO" or "(" are reached, STOIC
+pops the high value and low value off the parameter stack
+and places them on the loop stack, followed by the starting
+index (which will be the same as the low value initially).
+The loop stack then contains:
+.nf
+.s
+		index
+		low value
+		high value
+.s
+.f
+.p
+When the "LOOP", "+LOOP", or ")" is reached, the
+index is retrieved from the loop stack, the
+increment is determined and added (this will be
+1 unless +LOOP is used, in which case it will be
+the number on the top of the parameter stack), and
+the index is compared to the high value.  If the
+index is equal to or greater than the high value
+the loop is terminated; otherwise the index is
+replaced and the loop continued.  The values of
+the high value, the low value, and the index are
+always available to the program (the index can be
+retrieved using the word "I").
+.s
+.hl2 Words Referencing The Loop Stack
+.p
+Four words are available for directly addressing
+the loop stack:
+.s
+.lm 16
+.i -8
+MARK####Pushes the parameter stack pointer onto
+the loop stack.  The original value of the
+parameter stack pointer can be restored using
+the word "RESTORE".
+.s
+.i -8
+NOTE####Pops a value off the parameter stack,
+and pushes it onto the loop stack.  The value
+can be retrieved using the word "RECALL".
+.s
+.i -8
+RESTORE#Pops the loop stack and moves the
+obtained value into the pointer to the parameter
+stack.
+.s
+.i -8
+RECALL##Pops the loop stack and pushes the
+obtained value onto the parameter stack.
+.lm 0
+.s
+.p
+The "MARK" and "RESTORE" words are useful
+if the program is using a procedure which
+will leave unwanted values on the parameter
+stack.  Before use of the procedure, "MARK"
+would be used to save the stack pointer.
+After the procedure, "RESTORE" would return
+the parameter stack to its original state.
+.p
+"NOTE" and "RECALL" are useful for saving
+values that would be "in the way" were they
+put on the parameter stack.
+.s
+.p
+In any use of the loop stack, care should be
+taken not to undesirably affect loops by
+replacing loop values with parameter stack
+pointers or program data.  One rule to follow
+is this: treat all "MARK"/"RESTORE" and
+"NOTE"/"RECALL" combinations as "DO"/"LOOP"
+combinations and follow the same nesting rules.
+This will ensure that if values are pushed on
+the loop stack, they are removed before the
+current loop reached the end and needs its values
+back.
+.p
+Another thing to be careful of:  if operations
+involving the loop stack are in use, the words
+"I", "J", and "K" may behave unreliably due to
+values on the loop stack that do not directly
+affect the loops.  If the program needs to recall
+index values, their positions on the loop stack
+should first be determined.  They can then be
+obtained by pushing dummy values onto the loop
+stack to bring them into the 4th or 7th position,
+where they can be referenced using "J" and "K"
+respectively.
+.appendix CODE SAVING TECHNIQUES
+.p
+Experience writing programs in STOIC will demonstrate that using the
+file loading word, "LOAD", each time one wants to run a STOIC program
+is annoyingly slow and generally unsatisfactory.  Fortunately, STOIC
+has two ways of storing compiled code so that it can be used quickly.
+The first of these, the "IMAGE" word, makes .EXE programs that can
+be run directly and will start up with the STOIC code already loaded.
+The second stores code that can be quickly read into an existing STOIC
+image.
+.hl1 Creating Core Images
+.p
+When a STOIC program is "put into production", users should not be
+expected to have to load the files containing the program before they
+can use it; in fact, the best way to make the program available is to
+require a minimum of action to run the program.  The "IMAGE" word,
+whose syntax is:
+.s
+.i 8
+filename#IMAGE
+.s
+(the file name should be quoted) saves the current state of STOIC into
+the file given.  The file type is usually EXE.  The file is started
+using the DCL command:
+.b
+.i 8
+$<directory specifier>filename STOIC-input-line
+.b
+Anything that follows the file name in this command is passed to STOIC
+as the first command line to execute (possibly starting the routine that
+the image is to be used for).  If nothing is present after the file name,
+the image starts up with the normal "Welcome to STOIC" prompt and awaits
+user input as usual.
+.hl2 Creating Save Files Using SAVE and XLOAD
+.p
+Another way of quickly saving and retrieving STOIC object code is by use
+of the two words:
+.s
+.i 8
+filename SAVE
+.i 8
+filename XLOAD
+.s
+(where the file names are quoted).  SAVE will create the specified file
+and write the "current state of STOIC" into it.  XLOAD will retrieve the
+state in the specified file.  The file type does not matter, but it can
+be helpful to use a consistent file type (such as .STO) for all STOIC
+save files.
+.p
+Some notes about SAVE and XLOAD are in order.  They are primarily useful
+for development of new STOIC programs, as they are more space-efficient
+than creating new images.  The reason for their reduced space requirements
+is that they do not save all STOIC code defined, as the IMAGE word does;
+they save all code and data that has been loaded into the current image
+only.  Since this means that the loaded code is dependent on the code in
+the image being the same as when the code was saved, a "time-stamp"
+has been added to the save files to prevent the strange errors that would
+result when a save file was loaded into a STOIC image to which revisions
+had been made.  If XLOAD is done on a file with a different time-stamp
+from that of the image currently running, the file is rejected and a
+message is displayed showing the two time-stamps.
+.p
+There is one exception to the time-stamp rule: the stamping is done when
+the definitions file (RDEF) is loaded.  This means that if a SAVE
+is done and the current image is a STOIC kernel, it will be possible to
+XLOAD the file to any STOIC kernel, but not to a STOIC image saved in
+any other way.  This is probably unwise anyway, but if you do save files
+from a kernel image, be sure to reLOAD them if you make changes to the
+MACRO source files and re-link.
+.p
+The time-stamp for the current image can be displayed at the terminal
+by typing "REVISION" (after RDEF is loaded).  The stamp on the current
+image can be changed to the current date and time by typing SET__REVISION.
+.appendix DEBUGGING TECHNIQUES
+.p
+The following are techniques which may prove
+useful in debugging new definitions:
+.s
+.lm3
+.i-3
+1) It is usually more efficient to make a new
+definition in a file using the editor rather than
+from the keyboard if it is more than one line long.
+"FORGET" is then used to remove the last version of
+the definition before trying again.
+.s
+.i-3
+2) To test a word, merely feed in arguments on the
+stack, execute the word, and examine the results
+using "=" and "?".  It can be helpful to put an obvious
+value such as "12345" on the stack before pushing arguments
+to the word and calling it.  This allows you to determine
+whether the word left any unwanted values on the stack,
+without causing an access violation (and the resulting
+"ABORT" and stack reset) when the stack underflows.
+.s
+.i-3
+3) If a word fails, type in the words which make it up,
+one at a time, examining the stack as you go along and
+restoring it by typing the parameters back in, in
+reverse order.
+.s
+.i-3
+4) After executing a word and examining the results on
+the stack, type an extra "=" to make sure the stack
+is empty.  You should get an access violation indicating
+that the stack is empty.  Similarly, the loop stack
+should be checked by typing "RECALL"; this should
+generate a similar access violation.
+.s
+.i-3
+5) Keep track of the radix you are using.  This is the
+source of frequent errors.  Within a file being
+executed, save the radix, set it to the value the
+program expects, and when done, restore the saved
+value.  For example:
+.s
+.nf
+.i8
+RADIX @ DECIMAL
+ .
+ .
+ .
+RADIX !
+;F
+.s
+.f
+This saves the current radix on the stack, and
+sets the radix to decimal.  Upon termination,
+The old radix is restored (assuming the stack
+has not been disturbed).  Saving the old radix
+in a variable can be safer.
+.s
+.lm3
+.i-3
+6) The proper selection of lower level words has an
+enormous effect on all subsequent higher level
+definitions.  Thus it pays to design the lower level
+words very carefully.
+.s
+.i-3
+7) When debugging a program, test all lower level words
+thoroughly before testing the words which call them.
+.s
+.i-3
+8) Be especially careful with any word which modifies
+memory; make sure the word is modifying only those
+locations you intend, and not part of the program.

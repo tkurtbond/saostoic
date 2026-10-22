@@ -1,0 +1,17 @@
+.title	EXTEND
+
+.psect	dictionary
+	.blkb	<^x20000-^x2000>	;128 KB of dictionary (Phase 7)
+dict_end::
+
+.psect	kernel
+	.blkb	<^x40000-^x2200-^x200>	;256 KB of code (Phase 7), less
+k_end::					;a spare page, so that IMAGE can
+	.blkb	^x200			;shrink the DZRO of a full region
+k_top::					;the end of the psect
+
+.psect	datinit
+	.blkb	<^x10000-^x1000>
+dat_fin::
+
+.end

@@ -1,0 +1,1517 @@
+%	*****************************************************************
+%	*								*
+%	*	This module is a part of the SAO VAX/VMS STOIC SYSTEM	*
+%	*								*
+%	*	It was created by					*
+%	*	Roger Hauck						*
+%	*	Smithsonian Institution					*
+%	*	Astrophysical Observatory				*
+%	*	Cambridge, Massachusetts  02138				*
+%	*	(617)495-7151  (FTS 830-7151)				*
+%	*								*
+%	*	Modified by Jonathan Mark, 1981-1982			*
+%	*								*
+%	*	This module may be reproduced				*
+%	*	provided that this header is retained.			*
+%	*								*
+%	*****************************************************************
+
+%  Definition for STOIC for the DEC VAX computer
+
+%  Roger Hauck
+%  Smithsonian Astrophysical Observatory
+%  Cambridge, Mass.  02138
+%  January, 1979
+
+
+
+
+ASSEMBLER<
+DEFINITIONS
+
+%  assembler addressing modes
+40 '[R0] AC
+50 'R0 AC	51 'R1 AC	52 'R2 AC	53 'R3 AC
+54 'R4 AC	55 'R5 AC	56 'R6 AC
+57 'FS AC	58 'R8 AC
+59 'L AC	5A 'P AC	5E 'SP AC	6E '(SP) AC
+60 '(R0) AC	61 '(R1) AC	62 '(R2) AC	63 '(R3) AC
+65 '(R5) AC
+67 '(FS) AC	69 '(L) AC	6A '(P) AC
+70 '-(R0) AC	77 '-(FS) AC	79 '-(L) AC	7A '-(P) AC
+7E '-(SP) AC
+80 '(R0)+ AC	81 '(R1)+ AC	82 '(R2)+ AC	83 '(R3)+ AC
+85 '(R5)+ AC	86 '(R6)+ AC	87 '(FS)+ AC	89 '(L)+ AC
+8A '(P)+ AC	8E '(SP)+ AC	8F '(PC)+ AC
+9A '@(P)+ AC	9F '@# AC
+
+%  assembler op codes
+'@BRB : 11 ;
+
+	05 'RSB AC
+	11 'BRB AC	12 'BNEQ AC	13 'BEQL AC	14 'BGTR AC
+	15 'BLEQ AC	16 'JSB AC	17 'JMP AC	18 'BGEQ AC
+	19 'BLSS AC	1C 'BVC AC	1D 'BVS AC
+	28 'MOVC3 AC	29 'CMPC3 AC	2A 'SCANC AC	2B 'SPANC AC
+	32 'CVTWL AC
+	39 'MATCHC AC	3A 'LOCC AC	3C 'MOVZWL AC
+	60 'ADDD2 AC	62 'SUBD2 AC	64 'MULD2 AC	66 'DIVD2 AC
+	6A 'CVTDL AC	6E 'CVTLD AC
+	70 'MOVD AC	71 'CMPD AC	72 'MNEGD AC	73 'TSTD AC
+	78 'ASHL AC	79 'ASHQ AC
+	7B 'EDIV AC	7D 'MOVQ AC
+	80 'ADDB2 AC	88 'BISB2 AC	8A 'BICB2 AC
+	90 'MOVB AC	91 'CMPB AC	94 'CLRB AC	9A 'MOVZBL AC
+	9B 'MOVZBW AC
+	B4 'CLRW AC
+	C0 'ADDL2 AC	C1 'ADDL3 AC	C2 'SUBL2 AC	C3 'SUBL3 AC
+	C4 'MULL2 AC	C6 'DIVL2 AC
+	C8 'BISL2 AC	CA 'BICL2 AC	CC 'XORL2 AC	CE 'MNEGL AC
+	D0 'MOVL AC	D1 'CMPL AC	D2 'MCOML AC	D4 'CLRL AC
+	D5 'TSTL AC	D6 'INCL AC	DE 'MOVAL AC
+	D7 'DECL AC
+	E9 'BLBC AC
+	F0 'INSV AC
+	F2 'AOBLSS AC	F4 'SOBGEQ AC	F6 'CVTLB AC	F7 'CVTLW AC
+	F5 'SOBGTR AC
+
+%  Words which must be defined before the rest of the assembler
+> DEFINITIONS ASSEMBLER<
+
+'B! :  % value, address, B!  (stores byte at address)
+  MOVL (P)+ R0  CVTLB (P)+ (R0)
+;
+
+'IMMEDIATE :
+%	gives IMMEDIATE attribute to last compiled word
+  4 LOOKUP_ATTRIBUTE B!
+;
+
+'DROP :  % value, DROP
+  TSTL (P)+
+  ;
+
+'DUP :  % value, DUP, value, same value
+  MOVL (P) -(P)
+  ;
+
+DEFINITIONS
+
+% Assembler addressing mode modifiers
+
+'B! :  % value, byte address, B!
+  MOVL (P)+ R0  CVTLB (P)+ (R0)
+  ;
+
+'B^(P) :  % B^(P), literal byte  (compiles byte-dsiplacement address)
+  AA CPUSH  % byte displacement w.r.t. P-stack pointer
+  WORD DROP ILITERAL DROP CPUSH  % displacement byte
+  ; IMMEDIATE
+
+'B^(FS) :  % B^(FS), literal byte  (compiles byte-dsiplacement address)
+  A7 CPUSH  % byte displacement w.r.t. F-stack pointer
+  WORD DROP ILITERAL DROP CPUSH  % displacement byte
+  ; IMMEDIATE
+
+'B^(SP) :  % B^(SP), literal byte  (compiles byte-displacement address)
+  AE CPUSH  % byte displacement w.r.t. R-stack pointer
+  WORD DROP ILITERAL DROP CPUSH  % displacement byte
+  ; IMMEDIATE
+
+'S^ :  % S^  (short-literal operator, compiles next # on line)
+%	WARNING:  DOES NOT CHECK VALIDITY OF OPERAND
+  WORD DROP ILITERAL DROP CPUSH  % literal
+  ;  IMMEDIATE
+
+'B^ :  %  B^  (byte-displacement operator, compiles next # on line)
+  COMP_BUF_PNTR  SUBL3 S^ 1 @(P)+ -(P)  %address of last compiled byte
+  ADDB2 (PC)+ S^ 40 @(P)+   % transform it from (X) to B^(X)
+  WORD DROP ILITERAL DROP CPUSH  %  displacement byte
+  ;  IMMEDIATE
+
+'W^ :  % W^  (word displacement operator, compiles next number on line)
+  COMP_BUF_PNTR SUBL3 S^ 1 @(P)+ -(P)  % address of last compiled byte
+  60 ADDL2 (P)+ @(P)+  % transform it from (X) to W^(X)
+  WORD DROP ILITERAL DROP  % get and convert next # on line
+  DUP CPUSH  % compile low-order byte
+  INCL P MOVZBW (P)+ -(P) CPUSH  % compile high-order byte
+  ; IMMEDIATE
+
+> DEFINITIONS ASSEMBLER<
+
+%  Stack Manipulation
+
+% DROP & DUP are defined on page 1
+
+'2DROP :  % value1, value2, 2DROP
+  ADDL2 S^ 8 P
+  ;
+
+'DDUP :  % value1, value2, DDUP, value2, value1, value2, value1
+  MOVQ (P) -(P)
+  ;
+
+%	value1, value2, SWAP, value1, value2
+'SWAP : MOVQ (P)+ R0   MOVL R0 -(P)   MOVL R1 -(P) ;
+
+'(SWAP) :  % immediate version of SWAP
+  MOVQ (P)+ R0  MOVL R0 -(P)  MOVL R1 -(P)
+  ;  IMMEDIATE
+
+% value1, value2, OVER, value1, value2, vlaue1
+'OVER : MOVL B^(P) 4 -(P) ;
+
+% value1, value2, value3, 2OVER, value1, value2, value3, value1
+'2OVER : MOVL B^(P) 8 -(P) ;
+
+'+ROT :  % arg1, arg2, arg3, +ROT, arg2, arg1, arg3
+  MOVL (P) R0  % r0 is temporary stack pointer
+  MOVQ B^(P) 4 (P)  % move up arg1 & arg2
+  MOVL R0 B^(P) 8  %  put arg3 underneath
+  ;
+
+'-ROT :  % arg1, arg2, arg3, -ROT, arg1, arg3, arg2
+  MOVL B^(P) 8 R0  % set arg1 aside
+  MOVQ (P) B^(P) 4  % move arg2 & arg3 down
+  MOVL R0 (P)  % put arg1 on top
+  ;
+
+'(DROP) :  % count, (DROP)  (count items are dropped from P-stack)
+  MOVL (P)+ R0  % drop count
+  MOVAL [R0] (P) P  % drop (r0) items
+  ;
+
+'UNDER :  % value1, value2, UNDER, value2 (drops next to top value)
+  SWAP DROP
+  ;
+
+'FLIP :  % value1, value2, value3, FLIP, value1, value2, value3
+  MOVL (P) R0  MOVL (P) B^ 8 (P)  MOVL R0 (P) B^ 8
+  ;
+'UNDROP :  % UNDROP, previous top of stack
+%	(may be used after EQ_IF, EQZ_IF, or associated ELSE)
+  SUBL2 S^ 4 P
+  ;
+
+'2UNDROP : %  2UNDROP, value1, value2  (returns two prev. values to stack)
+  SUBL2 S^ 8 P
+  ;
+
+%  Unary Arithmetic & Logical Operators
+
+
+'MINUS : MNEGL (P) (P) ;
+
+'1+	: INCL (P) ;
+
+'2+	: ADDL2 S^ 2 (P) ;
+'4+	: ADDL2 S^ 4 (P) ;
+
+'1-	: DECL (P) ;
+'2-	: SUBL2 S^ 2 (P) ;
+'4-	: SUBL2 S^ 4 (P) ;
+
+'NOT	: MCOML (P) (P) ;
+'W->L : CVTWL (P) (P) ;  % signed conversion
+
+%  Binary Arithmetic & Logical Operators
+
+
+'AND :  % logical AND
+  MCOML (P) (P)  BICL2 (P)+ (P)
+  ;
+
+'OR :  % value1, value2, OR, truth value  (inclusive OR)
+  BISL2 (P)+ (P)
+  ;
+
+'XOR :  % exclusive OR
+  XORL2 (P)+ (P)
+  ;
+
+'MOD :  % value, modulus, MOD, remainder of value/modulus
+  MOVQ (P)+ R0  CLRL R2  EDIV R0 R1 R1 -(P)
+  ;
+
+%  miscellaneous
+
+%----RADIX:  RADIX, address of current conversion radix
+'RADIX : U_RAD ;
+
+%----+:  addend, addend, +, sum
+'+ : ADDL2 (P)+ (P) ;
+
+%----1+:  value, 1+, incremented value
+'1+ : INCL (P) ;
+
+%-----:  subtrahend, minuend, -, difference
+'- : SUBL2 (P)+ (P) ;
+
+%----1-:  value, 1-, value minus 1
+'1- : DECL (P) ;
+
+'* :  % multiplier, multiplicand, *, product
+  MULL2 (P)+ (P)
+  ;
+'2* :  % value, 2*, twice value
+  ADDL2 (P) (P)
+  ;
+
+'/ :  % divisor, dividend, /, quotient
+  DIVL2 (P)+ (P)
+  ;
+
+'/MOD :  % divisor, dividend, quotient, remainder
+  MOVQ (P)+ R0  CLRL R2  EDIV R0 R1 R1 R0
+  MOVQ R0 -(P)
+  ;
+
+'R8@+ : ADDL2 R8 (P) ;
+
+%----ABS:  value
+% not yet supported
+
+%  Fetching, storing at memory locations
+'@ :  % address, @, contents
+  MOVL @(P)+ -(P)
+  ;
+
+'@@ :
+  MOVL @(P)+ R0  MOVL (R0) -(P)
+  ;
+
+%----B@:  address, B@, contents of byte
+'B@ :  MOVZBL @(P)+ -(P) ;
+
+'W@ :  % address, W@, contents of word
+  MOVZWL @(P)+ -(P)
+  ;
+%----?:  address, ?  (types contents at address)
+'? : @ = ;
+
+%----!:  value, address, !  (stores value at address)
+'! : MOVL (P)+ R0   MOVL (P)+ (R0) ;
+
+%----<-:  address, value, <-  (stores value at address)
+'<- : MOVL (P)+ @(P)+ ;
+'B<- :  % address, byte, B<-  (store byte at address)
+  CVTLB (P)+ @(P)+
+  ;
+'W<- :  % address, word, W<-  (stores word at address)
+  CVTLW (P)+ @(P)+
+  ;
+
+'EXCHANGE :  % addr. 1, addr. 2, EXCHANGE (exchanges contents of two addresses)
+  MOVQ (P)+ R0  % pick up addresses
+  MOVL (R0) R2  % save first value
+  MOVL (R1) (R0)  % transfer 2nd value
+  MOVL R2 (R1)  % store second value
+  ;
+
+'MOVE :  % origin, destination, MOVE
+  MOVL (P)+ R0  % r0-> destination
+  MOVL @(P)+ (R0)  % do it
+  ;
+
+% Double-precision
+
+'D@ :
+  MOVQ @(P)+ -(P)
+  ;
+
+'D! :
+  MOVL (P)+ R0  MOVQ (P)+ (R0)
+  ;
+
+'D<- :
+  MOVQ (P)+ @(P)+
+  ;
+
+'W! :  % value, address, W!  (stores low 16 bits of value at address)
+  MOVL (P)+ R0  CVTLW (P)+ (R0)
+  ;
+
+%  Modify memory
+
+%----1+!:  address, 1+!  (increments value at address)
+'1+! : INCL @(P)+ ;
+
+%----1+<-:  address, 1+<-  (increments value at address)
+'1+<- : INCL @(P)+ ;
+'+! :  % value, address, +!  (adds value to contents of address)
+  MOVL (P)+ R0  % r0-> memory location
+  ADDL2 (P)+ (R0)  % do it
+  ;
+
+%	address, value, +<-  (adds value to contents of address)
+'+<- : ADDL2 (P)+ @(P)+ ;
+
+%----1-!:  address, 1-!  (decrements value at address)
+'1-! : DECL @(P)+ ;
+
+%----1-<-:  address, 1-<-  (decrements value at address)
+'1-<- : DECL @(P)+ ;
+
+'-! :  % value, address, -!  (subtracts value from contents of address)
+  MOVL (P)+ R0
+  SUBL2 (P)+ (R0)
+  ;
+
+'-<- : % address, value, -<- (subtracts value from contents of address)
+  SUBL2 (P)+ @(P)+
+  ;
+
+% B! is defined on page 1
+
+'0<- :  % address, 0<-  (stores 0 at address)
+  CLRL @(P)+
+  ;
+
+'0W<- :  % address, 0W<-  (stores 0 word at address)
+  CLRW @(P)+
+  ;
+
+'-1<- :  % address, -1<-  (stores -1 at address)
+  MNEGL S^ 1 @(P)+
+  ;
+
+'1<- :  % address, 1<-  (stores 1 at address)
+  MOVL S^ 1 @(P)+
+  ;
+%----MINUS:  value, MINUS, -value
+'MINUS : MNEGL (P) (P) ;
+
+%----NOT:  value, NOT, complemented value
+'NOT : MCOML (P) (P) ;
+
+%  SUPPORT WORDS FOR CONDITIONAL AND FLOW CONTROL
+
+>
+
+'+CHECK :
+  CHECK 1+!
+  ;
+
+'-CHECK :
+  CHECK 1-!
+  ;
+
+%----CODE_COUNT: dictionary entry address, CODE_COUNT, code address, length
+'CODE_COUNT :
+  8 + DUP B@ + 2 +  % get address of length word
+  DUP W@ SWAP 2+ W@ W->L R8@+ SWAP  % get descriptor
+  ;
+
+',COMPILE :  % value, ,COMPILE  (pushes longword onto compile buffer)
+  COMP_BUF_PNTR @ ! 4 COMP_BUF_PNTR +!
+  ;
+
+%----Cmark:  Cmark, address of next byte in compile buffer
+'CMARK : COMP_BUF_PNTR @ ;
+
+'TARGET :  % compiles zero byte and pushes it's pointer
+  CMARK 0 CPUSH
+  ;
+
+'(TARGET) :  % immediate version of TARGET
+  CMARK 0 CPUSH
+  ;  IMMEDIATE
+
+'(ARCHER) :  % immediate version of ARCHER
+  OVER - 1- B<-
+  ;  IMMEDIATE
+
+'(CMARK) :  % immediate version of CMARK
+  CMARK
+  ;  IMMEDIATE
+
+ASSEMBLER<
+
+'ARCHER :  % target pointer, archer pointer, ARCHER
+%	(stores displacement between pointers as byte at target)
+  OVER - 1- B<-  %  store the byte
+  BVC (TARGET)  % displacement overflow?
+    "Byte-displacement overflow." I_COMPILE_ERROR (CMARK) (ARCHER)  % yes
+  ;
+
+'INLINE< :
+  +CHECK
+  <INLINE>  % compile call to internal inline
+  S^ 4 S^ 0 <INLINE>
+  TARGET 0 CPUSH  % reserve word for count and mark position
+  ;  IMMEDIATE
+
+'>INLINE :
+  -CHECK
+  CMARK 1- ARCHER  % fill count byte provided by INLINE<
+  ;  IMMEDIATE
+
+%  TESTS
+
+%     IF_TRUE_ELSE_FALSE_THEN:
+%		branch-on-condition machine instruction,
+%		IF_TRUE_ELSE_FALSE_THEN
+%	If the branch condition is met, -1 is pushed,
+%	if not met, 0 is pushed.
+'ITEFT :
+  CMARK 0 CPUSH  % MARK POSITION AND PROVIDE TARGET
+  INLINE< CLRL -(P) RSB >INLINE  % FALSE PUSHES 0
+  CMARK OVER - 1- SWAP B!  % ARCHER
+  INLINE< MCOML S^ 0 -(P) >INLINE  % TRUE PUSHES -1
+  ;  IMMEDIATE
+
+'NEZ : TSTL (P)+  BNEQ ITEFT ;
+
+'EQZ : TSTL (P)+  BEQL ITEFT ;
+
+'GTZ : TSTL (P)+  BGTR ITEFT ;
+
+'LEZ : TSTL (P)+  BLEQ ITEFT ;
+
+'GEZ : TSTL (P)+  BGEQ ITEFT ;
+
+'LTZ : TSTL (P)+  BLSS ITEFT ;
+
+'NE : CMPL (P)+ (P)+  BNEQ ITEFT ;
+
+'EQ : CMPL (P)+ (P)+  BEQL ITEFT ;
+
+'GT : CMPL (P)+ (P)+  BGTR ITEFT ;
+
+'LE : CMPL (P)+ (P)+  BLEQ ITEFT ;
+
+'GE : CMPL (P)+ (P)+  BGEQ ITEFT ;
+
+'LT : CMPL (P)+ (P)+  BLSS ITEFT ;
+
+'OVERFLOW? : BVS ITEFT ;
+
+% Tests combined with conditionals
+%	(values may be UNDROPed after execution of combined conditionals)
+
+'EQ_IF :  %  value1, value2, EQ_IF (combines function of EQ and IF)
+          +CHECK INLINE< CMPL (P)+ (P)+ BNEQ >INLINE TARGET ; IMMEDIATE
+'NE_IF  : +CHECK INLINE< CMPL (P)+ (P)+ BEQL >INLINE TARGET ; IMMEDIATE
+'GT_IF  : +CHECK INLINE< CMPL (P)+ (P)+ BLEQ >INLINE TARGET ; IMMEDIATE
+'LE_IF  : +CHECK INLINE< CMPL (P)+ (P)+ BGTR >INLINE TARGET ; IMMEDIATE
+'GE_IF  : +CHECK INLINE< CMPL (P)+ (P)+ BLSS >INLINE TARGET ; IMMEDIATE
+'LT_IF  : +CHECK INLINE< CMPL (P)+ (P)+ BGEQ >INLINE TARGET ; IMMEDIATE
+
+'EQZ_IF :  % value, EQZ_IF  (combines compare to zero with IF)
+          +CHECK INLINE< TSTL (P)+ BNEQ >INLINE TARGET ; IMMEDIATE
+'NEZ_IF : +CHECK INLINE< TSTL (P)+ BEQL >INLINE TARGET ; IMMEDIATE
+'GTZ_IF : +CHECK INLINE< TSTL (P)+ BLEQ >INLINE TARGET ; IMMEDIATE
+'LEZ_IF : +CHECK INLINE< TSTL (P)+ BGTR >INLINE TARGET ; IMMEDIATE
+'GEZ_IF : +CHECK INLINE< TSTL (P)+ BLSS >INLINE TARGET ; IMMEDIATE
+'LTZ_IF : +CHECK INLINE< TSTL (P)+ BGEQ >INLINE TARGET ; IMMEDIATE
+
+%  CONDITIONALS and quadword compares
+
+'IF :  % truth value, IF
+  +CHECK
+  INLINE< BLBC (P)+ >INLINE TARGET
+  ; IMMEDIATE
+
+'THEN :  % THEN
+  -CHECK
+  CMARK ARCHER
+  ; IMMEDIATE
+
+'ELSE :  % ELSE
+  INLINE< BRB >INLINE TARGET  % UNCONDITIONAL BRANCH
+  SWAP  % TARGET FROM PRECEDING IF
+  CMARK ARCHER  % INSERT DISPLACECENT IN IF
+  ; IMMEDIATE
+
+'BEGIN :  % BEGIN
+  +CHECK
+  CMARK
+  ; IMMEDIATE
+
+'END :  % truth value, END
+  -CHECK
+  INLINE< BLBC (P)+ >INLINE TARGET
+  SWAP ARCHER
+  ;  IMMEDIATE
+
+'REPEAT :  % (at compile time, top is IF target, top-1 is BEGIN target)
+  -CHECK -CHECK
+  SWAP  %  (BEGIN target on top)
+  INLINE< BRB >INLINE
+  TARGET SWAP ARCHER  % from here to BEGIN
+  CMARK ARCHER  % from IF to after REPEAT
+  ;  IMMEDIATE
+
+'DGE :  % value1(quadword), value2(quadword), DGE, truth value (compares)
+  MOVQ (P)+ R0  MOVQ (P)+ R2
+  MOVL R2 -(P)  MOVL R0 -(P)  % low-order longwords to stack
+  MOVL R3 -(P)  MOVL R1 -(P)  % high-order parts to stack
+  DDUP EQ_IF  % are high-order longwords equal
+    DROP LTZ_IF SWAP THEN ELSE  % yes, set up low-order longwords
+    -ROT DROP -ROT DROP THEN  % no, set up high-order longwords
+  GE  % compare
+  ;
+
+ASSEMBLER<
+%----():  (), address  (gets address of next word on input line)
+'() :
+  WORD DROP I_LOOKUP IF  % does it exist?
+    CODE_COUNT DROP  % get the value
+    INLINE< MOVL (PC)+ >INLINE  % put on code to push the address
+    ,COMPILE  % put on the address
+    INLINE< -(P) >INLINE  % put on destination addressing mode
+  ELSE
+    "Lookup failed" I_COMPILE_ERROR
+  THEN
+  ; IMMEDIATE
+>
+
+%  DISPATCH
+
+'COMPILE_BYTE :  % COMPILE_BYTE, value
+%	converts next word on input line:
+%	word must be integer literal or
+%	ASCII literal of the form 'X
+  WORD IF
+    ILITERAL IF  % integer literal?
+      -1 ELSE  % yes
+      DROP DUP B@ 27 EQ IF  % no, ASCII literal?
+        1+ B@ -1 ELSE  % yes
+        DROP 0 THEN THEN ELSE  % no, failure
+    0 THEN  % no word on line, failure
+  NOT IF "Literal Error" I_COMPILE_ERROR THEN
+  ;
+
+'DISPATCH :
+  COMPILE_BYTE  % compile byte to be tested
+  INLINE<  CMPB (P) (PC)+ >INLINE CPUSH  % match?
+  INLINE<  BNEQ >INLINE 7 CPUSH  %  no, skip next word call
+  INLINE< TSTL (P)+ >INLINE  % drop
+  I_COMPILE  % yes, execute action word
+  INLINE< RSB >INLINE  % exit
+  ;  IMMEDIATE
+
+%  Redefinition of some words for efficiency
+
+'DUP : INLINE< MOVL (P) -(P) >INLINE ;  IMMEDIATE
+'DDUP : INLINE< MOVQ (P) -(P) >INLINE ;  IMMEDIATE
+'OVER : INLINE< MOVL B^(P) 4 -(P) >INLINE ;  IMMEDIATE
+'DROP : INLINE< ADDL2 S^ 4 P >INLINE ;  IMMEDIATE
+'2DROP : INLINE< ADDL2 S^ 8 P >INLINE ;  IMMEDIATE
+'+ : INLINE< ADDL2 (P)+ (P) >INLINE ;  IMMEDIATE
+'- : INLINE< SUBL2 (P)+ (P) >INLINE ;  IMMEDIATE
+'1+ : INLINE< INCL (P) >INLINE ; IMMEDIATE
+'1- : INLINE< DECL (P) >INLINE ; IMMEDIATE
+'1 : INLINE< MOVL S^ 1 -(P) >INLINE ; IMMEDIATE
+'2 : INLINE< MOVL S^ 2 -(P) >INLINE ; IMMEDIATE
+'-1 : INLINE< MNEGL S^ 1 -(P) >INLINE ; IMMEDIATE
+'@ : INLINE< MOVL @(P)+ -(P) >INLINE ;  IMMEDIATE
+'D@ : INLINE< MOVQ @(P)+ -(P) >INLINE ;  IMMEDIATE
+'W@ : INLINE< MOVZWL @(P)+ -(P) >INLINE ;  IMMEDIATE
+'B@ : INLINE< MOVZBL @(P)+ -(P) >INLINE ;  IMMEDIATE
+'I : INLINE< MOVL (L) -(P) >INLINE ;  IMMEDIATE
+
+%  Loop Stack stuff
+
+'MARK :  % MARK
+%	pushes P-stack pointer onto L stack
+  MOVL P -(L)
+  ;
+
+'NOTE :  % value, NOTE  (pushes value onto L-stack)
+  MOVL (P)+ -(L)
+  ;
+
+'RECALL :  % RECALL, popped L-stack
+  MOVL (L)+ -(P)
+  ;
+
+'RESTORE :  % RESTORE  (pop L-stack into P-stack pointer)
+  MOVL (L)+ P
+  ;
+
+%  More Binary Arithmetic and Logical Operators
+
+>
+
+'MIN :  % value1, value2, MIN, lesser of the two values
+  DDUP GT IF  % is value2 lesser?
+    UNDER ELSE  % yes
+    DROP THEN  % no
+  ;
+
+
+'MAX :  % value1, value2, MAX, greater of the two values
+  DDUP LT IF  % is value2 greater?
+    UNDER ELSE  % yes
+    DROP THEN  % no
+  ;
+
+'ABS :  % value, ABS, absolute value of value
+  DUP MINUS MAX
+  ;
+
+%  LOOPS
+%  NOTE--NEW DO LOOPS START HERE
+%  DO LOOPS FOR DEF
+
+ ASSEMBLER<
+
+'<DO> :  % execute-time DO
+  MOVQ (P)+ -(L)  % move limits to loop stack
+  SUBL3 (L) (L) B^ 4 -(L)  % initialize counter and push on loop stack
+  BLEQ (TARGET)  % branch on zero trip
+  ADDL2 S^ 2 (SP)  % no, add two to return address
+  (CMARK) (ARCHER)
+  ;
+
+'DO :  % high limit, low limit, DO
+%	compile-time DO
+  +CHECK
+  INLINE< <DO>  	% compile call to runtime DO
+  BRB >INLINE TARGET	% DO returns here in zero-trip case,
+			% compile branch past range of loop.
+			% DO returns here otherwise.
+  ;  IMMEDIATE
+
+'LOOP :  % LOOP  (adds one to loop index,
+%	 loops if index not exhausted)
+  -CHECK
+  INLINE< SOBGTR (L) >INLINE  % if count not exhausted, branch . . .
+  DUP 1+ TARGET SWAP ARCHER  % back to beginning of loop
+  CMARK ARCHER  % here from DO if count initially exhausted
+  INLINE< ADDL2 S^ C L >INLINE  % pop loop parameters from loop stack
+  ;  IMMEDIATE
+
+'+LOOP :  % value, +LOOP  (adds value to loop index,
+%	 loops if index not exhausted)
+  -CHECK
+  INLINE< SUBL2 (P)+ (L)  % subtract value from count
+  BGTR >INLINE  % if count not exhausted, branch . . .
+  DUP 1+ TARGET SWAP ARCHER  % back to beginning of loop
+  CMARK ARCHER  % here from DO if count initially exhausted
+  INLINE< ADDL2 S^ C L >INLINE  % pop loop parameters from loop stack
+  ;  IMMEDIATE
+
+'EXIT :  % EXIT (causes a loop to exit the next time LOOP is encountered)
+  SUBL2 (L) (L) B^ 8  % set high limit to value of index
+  MOVL S^ 1 (L)  % set counter to zero
+  ;
+
+'I :  SUBL3 (L) (L) B^ 8 -(P) ;		% index of innermost do
+'J :  SUBL3 (L) B^ 0C (L) B^ 14 -(P) ;  % index of next innermost
+'K :  SUBL3 (L) B^ 18 (L) B^ 20 -(P) ;  % index of next innermost
+
+'I' :  ADDL3 (L) (L) B^ 4 -(P)  DECL (P) ;
+
+'LAST_I :  % LAST_I, last value of I for previous loop
+  SUBL3 (L) B^ -C (L) B^ -4 -(P)
+  ;
+
+'<(> :  % execute-time (
+  MOVL (P) -(L)  % high limit to loop stack
+  CLRL -(L)  % low limit is zero
+  MOVL (P)+ -(L)  % initialize counter
+  BGTR (TARGET)  % branch on counter not yet exhausted
+    MOVL (SP) R0  % R0 < return address - 1
+    MOVZBL (R0)+ R1  % R0 < return address
+		     % R1 < branch displacement
+    ADDL3 R0 R1 (SP)  % add branch displacement to return address
+    RSB (CMARK) (ARCHER)  % return, don't execute loop
+    INCL (SP)  % return, start executing loop
+  ;
+
+'( :  % high limit, (
+%	compile-time (
+  +CHECK
+  INLINE< <(> >INLINE TARGET
+  ;  IMMEDIATE
+
+') :  % )  (adds one to loop index,
+%	 loops if index not exhausted)
+  -CHECK
+  INLINE< SOBGTR (L) >INLINE  % if count not exhausted, branch . . .
+  DUP 1+ TARGET SWAP ARCHER  % back to beginning of loop
+  CMARK ARCHER  % here from DO if count initially exhausted
+  INLINE< ADDL2 S^ C L >INLINE  % pop loop parameters from loop stack
+  ;  IMMEDIATE
+
+ASSEMBLER<
+
+'MOVE_BYTES :  % source string descriptor, destination address, MOVE_BYTES
+  SWAP FFFF  % max. count
+  LE_IF  % is max count exceded?
+   % short case
+    MOVQ B^(P) -8 R0  MOVQ (P)+ R2  % no, collect arguments
+    MOVC3 R1 (R3) (R2)  ELSE  % do it simply
+   % long case
+        MOVQ B^(P) -8 R0  % max. count to R0, full count to R1
+        CLRL R2  % prepare to divide
+        EDIV R0 R1 -(L) R0  % # groups onto L-stack, initial count to R0
+    LE_IF  % forward or backward move?
+     % long forward case
+      ADDL2 R1 -(P)  % get end of destination
+      ADDL2 R1 -(P)  % get end of origin
+      (CMARK)  % loop
+        MOVQ (P) R1
+        SUBL2 R0 R1  SUBL2 R0 R2  % next origin and destination
+        MOVQ R1 (P)
+        MOVC3 R0 (R2) (R1)  % move group
+        MOVL B^(P) -8 R0  % max. count
+        SOBGEQ (L) (TARGET) (SWAP) (ARCHER) ELSE  % all groups done?
+       % long backward case
+        MOVL -(P) R1  MOVL -(P) R3  % initial origin & destination
+        (CMARK)  % loop on number of groups +1
+        MOVC3 R0 (R1) (R3)  % move a group
+        MOVL B^(P) -8 R0  % max. count
+        SOBGEQ (L) (TARGET) (SWAP) (ARCHER) THEN  % through?
+    ADDL2 S^ 4 L  % clean loop stack
+    ADDL2 S^ 8 P THEN  % clean stack
+  ;
+>
+
+>
+
+%  Operating System Interface
+'INCLUDE :  % branch, INCLUDE
+%	appends branch to current branch
+  CURRENT @ @  % ->last entry in current branch
+  OVER BEGIN @ DUP @ EQZ END !  % put into link word
+					   % of bottom entry
+					   % of new branch
+  CURRENT @ !  % point current branch at new branch
+  ;
+
+'GETJPI :  % item code, GETJPI, completion code, value or pointer
+  NOTE  % save item code on L-stack
+  0 MARK  % buffer for returned item
+  0 MARK  % buffer for length of returned item
+  % build GETJPI-item descriptor
+  RECALL  % return length address
+  RECALL  % buffer address
+  RECALL 10000 *  % item code into left half
+  OVER NOTE  % address of returned item
+  4 +  %  buffer length into right half
+  MARK  % address of item descriptor
+  % build $GETJPI argument list
+  0 0 0 RECALL 0 0 0 7 
+  $GETJPI SYSERR
+  RESTORE
+  ;
+
+'EXPREG :  % # pages, EXPREG  (expands program region)
+  NOTE  % save # of pages
+  0 0 0 RECALL 4 $EXPREG SYSERR
+  4 (DROP)
+  ;
+
+'DELTVA :  % end of area, start of area, DELTVA
+  MARK  % pointer to bounds array onto L Stack
+  0 0 RECALL 3 $DELTVA
+  SYSERR 5 (DROP)
+  ;
+
+'CRETVA :  % end of area, start of area, CRETVA
+  MARK  % pointer to bounds array onto L Stack
+  0 0 RECALL 3 $CRETVA
+  SYSERR 5 (DROP)
+  ;
+
+'MAP :  % end of area, start of area, RMS channel no., MAP, end address,-
+        % start address
+  NOTE MARK 0 0 MARK
+  0  % page-fault cluster size (not used)
+  0  % protection
+  0  % virtual block number
+  0  % page count
+  RECALL RECALL RECALL -ROT NOTE SWAP NOTE  % get channel
+  0  % relative page # (not used)
+  0  % ident (version # and matching criteria)
+  0  % global section name descriptor
+  0  % flags
+  0  % access mode
+  RECALL  % returned address (pointer to quadword)
+  RECALL SWAP  % input address (pointer to quadword) & get correct address
+  0C  % parameter count
+  $CRMPSC NOTE 0C (DROP) -ROT DROP -ROT DROP RECALL
+  ;
+
+'GETTIM :  % GETTIM, 64-bit time
+  0 MARK RECALL 4- 1 $GETTIM SYSERR
+  ;
+
+'ASCTIM :  % 64-bit time, string variable, ASCTIM
+  DUP 2+ SWAP 2- W@ MARK  % output string descriptor
+  0 RECALL DUP 8 + SWAP DUP 4 $ASCTIM  SYSERR  % do it
+  4 (DROP) SWAP 2- W! 2DROP  % cleanup stack and store byte count
+  ;
+
+'BINTIM :  % string descriptor, BINTIM, 64-bit time
+  MARK RECALL DUP 2 $BINTIM SYSERR  % do it
+  2DROP  % cleanup
+  ;
+
+%  Operating System Interface (continued)
+'MILLISECONDS :    -2710 * ;  % (2710 hex = 10000 decimal)
+
+'DELAY :  % # of milliseconds delay
+  -1 SWAP MILLISECONDS MARK  % convert milliseconds to hundreds of nanoseconds
+  0 0  % no ID, no AST
+  RECALL  % pointer to time quadword
+  0  % event flag
+  4 $SETIMR SYSERR
+  6 (DROP)
+  0 1 $WAITFR SYSERR
+  DROP
+  ;
+
+'EVENT_FLAG :  % event flag #, EFN, (true if set, false if not set)
+%	tests and clears a specific event flag
+  1 $CLREF DUP SYSERR
+  UNDER $_WASSET EQ
+  ;
+
+%  Initialize data region.
+
+'.D@ :  % .D@, pointer to unassigned data region
+  .D @
+  ;
+
+'MEMORY :  % (pointer to unavailable memory)
+  .M @
+  ;
+
+'.D+! :  % value, .D+!  (reserve "value" bytes at end of data region)
+  .D @ + DUP .D !  % advance pointer
+  MEMORY -  %  if positive, amount of room needed
+  DUP GTZ IF
+    1- 200 / 1+ EXPREG  % expand region
+    FREP0VA GETJPI .M ! ELSE % record new bound
+    DROP THEN  % don't need to expand region
+  ;
+
+',D :  % value, ,D  (pushes value onto dictionary)
+  .D @  % where to put it
+  4 .D+!  % advance data-region pointer
+  !  % store datum
+  ;
+
+'B,D :  % value, B,D  (pushes byte onto dictionary)
+  .D @   1 .D+!   B!
+  ;
+
+%  Variable, Array, String Variable, Branch
+
+% 'VARIABLE :
+%   .D@ DUP -ROT DATA_ADDRESS   constant points to next free space
+%   OVER ,D   put value in that space
+%   DICT_PNTR @ +ROT   remember where we are in the dictionary
+%   ,   load the variable address onto the dictionary
+%   ,   load the value
+%   VARIABLE_LIST @ ,   make a link to the previous variable
+%   VARIABLE_LIST !   and update the variable-list pointer
+%   ;
+
+'VARIABLE :  % version without initialization on start of image file
+  .D@ SWAP DATA_ADDRESS  % constant points to next free space
+  ,D  % put value in that space
+  ;
+
+'ARRAY :  % count, name, ARRAY
+%	(allocates count longword and assign name to base address)
+  .D@ SWAP DATA_ADDRESS  % constant points to next free space
+  4 * .D+!  % allocate 4*count bytes
+  ;
+
+'SVARIABLE :  % max. len., name, SVARIABLE
+%	(allocates a string variable)
+  .D @ 2 + SWAP DATA_ADDRESS  % associate address of count with name
+  DUP ,D  % store max count, null current count
+  .D+!  % allocate string
+  ;
+
+'BRANCH :
+  .D@ SWAP 7FFFFFFF ,D BRANCH ;
+
+% IORB:  I/O Request Blocks
+
+'IORB< BRANCH
+
+IORB<
+DEFINITIONS
+
+0 'CUR_IORB VARIABLE
+0 'CUR_FRAB VARIABLE
+
+'IORB :
+  0C SWAP VARIABLE 0C 4 * .D+!
+  ;
+
+'FABLEN : FAB_COUNT UNDER ;
+'RABLEN : RAB_COUNT UNDER ;
+'XABLEN : XAB_COUNT UNDER ;
+
+% FAB, RAB, and XAB pointers (incomplete list)
+
+'FAB.L_ALQ : CUR_FRAB @ 10 + RABLEN + ;
+'FAB.B_FAC : CUR_FRAB @ 16 + RABLEN + ;
+'FAB.L_FNA : CUR_FRAB @ 2C + RABLEN + ;
+'FAB.B_FNS : CUR_FRAB @ 34 + RABLEN + ;
+'FAB.L_FOP : CUR_FRAB @ 04 + RABLEN + ;
+'FAB.B_FSZ : CUR_FRAB @ 3F + RABLEN + ;
+'FAB.W_MRS : CUR_FRAB @ 36 + RABLEN + ;
+'FAB.B_RAT : CUR_FRAB @ 1E + RABLEN + ;
+'FAB.B_RFM : CUR_FRAB @ 1F + RABLEN + ;
+'FAB.L_STS : CUR_FRAB @ 08 + RABLEN + ;
+'FAB.L_STV : CUR_FRAB @ 0C + RABLEN + ;
+'FAB.L_XAB : CUR_FRAB @ 24 + RABLEN + ;
+
+'RAB.L_FAB : CUR_FRAB @ 3C + ;
+'RAB.L_KBF : CUR_FRAB @ 30 + ;
+'RAB.B_KSZ : CUR_FRAB @ 34 + ;
+'RAB.B_RAC : CUR_FRAB @ 1E + ;
+'RAB.L_RBF : CUR_FRAB @ 28 + ;
+'RAB.L_ROP : CUR_FRAB @ 04 + ;
+'RAB.W_RSZ : CUR_FRAB @ 22 + ;
+'RAB.L_UBF : CUR_FRAB @ 24 + ;
+'RAB.W_USZ : CUR_FRAB @ 20 + ;
+
+'XAB.L_EBK : FAB.L_XAB @ 10 + ;
+'XAB.W_FFB : FAB.L_XAB @ 14 + ;
+
+'RESET_FRAB :
+  RAB_COUNT CUR_FRAB @ MOVE_BYTES  % initialize the RAB
+  FAB_COUNT CUR_FRAB @ RABLEN + MOVE_BYTES  % initialize the FAB
+  CUR_FRAB @ RABLEN + RAB.L_FAB !  % give FAB address to RAB
+  ;
+
+'FRAB :
+  .D @ CUR_FRAB !  % save data pointer
+  0 SWAP VARIABLE  % allocate the first 4 bytes
+  RABLEN FABLEN + 4- .D+!  % allocate the rest
+  RESET_FRAB  % and set it up
+  ;
+
+'APPEND_XAB :  % RAB address, APPEND_XAB
+  CUR_FRAB @ SWAP CUR_FRAB !  % save current FRAB and set up this one
+  .D @  % get address where XAB will be
+  XABLEN .D+!  % reserve the space
+  XAB_COUNT 2OVER MOVE_BYTES  % initialize it
+  FAB.L_XAB !  % give its address to the FAB
+  CUR_FRAB !  % get the old FRAB back
+  ;
+
+% FAB access codes
+
+20 'FAB.M_BIO CONSTANT
+40 'FAB.M_BRO CONSTANT
+04 'FAB.M_DEL CONSTANT
+02 'FAB.M_GET CONSTANT
+01 'FAB.M_PUT CONSTANT
+10 'FAB.M_TRN CONSTANT
+08 'FAB.M_UPD CONSTANT
+
+% FAB record formats
+
+01 'FAB.C_FIX CONSTANT
+02 'FAB.C_VAR CONSTANT
+03 'FAB.C_VFC CONSTANT
+00 'FAB.C_UDF CONSTANT
+
+% FAB record attributes
+
+08 'FAB.M_BLK CONSTANT
+02 'FAB.M_CR CONSTANT
+01 'FAB.M_FTN CONSTANT
+04 'FAB.M_PRN CONSTANT
+
+% RAB record access modes
+
+01 'RAB.C_KEY CONSTANT
+
+% File function definitions
+
+'FOPEN : CUR_FRAB @ .FOPEN ;
+'FCREATE : CUR_FRAB @ .FCREATE ;
+'FREAD : CUR_FRAB @ .FREAD ;
+'FWRITE : CUR_FRAB @ .FWRITE ;
+'FGET : CUR_FRAB @ .FGET ;
+'FPUT : CUR_FRAB @ .FPUT ;
+'FCLOSE : CUR_FRAB @ .FCLOSE ;
+
+0C 4 * 'MAP_BLOCK ARRAY  % set up an argument block for mapping
+0C 4 * ( I MAP_BLOCK + 0 B<- )  % clear the argument block
+
+'FMAP :  % end of area, start of area, FMAP, end, start, condition code
+  FAB.L_STV @ MAP_BLOCK 1C + !  % get channel and store in the block
+  MARK RECALL MAP_BLOCK !  % make a note of the addresses to map
+  0 0 MARK RECALL MAP_BLOCK 4+ !  % push return addresses and note them
+  0C ( MAP_BLOCK I' 4 * + @ )  % push the block on the stack
+  0C $CRMPSC NOTE 0C (DROP)  % call the system service
+  -ROT DROP -ROT DROP  % get rid of the original addresses
+  RECALL  % push the condition code
+  ;
+
+% FAB file options (for file mapping)
+
+ 00020000 'FAB.M_UFO CONSTANT  % User File Open
+ 00200000 'FAB.M_CBT CONSTANT  % Contiguous Best Try
+
+% IORB words
+
+  'INIT_IORB :
+    CUR_IORB @ DUP @ 1+ 1 DO
+      DUP I 4 * + 0<- LOOP DROP
+    ;
+
+  'EFN!    : CUR_IORB @ 04 + ! ;
+  'CHAN!   : CUR_IORB @ 08 + ! ;
+  'FUNC!   : CUR_IORB @ 0C + ! ;
+  'IOSB!   : CUR_IORB @ 10 + ! ;
+  'ASTADR! : CUR_IORB @ 14 + ! ;
+  'ASTPRM! : CUR_IORB @ 18 + ! ;
+  'P1!     : CUR_IORB @ 1C + ! ;
+  'P2!     : CUR_IORB @ 20 + ! ;
+  'P3!     : CUR_IORB @ 24 + ! ;
+  'P4!     : CUR_IORB @ 28 + ! ;
+  'P5!     : CUR_IORB @ 2C + ! ;
+  'P6!     : CUR_IORB @ 30 + ! ;
+> DEFINITIONS
+
+'TRNLOG :  % string source, string-variable result, TRNLOG
+%	(translates logical name)
+  SWAP MARK COUNT -ROT  % save source descriptor pointer
+  DUP NOTE  % save pointer for result length
+  2+ DUP 4- W@ MARK  % save result descriptor pointer
+  0 0 0 RECALL RECALL RECALL 6 $TRNLOG SYSERR
+  0A (DROP)
+  ;
+
+'ASSIGN :  % string name, ASSIGN, channel, error code
+  MARK 0 SWAP  % save where to put channel #
+  COUNT MARK  % save string descriptor pointer
+  OVER B@ 1B EQ_IF  % is first byte of sting an ESC?
+    4- SWAP 4+ SWAP THEN  % yes, drop first four bytes
+  0 0 RECALL RECALL SWAP 4 $ASSIGN
+  NOTE 6 (DROP) RECALL
+  ;
+
+'QIOW :
+  DUP @ DUP NOTE
+  4 * 1 + OVER + SWAP 3 -
+  DO
+    I' @ 4 +LOOP
+  $QIOW DROP RECALL (DROP)
+  ;
+
+'QIO :
+  DUP @ DUP NOTE
+  4 * 1 + OVER + SWAP 3 -
+  DO
+    I' @ 4 +LOOP
+  $QIO DROP RECALL (DROP)
+  ;
+
+%  User defined stacks
+
+'STACK :  % byte count, STACK
+  .D@ SWAP CONSTANT
+  .D@ C +  % low limit
+  DUP ,D
+  OVER + DUP  % high limit
+  ,D ,D
+  .D+!
+  ;
+
+
+'BPUSH :  % byte, stack, BPUSH  (pushes byte onto stack)
+  DUP 4 + @  % pointer
+  OVER @  % low limit
+  LT IF  % overflow?
+    CR = "Stack overflow." MSG ABORT ELSE  % yes
+    4 + DUP 1-<-  % decrement pointer
+    @ B! THEN  % store byte
+  ;
+
+%  Output Integer Conversion
+
+'ASCII :  % pushes ASCII value of first character of next word
+  WORD 2DROP  % get next word on input line
+  B@  % get first character
+  ICOMPILE  % compile as integer literal
+  ;  IMMEDIATE
+
+'<# :  % Start number conversion
+  OCONSTACK 4 + DUP 4 + @ <-  % reset stack
+  ;
+
+'#> :  % value, #>, byte pointer, count (of converted number)
+  DROP  % unconverted portion of number being converted
+  OCONSTACK 4 + @   % beginning of string
+  OCONSTACK 8 + @  % end of string
+  OVER -  % count
+  ;
+
+'#PUT :  % byte, #PUT  (pushes byte onto number stack
+  OCONSTACK BPUSH
+  ;
+
+'#A :  % value(less than radix), #A, corresponding ASCII character
+  DUP RADIX @ LT IF
+    DUP A LT IF  % convert to number or letter?
+      ASCII 0 + ELSE  % number
+      A - ASCII A + THEN ELSE  % letter
+    CR "Output conversion error." MSG ABORT THEN
+  ;
+
+'# :  % value, #, value/radix  (converts next digit onto number stack)
+  RADIX @ /MOD #A #PUT
+  ;
+
+'#S :  % value, #S, 0  (converts remaining digits onto number stack)
+  BEGIN # DUP EQZ END
+  ;
+
+'<#> :  % value, <#>, ptr. to converted string, count
+  DUP NOTE ABS  % make a note for the zero check, and set to absolute value
+  <#  % begin conversion
+  #S  % convert the absolute part
+  RECALL LTZ_IF ASCII - #PUT MINUS THEN  % if less than zero, negate
+  #>
+  ;
+
+% moves
+
+ASSEMBLER<
+
+% NOTE: MOVE_BYTES has been moved upward so as to be of use to the
+%   FRAB words
+
+'MOVE_WORDS :  % srce, dest, count, MOVE_WORDS  (moves longwords)
+  SWAP 4 * SWAP MOVE_BYTES
+  ;
+
+'SEARCH_STRING :  % pattern descriptor, source string descriptor,-
+%                   SEARCH_STRING, object string descr., pattern descr.
+  FFFF LT_IF  % short or long search?
+   % short search
+    SUBL2 S^ 4 P  % adjust stack
+    MOVQ (P)+ R2  MOVQ (P) R0  % short, get descriptors
+    MATCHC R0 (R1) R2 (R3) ELSE  % do it
+   % long search
+    MOVL (P)+ R3  % address of source string to R3
+    SUBL3 (P) B^(P) -C R0  INCL R0  % # bytes per subsequent group
+    MOVL B^(P) -8 R1  CLRL R2  % full count, prepare to divide
+    EDIV R0 R1 -(L) R2  % initial count to R2, # groups to loop stack
+    MOVL R0 B^(P) -C  % save subsequent length
+    MOVQ (P) R0  % pattern descriptor to R0, R1
+    (CMARK)  % loop # groups + 1
+      MATCHC R0 (R1) R2 (R3)  % try next group
+      BEQL (TARGET)  % success?
+        MOVL B^(P) -C R2  % subsequent count to R2
+        SUBL2 R0 R3  INCL R3  % new starting address in source string
+        SOBGEQ (L) (SWAP) (TARGET) (SWAP) (ARCHER)  % no, all done?
+      (CMARK) (ARCHER)  % all done
+    TSTL (L)+ THEN  % clean loop stack
+    ADDL2 -(P) B^(P) -4  % end of source string
+    MOVL R3 (P)  % address of remainder of source
+    SUBL2 (P) -(P)  % length of remainder
+  MOVL R0 -(P) EQZ  % return success code
+  ;
+
+>
+
+'.STREQ :  % pattern descr., source descr., .STREQ, success
+  -ROT EQ_IF  % are strings of equal length?
+    2UNDROP +ROT SEARCH_STRING 4 ( UNDER ) ELSE  % yes, compare
+    2DROP 0 THEN  % unequal length, fail
+  ;
+
+% string operations
+
+'STAB :  % byte, string variable, STAB  
+%	(attaches byte to string)
+  COUNT OVER 4- W@  % max. count
+  OVER GT_IF  % is there room?
+    DDUP +  % where to put the byte
+    FLIP  % stack = point, count, where, byte
+    2- SWAP 1+ W<-  % store new count, stack = where, byte
+    B! ELSE  % store byte
+    DROP 2DROP THEN  % no room, clean stack
+  ;
+
+'.STRAP :  % srce. ptr., srce. len., dest. string, STRAP  (string append)
+  +ROT GTZ_IF
+    UNDROP (  % loop for each byte in source
+      DDUP I + B@ SWAP STAB )
+    THEN
+  2DROP
+  ;
+
+'STRAP :  % srce. string, dest. string, STRAP  (string append)
+  SWAP COUNT -ROT .STRAP
+  ;
+
+'.MOVE_STRING :  % srce str descr, dest str, MOVE_STRING
+  DUP 0W<-  % set destination count to zero
+  +ROT (  % loop for each byte in source
+    DDUP I + B@ SWAP STAB )
+  2DROP
+  ;
+
+'MOVE_STRING :  % src. string, dest. string var., MOVE_STRING
+  SWAP COUNT -ROT .MOVE_STRING
+  ;
+
+ASSEMBLER<
+
+'(SUBSTRING) :  % pattern descr., source descr., (SUBSTRING),-
+%	(SUBSTRING), remaining source descr., pattern descr., success
+  MOVQ (P)+ R2  MOVQ (P) R0  % load descriptors
+  MATCHC R0 (R1) R2 (R3)  % do match operation
+  MOVQ R2 -(P)  % return rest-of-source descriptor
+  MOVL R0 -(P) EQZ  % return success code
+  ;
+
+>
+
+%  Utilities
+
+%  Useful constants
+
+0D 'CRET    CONSTANT
+0A 'LFEED CONSTANT
+20 'BLANK CONSTANT
+
+'RDL :  % string variable, RDL, not(EOF)
+  DUP 2 +  % buffer address
+  DUP 4 - W@  % max. string length
+  INCH  % channel #
+  GET IF  % EOF?
+    W<- -1 ELSE  % store returned length, restore not(EOF)
+    0 THEN  % restore EOF
+  ;
+
+100 'BUF SVARIABLE
+
+'BCOUNT :  % address of string with byte-sized count, COUNT, descriptor
+  DUP 1+ SWAP B@
+  ;
+
+'BMSG :  % address of string with byte-sized count, BMSG
+%	(types string)
+  BCOUNT TYPE
+  ;
+
+'LIST :  % filename, LIST
+  LOAD BEGIN
+    BUF RDL IF
+      BUF MSG CR REPEAT
+  ;F  % close input file
+  ;
+
+'LIST_NCR :  % filename, LIST: for non-carriage-return-attribute files
+  LOAD BEGIN
+    BUF RDL IF
+      BUF MSG REPEAT
+  ;F  % close input file
+  ;
+
+'DECIMAL :
+  A RADIX !
+  ;
+
+'HEX :
+  10 RADIX !
+  ;
+
+'SHOW_WORD :  % address of dictionary entry, SHOW_WORD
+  DUP 8 + DUP B@ SWAP 1+ OVER TYPE  % type name; leave count
+  8 / 2 SWAP - ( 09 TYO )  % type tabs to align column
+  " D=" MSG DUP <#> TYPE  % type header address
+  ", C=" MSG CODE_COUNT SWAP <#> TYPE  % code address
+  "(" MSG <#> TYPE ")" MSG  % code length in parentheses
+  ;
+
+'INVENTORY :
+  GLOBAL @ @
+  BEGIN
+    DUP 7FFFFFFF NE
+    IF
+      DICT_BASE @ +  % get actual address
+      DUP 4- SHOW_WORD CR  % output the two locations
+      @  % move down link
+  REPEAT
+  DROP
+  ;
+
+% More utilities
+
+'SYSMSG :  % condition code, SYSMSG, string descriptor of associated message
+  NOTE  % save code on L stack
+  BUF 100 MARK  % result-string descriptor
+  0  % outadr not used
+  0F  % flags (return full message)
+  RECALL  % points to result_string descriptor
+  DUP  % return count into same descriptor
+  RECALL  % condition code
+  5 $GETMSG 6 (DROP)  % do it, leave result descriptor on stack
+  ;
+
+'.WHERE :  % name, length, .WHERE  (tells address of word)
+   DDUP I_LOOKUP IF  % does it exist?
+     SHOW_WORD 2DROP ELSE  % yes, type address
+     TYPE "Undefined." MSG THEN
+  ;
+
+'WHERE : COUNT .WHERE ;
+
+0 'WADDR VARIABLE  % address given to WHAT
+
+'EXAMINE_ENTRY :
+  DICT_BASE @ +  % get global link address
+  DUP 4- CODE_COUNT  % get code address, count
+  OVER RECALL DUP NOTE LE  % low bound ok?
+  +ROT + RECALL DUP NOTE GE AND  % also high bound ok?
+  IF
+    4- SHOW_WORD -1  % type word data and signal exit
+    RECALL DROP  % drop value from loop stack
+  ELSE
+    @  % move down the link
+    0  % signal to continue
+  THEN
+  ;
+
+'WHAT :  % address, WHAT
+  NOTE  % save the address on loop stack
+  GLOBAL @ @  % initial pointer
+  BEGIN
+    DUP 7FFFFFFF NE
+    IF  % not end of dictionary?
+      EXAMINE_ENTRY  % either type word data or go on
+    ELSE
+      DROP "No word found at" MSG RECALL =  % type error message
+      -1  % signal exit
+    THEN
+  END
+  ;
+
+ASSEMBLER<
+'ERROR_TRACE :  % (an abort routine which gives a symbolic traceback)
+  RESET_REGISTERS
+  CR LINE_BUFFER @ MSG
+  CR WORD_BUFFER @ MSG
+  CR ERROR_PC @ WHAT CR  % show where the error occured
+  MOVL SP -(P)  % get the return stack
+  R_STACK_0 @ OVER - 4 / (  % loop to get all entries
+    DUP I 4 * + @ WHAT CR )  % type them all
+  DROP I_ABORT  % do conventional abort
+  ;
+
+>
+
+() ERROR_TRACE ABORT !  % implement it
+
+'LAST_WORD :  % LAST_WORD  (types name of last word WORDined)
+  GLOBAL @ @ 4- DICT_BASE @ + SHOW_WORD
+  ;
+
+'BELL :  % BELL  (rings bell on console)
+  7 TYO
+  ;
+
+'LOAD/L :
+  "Loading " MSG DUP MSG LOAD CR ;
+
+ASSEMBLER<
+
+'2 :
+  INLINE< MOVL S^ 2 -(P) >INLINE
+  ; IMMEDIATE
+
+>
+
+ASSEMBLER<
+'EXEC :  % address of word definition, EXEC
+	% (exectues the word)
+	JSB @(P)+
+  ;
+>
+
+% FORGET
+
+'MODULE :  % module name, MODULE: provides an access point for FORGET
+  DICT_PNTR @ SWAP CONSTANT  % constant points to dictionary location
+  .D@ ,  % load data pointer onto code region
+  ;
+
+'FORGET :  % dictionary entry address, FORGET
+  DUP DICT_PNTR !  % reset dictionary
+  DUP @ CURRENT @ !  % reset CURRENT
+  4+ DUP @ GLOBAL @ !  % reset GLOBAL
+  4+ DUP B@ + 4+  % skip past string, attribute byte, code length
+  W@ W->L  % convert code offset to longword
+  R8@+  % get code address
+  DUP CODE_PNTR !  % save in code pointer
+  4+ @ .D !  % dictionary pointer is stored after constant value
+  ;
+
+% Revision date handling
+
+18 'REVSTRING SVARIABLE  % string variable for time translation
+
+'SET_REVISION :  % word to be run by image creation facility
+  GETTIM  % get the 64-bit date and time
+  DATE D!  % save it in the user table
+  ;
+
+ASSEMBLER<
+
+'I_DATE_ERROR :  % called (with date) on load of an incorrectly dated file
+  "Error in XLOAD: invalid revision date" MSG CR
+  "Date for this version:" MSG 09 TYO
+  DATE D@ REVSTRING ASCTIM REVSTRING MSG CR  % show the date
+  "Date for the save file:" MSG 09 TYO
+  REVSTRING ASCTIM REVSTRING MSG
+  R_STACK_0 @  % get the initial return stack pointer
+  MOVL (P)+ SP  % reset the stack to get rid of the access blocks
+  I_ABORT  % call regular ABORT
+  ;
+
+>
+
+'REVISION :  % type the revision date and time
+  DATE D@ REVSTRING ASCTIM REVSTRING MSG
+  ;
+
+% DEF Initialization
+
+'DEF_INIT :  % reads an input line from the command line
+  GETCMD  % get the rest of the command line
+  DUP LINE_BUFFER @ W!  % save the count
+  LINE_BUFFER @ 2+ MOVE_BYTES  % put the string in the line buffer
+  LINE_BUFFER @ W@ REST_OF_LINE ! LINE_BUFFER @ 2+ REST_OF_LINE 4+ !
+  COMP_BUF_0 @ COMP_BUF_PNTR !  % reset the compile buffer
+  CHECK 0<- END_OF_CMND 0<-  % reset flags
+  LINE_BUFFER @ W@ NEZ_IF  % anything on the command line?
+    END_OF_LINE 0<-  % reset EOL flag
+    % line already read--no READLINE here
+    COMPILE @ EXEC  % compile the line
+    CHECK @ EQZ_IF
+      EXECUTE @ EXEC  % if done, do EXECUTE
+    ELSE
+      "Incomplete structure on input line" I_COMPILE_ERROR
+    THEN
+  ELSE
+    CR "Welcome to STOIC" MSG CR
+  THEN
+  ;
+
+% Compile-time stuff
+
+'DEF_INIT COUNT I_LOOKUP IF
+  CODE_COUNT DROP  % if an initialization word exists, get its code address
+  USER_INIT !  % and store it for image startup
+THEN  % if no DEF_INIT, forget it
+
+;F

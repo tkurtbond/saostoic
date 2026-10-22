@@ -1,0 +1,135 @@
+=== fault  cursor 24,4
++--------------------------------------------------------------------------------+
+|                                                                                |
+|                                                                                |
+|RED [.RED]R10.TXT                                                               |
+|[.RED]R10.TXT                                                                   |
+|/                D=12A52, C=32655(4)                                            |
+|C.DIVIDE         D=17894, C=3A633(39)                                           |
+|CLI.DISP1        D=17EA1, C=3B68F(267)                                          |
+|PROCESS_BYTE     D=17EBA, C=3B8F6(29)                                           |
+|C.READ_BYTE      D=17ED6, C=3B91F(45)                                           |
+|CLI              D=17EF1, C=3B964(66)                                           |
+|K.LF             D=181D1, C=3C282(70)                                           |
+|KBD_COM          D=18266, C=3C43F(52)                                           |
+|INTERPRET_COMMAND_BYTE D=18294, C=3C4C0(12)                                     |
+|SELECT_MODE      D=182D1, C=3C512(30)                                           |
+|KEY_LOOP         D=182EC, C=3C542(75)                                           |
+|KBD              D=18304, C=3C5B7(74)                                           |
+|.RED             D=18367, C=3C6F9(DC)                                           |
+|RED              D=18391, C=3C7E7(12)                                           |
+|I_COMPILE        D=10876, C=316BF(5D)                                           |
+|EXEC             D=1402D, C=340AA(3)                                            |
+|DEF_INIT         D=140D6, C=3422A(102)                                          |
+|No word found at 31329                                                          |
+|                                                                                |
+|0>                                                                              |
++--------------------------------------------------------------------------------+
+=== fault-ret  cursor 24,4
++--------------------------------------------------------------------------------+
+|RED [.RED]R10.TXT                                                               |
+|[.RED]R10.TXT                                                                   |
+|/                D=12A52, C=32655(4)                                            |
+|C.DIVIDE         D=17894, C=3A633(39)                                           |
+|CLI.DISP1        D=17EA1, C=3B68F(267)                                          |
+|PROCESS_BYTE     D=17EBA, C=3B8F6(29)                                           |
+|C.READ_BYTE      D=17ED6, C=3B91F(45)                                           |
+|CLI              D=17EF1, C=3B964(66)                                           |
+|K.LF             D=181D1, C=3C282(70)                                           |
+|KBD_COM          D=18266, C=3C43F(52)                                           |
+|INTERPRET_COMMAND_BYTE D=18294, C=3C4C0(12)                                     |
+|SELECT_MODE      D=182D1, C=3C512(30)                                           |
+|KEY_LOOP         D=182EC, C=3C542(75)                                           |
+|KBD              D=18304, C=3C5B7(74)                                           |
+|.RED             D=18367, C=3C6F9(DC)                                           |
+|RED              D=18391, C=3C7E7(12)                                           |
+|I_COMPILE        D=10876, C=316BF(5D)                                           |
+|EXEC             D=1402D, C=340AA(3)                                            |
+|DEF_INIT         D=140D6, C=3422A(102)                                          |
+|No word found at 31329                                                          |
+|                                                                                |
+|0>                                                                              |
+|                                                                                |
+|0>                                                                              |
++--------------------------------------------------------------------------------+
+=== bufoff  cursor 24,4
++--------------------------------------------------------------------------------+
+|/                D=12A52, C=32655(4)                                            |
+|C.DIVIDE         D=17894, C=3A633(39)                                           |
+|CLI.DISP1        D=17EA1, C=3B68F(267)                                          |
+|PROCESS_BYTE     D=17EBA, C=3B8F6(29)                                           |
+|C.READ_BYTE      D=17ED6, C=3B91F(45)                                           |
+|CLI              D=17EF1, C=3B964(66)                                           |
+|K.LF             D=181D1, C=3C282(70)                                           |
+|KBD_COM          D=18266, C=3C43F(52)                                           |
+|INTERPRET_COMMAND_BYTE D=18294, C=3C4C0(12)                                     |
+|SELECT_MODE      D=182D1, C=3C512(30)                                           |
+|KEY_LOOP         D=182EC, C=3C542(75)                                           |
+|KBD              D=18304, C=3C5B7(74)                                           |
+|.RED             D=18367, C=3C6F9(DC)                                           |
+|RED              D=18391, C=3C7E7(12)                                           |
+|I_COMPILE        D=10876, C=316BF(5D)                                           |
+|EXEC             D=1402D, C=340AA(3)                                            |
+|DEF_INIT         D=140D6, C=3422A(102)                                          |
+|No word found at 31329                                                          |
+|                                                                                |
+|0>                                                                              |
+|                                                                                |
+|0> BUFFER_OFF                                                                   |
+|                                                                                |
+|0>                                                                              |
++--------------------------------------------------------------------------------+
+=== stoic  cursor 24,4
++--------------------------------------------------------------------------------+
+|PROCESS_BYTE     D=17EBA, C=3B8F6(29)                                           |
+|C.READ_BYTE      D=17ED6, C=3B91F(45)                                           |
+|CLI              D=17EF1, C=3B964(66)                                           |
+|K.LF             D=181D1, C=3C282(70)                                           |
+|KBD_COM          D=18266, C=3C43F(52)                                           |
+|INTERPRET_COMMAND_BYTE D=18294, C=3C4C0(12)                                     |
+|SELECT_MODE      D=182D1, C=3C512(30)                                           |
+|KEY_LOOP         D=182EC, C=3C542(75)                                           |
+|KBD              D=18304, C=3C5B7(74)                                           |
+|.RED             D=18367, C=3C6F9(DC)                                           |
+|RED              D=18391, C=3C7E7(12)                                           |
+|I_COMPILE        D=10876, C=316BF(5D)                                           |
+|EXEC             D=1402D, C=340AA(3)                                            |
+|DEF_INIT         D=140D6, C=3422A(102)                                          |
+|No word found at 31329                                                          |
+|                                                                                |
+|0>                                                                              |
+|                                                                                |
+|0> BUFFER_OFF                                                                   |
+|                                                                                |
+|0> DECIMAL 1 2 + = CR                                                           |
+| 3                                                                              |
+|                                                                                |
+|0>                                                                              |
++--------------------------------------------------------------------------------+
+=== dcl  cursor 24,11
++--------------------------------------------------------------------------------+
+|C.READ_BYTE      D=17ED6, C=3B91F(45)                                           |
+|CLI              D=17EF1, C=3B964(66)                                           |
+|K.LF             D=181D1, C=3C282(70)                                           |
+|KBD_COM          D=18266, C=3C43F(52)                                           |
+|INTERPRET_COMMAND_BYTE D=18294, C=3C4C0(12)                                     |
+|SELECT_MODE      D=182D1, C=3C512(30)                                           |
+|KEY_LOOP         D=182EC, C=3C542(75)                                           |
+|KBD              D=18304, C=3C5B7(74)                                           |
+|.RED             D=18367, C=3C6F9(DC)                                           |
+|RED              D=18391, C=3C7E7(12)                                           |
+|I_COMPILE        D=10876, C=316BF(5D)                                           |
+|EXEC             D=1402D, C=340AA(3)                                            |
+|DEF_INIT         D=140D6, C=3422A(102)                                          |
+|No word found at 31329                                                          |
+|                                                                                |
+|0>                                                                              |
+|                                                                                |
+|0> BUFFER_OFF                                                                   |
+|                                                                                |
+|0> DECIMAL 1 2 + = CR                                                           |
+| 3                                                                              |
+|                                                                                |
+|0> ;F                                                                           |
+|STOICVAX>                                                                       |
++--------------------------------------------------------------------------------+
