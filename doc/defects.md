@@ -23,55 +23,57 @@ Each entry gives:
 - the impact;
 - a suggested fix.
 
-None of the fixes has been made or tested. Changes to the sources belong in
-`patched/`, never in `saostoic-text/`.
+Phase 6 fixed 37 of them in `patched/` (never in `saostoic-text/`); the
+Status column gives the batch (`PLAN.md`), and [`patches.md`](patches.md)
+lists each patch and its test. 13, 35 and 36 are corrected in the manual
+instead ([`errata.md`](errata.md)), and 11 and 21 are closed.
 
 ## Summary
 
-| # | Defect | Area | Impact |
-|---|---|---|---|
-| 1 | DIGIT takes any character above `Z` as a decimal point | kernel | silent wrong code |
-| 2 | Only the first CTRL/C works | kernel | interactive |
-| 3 | The terminal IOSB overwrites NLEN | kernel | minor |
-| 4 | No compile-buffer overflow check | kernel | hang |
-| 5 | Integer literals wrap; a float in hex is read as decimal | kernel | silent wrong value |
-| 6 | No check on the 16-bit windows | kernel | silent wrong address, or a hang |
-| 7 | A missing LOAD or OPEN file exits STOIC | kernel | exit |
-| 8 | One record per TYO in batch | kernel | output |
-| 9 | Remote-line code | kernel | REMSTART faults, REMTYPE fails |
-| 10 | GETCMD uses the obsolete CLI callback | kernel | works; fragile |
-| 11 | IMAGE's header and layout assumptions | IMAGE | characterized |
-| 12 | MOD and /MOD are unsigned | rdef | wrong value |
-| 13 | Comparisons are the reverse of the manual | rdef | documentation |
-| 14 | `=` writes NULs in negative numbers | kernel | output |
-| 15 | DGE compares the low longwords signed | rdef | wrong value |
-| 16 | `.FLIP` moves half of each value | float | wrong value |
-| 17 | MTH$ and OTS$ errors are not reported | float | later fault |
-| 18 | `.SQRT` of a negative ends STOIC | kernel, float | exit |
-| 19 | Every message shows ABORT's PC | kernel, rdef | confusing |
-| 20 | GETJPI leaves no completion code | rdef | documentation |
-| 21 | Pre-V4 IMAGE output gives BADISD | IMAGE | old exes |
-| 22 | BRANCH compiles an absolute address | rdef | `IORB<` unusable in shipped exe |
-| 23 | IMAGE in a LOAD saves the LOAD level | IMAGE | loop |
-| 24 | A persistent console read error loops | kernel | loop |
-| 25 | The console is opened PUT-only | kernel | no file input |
-| 26 | FIX_DZRO underflows | IMAGE | exe fails |
-| 27 | A fault in MOVC3 leaves FPD set | kernel | loop |
-| 28 | IMAGE does not check HEAD0 | IMAGE | exe fails |
-| 29 | `I_DATE_ERROR` is never installed | rdef | dead code |
-| 30 | The shipped RED.EXE faults at startup | obuf | RED unusable |
-| 31 | After that fault the terminal is changed and `;F` hangs | RED | terminal |
-| 32 | KBD sends `ESC[?^Fl` | RED | harmless |
-| 33 | The up arrow differs from the manual | RED | documentation |
-| 34 | `@K` and `@N` leave the next insert drawn on the divider | RED | display |
-| 35 | `` `C `` replies differ from the manual | RED | documentation |
-| 36 | Smaller RED manual/code differences | RED | documentation |
-| 37 | `.+ROT` and `.-ROT` move half of one value | float | wrong value |
-| 38 | `F->S` writes one byte past `F_STRING` | float | harmless so far |
-| 39 | FS underflow is not caught | kernel, float | later fault |
-| 40 | `>` does not check for an empty branch stack | kernel | console unusable |
-| 41 | DEF_INIT copies a long command tail past LINE_BUFFER | rdef/kernel | corrupted tail, overwritten data |
-| 42 | NOCREF cannot read or write an exe header | image | NOCREF unusable |
+| # | Defect | Area | Impact | Status |
+|---|---|---|---|---|
+| 1 | DIGIT takes any character above `Z` as a decimal point | kernel | silent wrong code | fixed (A) |
+| 2 | Only the first CTRL/C works | kernel | interactive | fixed (D) |
+| 3 | The terminal IOSB overwrites NLEN | kernel | minor | fixed (C) |
+| 4 | No compile-buffer overflow check | kernel | hang | fixed (C) |
+| 5 | Integer literals wrap; a float in hex is read as decimal | kernel | silent wrong value | fixed (C); the float rule is documented (`float.md`) |
+| 6 | No check on the 16-bit windows | kernel | silent wrong address, or a hang | fixed (C) |
+| 7 | A missing LOAD or OPEN file exits STOIC | kernel | exit | fixed (B) |
+| 8 | One record per TYO in batch | kernel | output | fixed (D) |
+| 9 | Remote-line code | kernel | REMSTART faults, REMTYPE fails | fixed (D) |
+| 10 | GETCMD uses the obsolete CLI callback | kernel | works; fragile | fixed (D) |
+| 11 | IMAGE's header and layout assumptions | IMAGE | characterized | closed (F): covered by 26 and 28 |
+| 12 | MOD and /MOD are unsigned | rdef | wrong value | fixed (B) |
+| 13 | Comparisons are the reverse of the manual | rdef | documentation | documented (errata) |
+| 14 | `=` writes NULs in negative numbers | kernel | output | fixed (A) |
+| 15 | DGE compares the low longwords signed | rdef | wrong value | fixed (A) |
+| 16 | `.FLIP` moves half of each value | float | wrong value | fixed (A) |
+| 17 | MTH$ and OTS$ errors are not reported | float | later fault | fixed (B) |
+| 18 | `.SQRT` of a negative ends STOIC | kernel, float | exit | fixed (B) |
+| 19 | Every message shows ABORT's PC | kernel, rdef | confusing | fixed (B) |
+| 20 | GETJPI leaves no completion code | rdef | documentation | fixed (A) |
+| 21 | Pre-V4 IMAGE output gives BADISD | IMAGE | old exes | closed (F): no change needed |
+| 22 | BRANCH compiles an absolute address | rdef | `IORB<` unusable in shipped exe | fixed (E) |
+| 23 | IMAGE in a LOAD saves the LOAD level | IMAGE | loop | fixed (F) |
+| 24 | A persistent console read error loops | kernel | loop | fixed (B) |
+| 25 | The console is opened PUT-only | kernel | no file input | fixed (D) |
+| 26 | FIX_DZRO underflows | IMAGE | exe fails | fixed (F) |
+| 27 | A fault in MOVC3 leaves FPD set | kernel | loop | fixed (B) |
+| 28 | IMAGE does not check HEAD0 | IMAGE | exe fails | fixed (F) |
+| 29 | `I_DATE_ERROR` is never installed | rdef | dead code | fixed (A) |
+| 30 | The shipped RED.EXE faults at startup | obuf | RED unusable | fixed (E) |
+| 31 | After that fault the terminal is changed and `;F` hangs | RED | terminal | fixed (G) |
+| 32 | KBD sends `ESC[?^Fl` | RED | harmless | fixed (A) |
+| 33 | The up arrow differs from the manual | RED | documentation | fixed (G) |
+| 34 | `@K` and `@N` leave the next insert drawn on the divider | RED | display | fixed (G) |
+| 35 | `` `C `` replies differ from the manual | RED | documentation | documented (errata) |
+| 36 | Smaller RED manual/code differences | RED | documentation | documented (errata) |
+| 37 | `.+ROT` and `.-ROT` move half of one value | float | wrong value | fixed (A) |
+| 38 | `F->S` writes one byte past `F_STRING` | float | harmless so far | fixed (A) |
+| 39 | FS underflow is not caught | kernel, float | later fault | fixed (C) |
+| 40 | `>` does not check for an empty branch stack | kernel | console unusable | fixed (A) |
+| 41 | DEF_INIT copies a long command tail past LINE_BUFFER | rdef/kernel | corrupted tail, overwritten data | fixed (D) |
+| 42 | NOCREF cannot read or write an exe header | image | NOCREF unusable | fixed (F) |
 
 ## Kernel and rdef
 
@@ -482,7 +484,8 @@ recover R11 as the ^C routine does, and make the descriptors consistent.
 - **Impact:** none on a VT100, which acts on the ^F and ignores the rest.
   Emulators may print the `l` (`tools/red-screens` removes it).
 - **Fix:** `ASCII 6 RESET_MODE`.
-- **Fixed in Phase 6 (Batch G)** that way (`patched/red/kbd`). The raw
+- **Fixed in Phase 6 (Batch A; checked in Batch G)** that way
+  (`patched/red/kbd`). The raw
   logs of the patched RED (`tests/red/patched/r4-keys.raw`, `r8-input.raw`)
   have only `ESC [ ? 6 l`.
 

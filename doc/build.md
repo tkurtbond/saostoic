@@ -4,7 +4,8 @@ Phase 2 of `PLAN.md`, run on 2026-10-21. The sources in
 `[.SAOSTOIC...]` rebuild the shipped kernel, `STOIC.EXE`, `RED.EXE` and
 `REDHIREZ.EXE` on V5.5-2H4 with **no changes and no diagnostics**. The
 rebuilt STOIC behaves the same as the shipped one; only addresses differ.
-`patched/` was not needed.
+The rebuild needed no changes. The Phase 6 fixes are built separately: see
+"The patched build" at the end.
 
 The evidence is in `build/`:
 
@@ -184,3 +185,36 @@ version now gets the rebuilt one: `SAO$KERNEL:HEAD0.EXE`, which IMAGE
 reads, and the `STOIC`, `RED` and `CALC` that `work-assign.com` defines.
 `tools/stoic-run` therefore sets `STOIC`, `RED` and `CALC` itself, from `-x`
 and `-r`, which default to the shipped binaries in `[.SAOSTOIC...]`.
+
+## The patched build
+
+Phase 6 builds the fixed sources ([`patches.md`](patches.md)) the same way,
+in a third copy of the tree, `[.WORK.PATCHED...]`:
+
+1. `tools/vax-do tools/setup-patched.com` BACKUPs `[.SAOSTOIC...]` to
+   `[.WORK.PATCHED...]`, once.
+2. `tools/patched-push` copies each file under `patched/` that differs
+   from `saostoic-text/` there, by ASCII FTP in one session.
+3. `tools/vax-do -o build/patched -t build/patched/build-terminal.txt
+   tools/patched-build.com` runs `STOBUILD MAC` and `HIREZ.CRE` in
+   `[.WORK.PATCHED]`. It keeps three versions of each built file and lists
+   the exes. With P1 `LINK`, it skips the assembly.
+
+A good build assembles and links with no messages. Its terminal output
+(`build/patched/build-terminal.txt`) loads the five STOIC modules and then
+the RED modules twice, once with CLI and once with CLIHIREZ, and shows
+"Creating writable image" three times: for STOIC.EXE, RED.EXE and
+REDHIREZ.EXE.
+
+The results are in `[.WORK.PATCHED.KERNEL]` (RKERNEL.EXE and HEAD0.EXE),
+`[.WORK.PATCHED.STOIC]STOIC.EXE` and `[.WORK.PATCHED.RED]` (RED.EXE and
+REDHIREZ.EXE). `tools/patched-assign.com` points `SAO$KERNEL`,
+`SAO$STOIC` and `SAO$RED` at them, and defines `STOIC`, `RED` and `CALC`.
+`tools/patched-suite` and the `STOIC_EXE` and `STOIC_RED` variables of
+`vax-interact` and `red-drive` run tests against them.
+
+The patched build differs from the plain rebuild in how memory is laid
+out (defect 22). Before it `$EXPREG`s its regions, the kernel grows P0 to
+400000 (`fix_p0`). So USER_DATA is 402200 whatever shareable images the
+exe was linked against. This also keeps the addresses that obuf freezes
+at load time valid in RED.EXE (defect 30).

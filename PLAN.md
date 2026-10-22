@@ -19,7 +19,7 @@ Phase 1 passes. Phase 5 is written gradually as results come in.
 | 3 IMAGE | done (see "Phase 3 outcome"; `doc/image.md`, `tests/image/`) |
 | 4 RED | done (see "Phase 4 outcome"; `doc/red.md`, `tests/red/`) |
 | 5 Documentation | done (see "Phase 5 outcome"; `doc/README.md`, `tests/lang/`) |
-| 6 Fixes | in progress: Batches A–H done; decisions taken (all as recommended) |
+| 6 Fixes | **done** (2026-10-21): Batches A–H; 37 fixed, 3 documented, 2 closed (`doc/patches.md`) |
 
 Update this table as work proceeds.
 
@@ -853,6 +853,27 @@ check (5), and no shipped-equivalent exe (6).
   `GE` and `LE` do the opposite on the VAX, and code from CP/M or the
   manual has to swap them.
 - Cross-referenced from `language.md`, `red.md` and `README.md`.
+
+### Final verification (2026-10-21)
+
+Run against the final patched build:
+
+- `tools/patched-suite`: 18 passed. `tools/patched-suite --fix`: 32 passed.
+- RED scripts r0–r11 (`tests/red/patched/`): as the shipped results, apart
+  from the differences in `doc/patches.md`.
+- Interactive checks (`tests/interactive/patched/`):
+  - `ctrlc3` and `ctrlc`: every CTRL/C aborts (2).
+  - `compbuf`: "Compile buffer full" where the shipped exe looped on
+    OPCDEC (4, 27). The next line runs at top level and its DUP finds the
+    stack empty: ACCVIO at 400600, as any empty-stack DUP (the shipped exe
+    gives ACCVIO at CDE00).
+  - `tty`: NLEN stays 9 after TYI (3).
+  - `image-console`: the script points SAO$KERNEL at the shipped HEAD0,
+    so the patched IMAGE refuses (28), and the rest of the script finds
+    no exe. Reading the console from a file is covered by F25-CONFILE.
+  - `prompt`: unchanged.
+- `doc/patches.md`, the Status column in `doc/defects.md`, the patched
+  build in `doc/build.md`, and AGENTS.md written.
 
 ### Produces
 

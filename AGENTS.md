@@ -15,7 +15,8 @@ system on a real (SIMH) VAX and document its design**.
 | `saostoic-text/stoic/` | The STOIC layer: `rdef` (the standard word set), `image`, `float`, `obuf`, `vt100`, `stoic.cre`, and the manual `stoic.mem`/`stoic.rno`. |
 | `saostoic-text/red/` | RED: `err dyna e window edv eb command immed cli kbd red`, `red.cre`, `hirez.cre`, `red.mem`. |
 | `saostoic-text/gm/` | GM variant: `kernel.mar`, `ss.mar`, `float.sto`, and `newstoic.mem` (the GM "Detailed Guide to VAX/VMS STOIC", 19 May 1982). |
-| `doc/` | The verified documentation (Phase 5). Start at `doc/README.md`; `doc/defects.md` lists all 40 defects. |
+| `doc/` | The verified documentation (Phase 5). Start at `doc/README.md`; `doc/defects.md` lists all 42 defects, `doc/patches.md` the Phase 6 fixes and `doc/errata.md` the manual corrections. |
+| `patched/` | The Phase 6 sources: a full copy of the VMS tree with the fixes. On the VAX it is `[.WORK.PATCHED...]`. |
 | `notes/` | The first design drafts (`kernel-design.md`, `stoic-level-design.md`), written from reading the code. Historical: `doc/` supersedes them. |
 
 The authoritative copy of every file, binaries included, is on the VAX in
@@ -110,6 +111,10 @@ For unattended runs, use `tools/` (see `tools/README.md`):
 - `tools/word-index [--list|--md]` indexes every word definition in the
   sources and cross-checks it against INVENTORY; `--md` makes
   `doc/words.md`.
+- `tools/patched-push`, `tools/patched-build.com` and
+  `tools/patched-suite [--fix] [--shipped]` push, build and test the
+  patched tree (`doc/build.md`, "The patched build"). `tests/fix/` has a
+  test for each defect.
 
 STOIC writes to SYS$COMMAND, the terminal, not SYS$OUTPUT. Under `/OUTPUT`
 its output therefore lands in the telnet session, not in the log, and the
@@ -289,8 +294,16 @@ exe's ACCVIO and the terminal it leaves, a malformed escape, the up arrow,
 differences from the manual (`doc/red.md`). Phase 5 added 37–40:
 `.+ROT`/`.-ROT` losing half a value, `F->S` overrunning `F_STRING`,
 unchecked float-stack underflow, and `>` emptying the branch stack.
-Phase 6 added 41, a long DCL command tail overrunning LINE_BUFFER.
-Each has a repro, cause and fix in `doc/defects.md`.
+Phase 6 added 41, a long DCL command tail overrunning LINE_BUFFER, and 42,
+NOCREF never working. Each has a repro, cause and fix in `doc/defects.md`.
+
+**Phase 6 fixed 37 of the 42 in the patched build** (`doc/patches.md`):
+every one apart from 13, 35 and 36, which are corrected in
+`doc/errata.md`, and 11 and 21, which are closed. The list below describes
+the shipped exes. The patched exes are
+`DUA1:[USERS.CLAUDE.WORK.PATCHED.STOIC]STOIC.EXE` and
+`[.WORK.PATCHED.RED]RED.EXE`. Their data region is at 402200 on any
+layout, so `IORB<` and RED's obuf work.
 
 1. DIGIT treats any character above `Z` as a decimal point, so lowercase
    undefined words in LOAD files (which are not uppercased) compile silently
@@ -316,10 +329,10 @@ Each has a repro, cause and fix in `doc/defects.md`.
 
 ## Plan
 
-The detailed test and documentation plan is in **`PLAN.md`**. It has six
+The detailed test and documentation plan is in **`PLAN.md`**. It has seven
 phases: 0 tooling, 1 characterizing the shipped binaries, 2 rebuilding from
-source, 3 IMAGE, 4 RED and 5 documentation. Keep its status table up to
-date.
+source, 3 IMAGE, 4 RED, 5 documentation and 6 fixes (Batches A–H). Keep
+its status table up to date.
 
 ## Working conventions
 

@@ -1,0 +1,33 @@
+ISTOIC
+
+Welcome to STOIC
+ 
+0> BEGIN 0 END
+7[7m Cancel [m8
+ 
+0> 1 = CR
+ 1
+ 
+0> HEX 1000 DELAY 4 = CR
+ 4
+ 
+0> BEGIN 0 END
+7[7m Cancel [m8
+ 
+0> 
+7[7m Cancel [m8
+ 
+0> STOP
+STOP
+undefined error compiling...  STOP  ...in line
+STOP
+ 
+0> 
+ 
+0> 
+*** vax-interact: no DCL prompt; CTRL/Y and STOP
+
+7[7m Interrupt [m8
+
+^@STOICVAX> STOP
+STOICVAX> 

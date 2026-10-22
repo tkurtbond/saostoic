@@ -21,9 +21,10 @@ family.
 | [`float.md`](float.md) | The float stack, float literals, the `FLOAT<` words, output formats, the MTH$ words, float errors and CALC. |
 | [`image.md`](image.md) | IMAGE, which writes the running STOIC as a new `.EXE` without the linker, and SAVE/XLOAD. |
 | [`red.md`](red.md) | RED, the screen editor: buffers, the command line, the keypad, the display, and how it differs from `red.mem`. |
-| [`build.md`](build.md) | Rebuilding the kernel, STOIC.EXE, RED.EXE and REDHIREZ.EXE from source on V5.5-2H4. |
+| [`build.md`](build.md) | Rebuilding the kernel, STOIC.EXE, RED.EXE and REDHIREZ.EXE from source on V5.5-2H4, and the patched build. |
 | [`gm-variant.md`](gm-variant.md) | The GM Research kernel, compared with SAO's. From the source only; it has not been built or run. |
 | [`defects.md`](defects.md) | The 42 defects found, each with a repro, the cause, the impact and a suggested fix. |
+| [`patches.md`](patches.md) | The Phase 6 patches: one for each fixed defect, with its test, and what behaves differently from the shipped exes. |
 | [`errata.md`](errata.md) | Corrections to `stoic.mem` and `red.mem`, in manual order, and which ones the patched build changes. |
 | [`cpm-compare.md`](cpm-compare.md) | CP/M STOIC's comparison words, which show that the VAX reversed the intended sense. |
 
