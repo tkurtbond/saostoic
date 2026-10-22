@@ -60,3 +60,14 @@ On 22 October 2026, on VAX/VMS V5.5-2H4, with Zip 3.0 and UnZip 6.00:
 
 Each test ran in a scratch directory in `[.WORK]`, which was deleted
 afterwards.
+
+## Releases
+
+| Tag | Date | Commit | SHA-256 of the source zip | SHA-256 of the exe zip |
+|---|---|---|---|---|
+| [`current-1.0`](https://github.com/tkurtbond/saostoic/releases/tag/current-1.0) | 22 October 2026 | `56f8613` | `abdc85a4f044e09850cfda123e02c8495951543e995d189c231808062426838e` | `2e0605cd6f2bb54d26abb0ffff6efa654af24e5aea8e605a2e7736e2ad6b2ea3` |
+
+The source zip of `current-1.0` has the same files as the one tested
+above. Its checksum differs because `make-dist` dates the files as the
+commit, and the tested zip was made from `459d5b3`. So run `make-dist`
+at the commit to be tagged.
