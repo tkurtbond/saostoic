@@ -641,6 +641,7 @@ header DIGIT
 	blss	not_digit
 	subl2	#<^a/Z/-^a/A/+1>,r2	;bias is "Z" + 1
 	blss	alph
+	brb	not_digit		;above "Z": not a digit
 found_dp:
 	tstl	u_float(r11)		;is this not the first "."?
 	bneq	not_digit		;if it isn't, fail
@@ -693,12 +694,18 @@ header ICOMPILE
 	movl	word_buffer(r11),-(r10)	;push word descriptor address
 	jsb	count			;make str. descriptor on stack
 	jsb	string_to_float		;convert to D_floating
-	movl	u_cbp(r11),r2		;get compile loc. in r2
+	blbs	r0,30$			;if it converted
+	addl2	#8,r7			;if not, drop the slot
+	moval	bad_float_msg,-(r10)	;and report a compile error
+	jsb	@compile_error(r11)
+30$:	movl	u_cbp(r11),r2		;get compile loc. in r2
 	movw	#^x8f70,(r2)+		;compile "MOVD #"
 	movq	(r7)+,(r2)+		;move number from f-stack
 	movb	#^x77,(r2)+		;compile "-(r7)"
 	movl	r2,u_cbp(r11)		;restore pointer
 	rsbx
+bad_float_msg:
+	string	</invalid floating-point literal/>
 
 ;----scompile:  SCOMPILE
 ;    compiles string literal
