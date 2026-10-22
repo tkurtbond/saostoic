@@ -965,6 +965,10 @@ displacement (searched: `W->L`, `CODE_COUNT`, `C8`, `JSB`, `R8@+`).
     the fixup ISD.
   - F06-CODE needed rewriting: "Code out of range" no longer exists. It
     and g1 place code relative to R8, so they hold for any K_START.
+- **A big application** (`tests/big/`, `doc/image.md`): 1100 generated
+  words, 120 KB of code and 62 KB of dictionary, load on the patched
+  RED.EXE and give the generator's total. IMAGE makes BIGRED.EXE, whose
+  editor works and whose STOIC prompt (ESC S) runs the application.
 - **Room now:** code 231.8 KB in STOIC.EXE and 205.8 KB in RED.EXE;
   dictionary 106 KB and 94.5 KB. With the code window alone, the
   dictionary (42 KB and 30.5 KB) bound first; enlarging it moved K_START

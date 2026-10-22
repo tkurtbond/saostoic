@@ -1,0 +1,17 @@
+#!/bin/sh
+# Runs the big-application test of Phase 7 (doc/image.md) and writes
+# tests/big/results/:
+#   load.txt  BIGAPP.STO LOADed on the patched RED.EXE, its total, where
+#             it landed and the room left; then IMAGE as [.WORK]BIGRED.EXE,
+#             and BIGRED run by command tails
+#   r-big.*   the editor in BIGRED.EXE (tools/red-drive)
+# tests/big/gen remakes BIGAPP.STO.
+cd "$(dirname "$0")/../.." || exit 2
+T=tests/big R=tests/big/results
+mkdir -p $R
+VAX_DO_TIMEOUT=1500 tools/stoic-run -m -f $T/BIGAPP.STO \
+  -x 'DUA1:[USERS.CLAUDE.WORK.PATCHED.RED]RED.EXE' \
+  tests/image/a1-pat.dcl $T/big1-load.con $T/big2-run.dcl > $R/load.txt 2>&1
+echo "load: exit $?"
+STOIC_RED='DUA1:[USERS.CLAUDE.WORK]BIGRED.EXE' tools/red-drive -o $R $T/r-big.tcl
+echo "red: exit $?"

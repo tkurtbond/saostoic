@@ -279,6 +279,39 @@ Group `g` (`g1-high.con`, `g2-run.dcl`, `results/g.txt`) shows it:
 `tests/fix/F06-CODE` covers the rest: calls on both sides of R8+8000,
 FORGET of a module past it, and "Code space full." at K_END.
 
+#### A big application on RED
+
+`tests/big/` (`run`, results in `tests/big/results/`) loads a generated
+application on the patched RED.EXE. `tests/big/gen` writes `BIGAPP.STO`:
+
+- 1100 words with names of 25 to 60 characters;
+- each word calls one earlier word, chosen at random, then adds or
+  subtracts literals, and some run a DO loop or an IF;
+- 37 APP_SUM words and APP_TOTAL add them all up, and the generator
+  computes the same total.
+
+| | Before | After | Used |
+|---|---|---|---|
+| CODE_PNTR | 3CA00 | 5AA51 | 1E051 (120 KB) |
+| DICT_PNTR | 18400 | 27C63 | F863 (62 KB) |
+
+Both are far past the old limits: 13 KB of code in the Phase 6 RED.EXE,
+and 30.5 KB of dictionary before the dictionary was enlarged. The words
+after the first 13 KB of code are past R8+7FFF (3FDFF), so calls go both
+ways across the window. After the load, 87.7 KB of code (156DC) and
+32 KB of dictionary (819D) are left.
+
+- **The load** (`load.txt`): APP_TOTAL gives −26181FF, the generator's
+  FD9E7E01 printed signed, as `<#>` does.
+- **IMAGE** of the loaded RED, from the console, makes `[.WORK]BIGRED.EXE`.
+  Run by a command tail it gives the same total; its USER_CODE is 5AC00
+  and its USER_DICTIONARY 27E00.
+- **The editor in BIGRED.EXE** (`r-big.scr`) works:
+  - it inserts text and writes the file (W~H~~), which TYPE shows;
+  - it reopens the file;
+  - after ESC S, at the STOIC prompt, APP_TOTAL gives the total, and a
+    new word calling it lands at 5AC00 and runs.
+
 ## Defects found in Phase 3
 
 The numbers continue `PLAN.md`'s defect checklist.

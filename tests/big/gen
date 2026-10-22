@@ -1,0 +1,73 @@
+#!/usr/bin/env python3
+# Writes tests/big/BIGAPP.STO, a synthetic application big enough to pass
+# both of the old patched limits (Phase 7): about 150 KB of code and 60 KB
+# of dictionary. Each word APP_nnnn_... calls one earlier word, chosen at
+# random, so calls go both ways across R8+7FFF (JSB W^ and L^), then adds
+# and subtracts literals, and some run a DO loop or an IF. The APP_SUM_nn
+# words add up groups of words and APP_TOTAL adds the groups. The last
+# line prints the total and the value computed here, which must agree.
+#
+#   tests/big/gen [N]    (default 1100 words; seed fixed)
+import random, sys, os
+
+N = int(sys.argv[1]) if len(sys.argv) > 1 else 1100
+M = 0xffffffff
+rnd = random.Random(1985)
+SYL = ["RED", "BUF", "GAP", "LINE", "CHAR", "SCROLL", "WINDOW", "KEYPAD",
+       "CURSOR", "SEARCH", "REPLACE", "INSERT", "DELETE", "BLOCK", "MARK"]
+
+def wrap(head, parts, width=100):
+    # A line holds 132 characters (LINE_BUF_SIZE); a definition may span
+    # lines, since CHECK keeps it open until ";".
+    out, cur = [], head
+    for p in parts + [";"]:
+        if len(cur) + 1 + len(p) > width:
+            out.append(cur); cur = "  " + p
+        else:
+            cur += " " + p
+    return "\n".join(out + [cur])
+
+names, vals, lines = [], [], []
+for k in range(N):
+    name = "APP_%04d_" % k + "_".join(rnd.choice(SYL) for _ in range(rnd.randint(4, 7)))
+    body = []
+    if k == 0:
+        v = 0x1985
+        body.append("1985")
+    else:
+        j = rnd.randrange(k)
+        v = vals[j]
+        body.append(names[j])
+    for _ in range(rnd.randint(5, 10)):
+        c = rnd.choice([rnd.randrange(0x40), rnd.randrange(0x7fffffff)])
+        if rnd.random() < 0.5:
+            v = (v + c) & M; body.append("0%X +" % c)
+        else:
+            v = (v - c) & M; body.append("0%X -" % c)
+    if rnd.random() < 0.3:
+        m = rnd.randint(1, 9)
+        v = (v + m * (m - 1) // 2) & M
+        body.append("0%X 0 DO I + LOOP" % m)
+    if rnd.random() < 0.3:
+        a, b = rnd.randrange(0x7fffffff), rnd.randrange(0x7fffffff)
+        v = ((v + a) if v & 1 else (v - b)) & M
+        body.append("DUP 1 AND IF 0%X + ELSE 0%X - THEN" % (a, b))
+    names.append(name); vals.append(v)
+    lines.append(wrap("'%s :" % name, body))
+
+G = 30
+groups = [range(i, min(i + G, N)) for i in range(0, N, G)]
+for g, r in enumerate(groups):
+    lines.append(wrap("'APP_SUM_%02d : 0" % g, [names[i] + " +" for i in r]))
+lines.append(wrap("'APP_TOTAL : 0", ["APP_SUM_%02d +" % g for g in range(len(groups))]))
+total = sum(vals) & M
+# <#> prints a signed value.
+shown = "%X" % total if total < 0x80000000 else "-%X" % (0x100000000 - total)
+lines.append('"TOTAL " MSG APP_TOTAL <#> TYPE "  EXPECTED %s" MSG CR' % shown)
+
+hdr = ["%% BIGAPP.STO: MADE BY TESTS/BIG/GEN (%d WORDS); DO NOT EDIT." % N, "HEX"]
+out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "BIGAPP.STO")
+with open(out, "w") as f:
+    f.write("\n".join(hdr + lines) + "\n")
+print("%s: %d words, %d bytes, total %X, longest line %d" %
+      (out, N, os.path.getsize(out), total, max(len(l) for x in lines for l in x.split("\n"))))
