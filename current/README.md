@@ -30,7 +30,8 @@ links it, and STOIC then builds itself.
   on VAX/VMS V5.5-2H4 on a SIMH MicroVAX 3900, on 22 October 2026, and
   has not been tried on other versions.
 - About 1800 blocks of disk space: the sources, the object files and the
-  exes.
+  exes. The whole release zip, unpacked and built, takes about 2900, with
+  the documentation and the files the build does not need.
 - No privileges. Nothing is installed, and no system logical name is
   changed.
 

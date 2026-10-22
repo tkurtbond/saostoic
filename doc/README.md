@@ -27,6 +27,7 @@ family.
 | [`patches.md`](patches.md) | The Phase 6 patches: one for each fixed defect, with its test, and what behaves differently from the shipped exes. |
 | [`errata.md`](errata.md) | Corrections to `stoic.mem` and `red.mem`, in manual order, and which ones the patched build changes. |
 | [`current.md`](current.md) | The current tree, `current/` (made in Phase 8 as cmpfix): the patched build with the comparison words as in the manual and CP/M STOIC (defect 13), and how it was tested. To build and run it from its sources, see [`../current/README.md`](../current/README.md). |
+| [`dist.md`](dist.md) | The release zips of the current tree: what is in each, how they are made (`tools/make-dist`, `tools/dist-exe.com`) and how they were tested. |
 | [`cpm-compare.md`](cpm-compare.md) | CP/M STOIC's comparison words, which show that the VAX reversed the intended sense. |
 
 `data/stoic-inventory.txt` is the output of INVENTORY in the shipped exe.

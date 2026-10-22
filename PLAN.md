@@ -22,6 +22,7 @@ Phase 1 passes. Phase 5 is written gradually as results come in.
 | 6 Fixes | **done** (2026-10-21): Batches A–H; 37 fixed, 3 documented, 2 closed (`doc/patches.md`) |
 | 7 Raise the code window | **done** (2026-10-21): `JSB L^`, longword header displacement, code to K_END 6FF2D with a spare page after it, 128 KB dictionary (`doc/patches.md`) |
 | 8 Comparisons as in the manual (cmpfix) | **done** (2026-10-22): boundary tests `tests/cmp/` and r12; defects 43–50 found and fixed; `cmpfix/` built and tested, defect 13 fixed there; renamed `current/` (`doc/current.md`) |
+| Distribution | release zips made and tested on the VAX (2026-10-22): `tools/make-dist`, `tools/dist-exe.com` (`doc/dist.md`); not yet published |
 
 Update this table as work proceeds.
 
