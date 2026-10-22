@@ -685,7 +685,7 @@ check (5), and no shipped-equivalent exe (6).
   EDIV of its own, so `I=` and `<#>` print as before. In the sources only
   float's `/MOD` (on ABS values) and `#` used `/MOD`.
 - The console read-error count is a new user-table cell, CONSOLE_ERRS,
-  after RMBUF (so 965 words). F24 (`DEFINE/USER SYS$INPUT`) now gives
+  after RMBUF, which is also a new word. F24 (`DEFINE/USER SYS$INPUT`) now gives
   three RMS-F-FAC messages and exits. It has no shipped result, because
   the shipped exe loops; `patched-suite --fix --shipped` skips it.
 - The kernel grew past a page boundary, so the `$EXPREG`'d regions are
