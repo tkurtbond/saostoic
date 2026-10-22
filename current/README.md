@@ -144,7 +144,7 @@ STOBUILD:
 
 1. runs `ASSIGN.COM`, which defines the logical names SAO$KERNEL,
    SAO$STOIC and SAO$RED for the three subdirectories (in the process
-   table) and the symbol `STOIC`;
+   table) and the symbols `STOIC`, `RED` and `CALC` (step 4);
 2. in SAO$KERNEL, assembles the nine `.MAR` files (`KERMAC.COM`), links
    `RKERNEL.EXE` and copies it to `HEAD0.EXE` (`KERLINK.COM`);
 3. in SAO$STOIC, runs RKERNEL, LOADs RDEF, IMAGE, FLOAT, OBUF and VT100,
@@ -220,7 +220,11 @@ step 4. Keep HEAD0.EXE with STOIC.EXE: IMAGE needs it to write a new exe.
 
 ## 4. Define the commands
 
-Put these in your `LOGIN.COM`, with your own directory:
+`ASSIGN.COM` defines all of these for the session it runs in, from your
+default directory, which must be the top directory. So after a build, or
+after `SET DEFAULT [.SAOSTOIC]` and `@ASSIGN`, the commands work at once.
+To have them in every session, put these in your `LOGIN.COM`, with your
+own directory:
 
 ```
 $ ASSIGN DUA1:[USERS.ME.SAOSTOIC.KERNEL] SAO$KERNEL
