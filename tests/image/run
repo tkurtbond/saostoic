@@ -17,6 +17,8 @@
 #           made (E2) and with P0 ending 40000 higher (E2W, from WIDEN.STO,
 #           as on a system with larger shareables), with the rebuild
 #   e-pat   the same with the patched build (fixed data address)
+#   f       the room left in each window: the region pointers of the
+#           shipped, rebuilt and patched STOIC.EXE and RED.EXE
 #   loop    the code window: ends in an endless fault loop, so it is cut
 #           off by a short timeout and only its head is kept
 cd "$(dirname "$0")/../.." || exit 2
@@ -42,6 +44,12 @@ for g; do
               $T/e3-widen.con $T/e4-run.dcl > $R/$g.txt 2>&1 ;;
     e-pat)  tools/stoic-run -m -x "$PAT" -f $T/e2make.com -f $T/widen.sto $T/e1-pat.dcl \
               $T/e3-widen.con $T/e4-run.dcl > $R/$g.txt 2>&1 ;;
+    f)      for x in 'DUA1:[USERS.CLAUDE.SAOSTOIC.STOIC]STOIC.EXE' \
+                     'DUA1:[USERS.CLAUDE.SAOSTOIC.RED]RED.EXE' \
+                     "$NEW" 'DUA1:[USERS.CLAUDE.WORK.SAOSTOIC.RED]RED.EXE' \
+                     "$PAT" 'DUA1:[USERS.CLAUDE.WORK.PATCHED.RED]RED.EXE'; do
+                echo "--- $x"; tools/stoic-run -x "$x" $T/f1-room.con
+              done > $R/$g.txt 2>&1 ;;
     loop)   VAX_DO_TIMEOUT=60 tools/stoic-run -m -f $T/imgutil.sto $T/b3-code.con 2>&1 | head -40 > $R/$g.txt ;;
     *) echo "tests/image/run: no group $g" >&2; exit 2 ;;
   esac

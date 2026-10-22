@@ -214,6 +214,43 @@ In the shipped exe the dictionary has 1FBFF − 14A5D bytes left (about
 45 KB), the code 2FBFF − 25A47 (about 41 KB), and the data region
 F600 − 1395 in an IMAGE (about 58 KB). None of them is checked.
 
+### Room left in each window
+
+Group `f` (`tests/image/f1-room.con`, `results/f.txt`) prints the region
+pointers of each exe at its prompt. A made exe starts with each pointer at
+its `USER_` value, page-rounded by IMAGE. The room left runs up to:
+
+- **code**: the end of the `W^(R8)` window, CODE_0 + FFFF (2FBFF; 2FDFF
+  in the patched build, whose "Code space full." stops there);
+- **dictionary**: CODE_0, where the kernel code starts;
+- **data**: the F600 bytes IMAGE can write (b2, measured with the shipped
+  HEAD0; not measured for the patched HEAD0).
+
+| Exe | Code free | Dictionary free | Data used |
+|---|---|---|---|
+| STOIC.EXE, shipped and rebuilt | A400 (41.0 KB) | B200 (44.5 KB) | 1395 |
+| RED.EXE, shipped and rebuilt | **3E00 (15.5 KB)** | 8800 (34.0 KB) | 1AE4 |
+| STOIC.EXE, patched | 9C00 (39.0 KB) | B200 (44.5 KB) | 153A |
+| RED.EXE, patched | **3400 (13.0 KB)** | 8600 (33.5 KB) | 1C8D |
+
+The shipped and rebuilt exes differ only in USER_DATA.
+
+- RED's modules take 6600 (25.5 KB) of code, 2A00 (10.5 KB) of dictionary
+  and 74F bytes of data on top of STOIC. RED.EXE has used 63% of the code
+  window.
+- **The code window is the limit that binds.** An application loaded on
+  RED can add about half as much code as RED itself, and one on plain
+  STOIC about one and a half times as much. The dictionary would take
+  about three more RED-sized loads, and data has over 50 KB.
+- The patched RED has 2.5 KB less code room than the shipped one: the
+  fixes made the kernel and RED longer.
+
+Raising the code limit needs a longword-displacement call (`JSB
+L^disp(R8)`) where a `W^` one is out of range, a longword code displacement
+in each header (with FORGET, WHAT and `()` changed to read it), and a code
+region that can grow past the fixup page. IMAGE's fixed layout (11, 26,
+28) would have to learn the new region. This has not been tried.
+
 ## Defects found in Phase 3
 
 The numbers continue `PLAN.md`'s defect checklist.
