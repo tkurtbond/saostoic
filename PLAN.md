@@ -19,7 +19,7 @@ Phase 1 passes. Phase 5 is written gradually as results come in.
 | 3 IMAGE | done (see "Phase 3 outcome"; `doc/image.md`, `tests/image/`) |
 | 4 RED | done (see "Phase 4 outcome"; `doc/red.md`, `tests/red/`) |
 | 5 Documentation | done (see "Phase 5 outcome"; `doc/README.md`, `tests/lang/`) |
-| 6 Fixes | in progress: Batch A done; decisions taken (all as recommended) |
+| 6 Fixes | in progress: Batches A and B done; decisions taken (all as recommended) |
 
 Update this table as work proceeds.
 
@@ -663,6 +663,34 @@ check (5), and no shipped-equivalent exe (6).
   is from the last, so only the first directory's files had gone up.
 - Not yet checked on the VAX: 32 (the KBD escape) waits for the RED
   scripts of Batch G; RED.EXE builds and loads.
+
+### Batch B outcome (2026-10-21)
+
+- Fixed 7, 12, 17, 18, 19 and 24, and 27 in the code. Defect 12 has its
+  own commit; the kernel's error handling is one commit, because the
+  handler, SYSERR and the opens are one change.
+- The handler prints the condition with `$PUTMSG`, with the true PC and
+  its own severity (`-F-` for ACCVIO, where the shipped exe said `-W-`).
+  A condition from inside a call (MTH$, LIB$SIGNAL) is unwound to
+  STOIC's frame with ABORT as the new PC, and ERROR_PC is set to where
+  STOIC called out (for MTH$, the CRTL stub). `.SQRT` of a negative
+  number, LOG 0, ASIN 2 and POWDD overflow now give the MTH$ message and
+  return to the prompt.
+- SYSERR no longer calls LIB$SIGNAL. It prints the status with
+  `$PUTMSG` (its vector padded with zero FAO arguments, so an SS$ status
+  no longer prints stack junk) and jumps to ABORT. The opens and CLOSE
+  go through it; LOAD gives back its input-file index when the open
+  fails. A missing file in a LOAD file ends that line only.
+- MOD and `/MOD` are signed: `-7 3 MOD` gives −1. `#` keeps an unsigned
+  EDIV of its own, so `I=` and `<#>` print as before. In the sources only
+  float's `/MOD` (on ABS values) and `#` used `/MOD`.
+- The console read-error count is a new user-table cell, CONSOLE_ERRS,
+  after RMBUF (so 965 words). F24 (`DEFINE/USER SYS$INPUT`) now gives
+  three RMS-F-FAC messages and exits. It has no shipped result, because
+  the shipped exe loops; `patched-suite --fix --shipped` skips it.
+- The kernel grew past a page boundary, so the `$EXPREG`'d regions are
+  200 hex higher than after Batch A.
+- Not yet checked: 27 (FPD) waits for defect 4's test in Batch C.
 
 ### Produces
 
