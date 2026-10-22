@@ -6,7 +6,8 @@
 # Without --fix: the regression suite tests/*, compared with
 # tests/patched/*.expected. With --fix: the defect tests tests/fix/*,
 # compared with tests/fix/patched/*.expected, or with --shipped run on the
-# shipped STOIC.EXE and RED.EXE and compared with tests/fix/shipped/. Other
+# shipped STOIC.EXE and RED.EXE (only the tests that have a result there)
+# and compared with tests/fix/shipped/. Other
 # arguments go to tools/stoic-suite. The build's date is masked.
 here=$(cd "$(dirname "$0")" && pwd)
 t=$here/../tests
@@ -26,6 +27,10 @@ while :; do
 done
 if [ -n "$fix" ]; then
   if [ -n "$shipped" ]; then
+    # only the tests with a shipped result: F24 would loop for ever
+    if [ $# -eq 0 ] || { [ $# -eq 1 ] && [ "$1" = --update ]; }; then
+      set -- "$@" $(cd "$t/fix/shipped" && ls *.expected | sed 's/\.expected$//')
+    fi
     exec "$here/stoic-suite" -d "$t/fix" -e "$t/fix/shipped" "$@"
   fi
   exec "$here/stoic-suite" -x "$exe" -r "$red" -d "$t/fix" -e "$t/fix/patched" "$@"

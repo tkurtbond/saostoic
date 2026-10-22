@@ -1,0 +1,18 @@
+
+%SYSTEM-W-INTDIV, arithmetic trap, integer divide by zero at PC=00023998, PSL=03
+C00002
+1 0 / =
+=
+/		 D=74518, C=139344(4)
+No word found at 846862
+No word found at 135266
+ 1
+
+%SYSTEM-W-ACCVIO, access violation, reason mask=00, virtual address=00000000, PC
+=00023998, PSL=03C00004
+0 @ =
+=
+No word found at 846855
+No word found at 135266
+ 2
+

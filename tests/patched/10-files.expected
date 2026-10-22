@@ -4,8 +4,8 @@ Input file table overflow.
 '10C.STO LOAD
 LOAD
 No word found at 0
-LOAD		 D=68193, C=137308(7)
-No word found at 521233
+LOAD		 D=68193, C=137361(24)
+No word found at 521745
 No word found at 135274
 BACK IN 10B
 BACK IN 10A

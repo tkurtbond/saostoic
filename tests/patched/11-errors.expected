@@ -19,61 +19,66 @@ Syntax Error error compiling...  ;  ...in line
 'BAD : 1 IF 2 ;
  3
 
-%SYSTEM-W-ACCVIO, access violation, reason mask=AE, virtual address=03C00000, PC
-=00020AE7, PSL=00024DA3
+%SYSTEM-F-ACCVIO, access violation, reason mask=00, virtual address=00000000, PC
+=00000000, PSL=00000000
 MSG CR
 CR
-SYSERR		 D=66852, C=135632(14)
 No word found at 133863
-TYPE		 D=82216, C=150896(52)
-MSG		 D=82234, C=150948(9)
-No word found at 521220
+TYPE		 D=82216, C=151427(52)
+MSG		 D=82234, C=151479(9)
+No word found at 521732
 No word found at 135274
  4
 
-%SYSTEM-W-INTDIV, arithmetic trap, integer divide by zero at PC=000239AE, PSL=03
+%SYSTEM-F-INTDIV, arithmetic trap, integer divide by zero at PC=00022258, PSL=03
 C00002
 1 0 / =
 =
-/		 D=74518, C=139344(4)
-No word found at 521230
+/		 D=74518, C=139861(4)
+No word found at 521742
 No word found at 135274
  5
 
-%SYSTEM-W-ACCVIO, access violation, reason mask=00, virtual address=00000000, PC
-=000239AE, PSL=03C00004
+%SYSTEM-F-ACCVIO, access violation, reason mask=00, virtual address=00000000, PC
+=0007F607, PSL=03C00004
 0 @ =
 =
-No word found at 521223
+No word found at 521735
 No word found at 135274
  6
 
-%SYSTEM-W-ACCVIO, access violation, reason mask=04, virtual address=0007E608, PC
-=000239AE, PSL=03C00000
+%SYSTEM-F-ACCVIO, access violation, reason mask=04, virtual address=0007E808, PC
+=0002197D, PSL=03C00000
 DROP DROP DROP
 DROP
-I_READLINE	 D=68550, C=137492(42)
+I_READLINE	 D=68550, C=137585(42)
 No word found at 135247
  7
 
-%SYSTEM-W-ACCVIO, access violation, reason mask=04, virtual address=0007E608, PC
-=000239AE, PSL=03C00000
+%SYSTEM-F-ACCVIO, access violation, reason mask=04, virtual address=0007E808, PC
+=00021AB8, PSL=03C00000
 DROP DROP DROP =
 =
-SPACE		 D=68957, C=137819(7)
-=		 D=68976, C=137826(67)
-No word found at 521229
+SPACE		 D=68957, C=137912(7)
+=		 D=68976, C=137919(67)
+No word found at 521741
 No word found at 135274
  8
 
-%SYSTEM-W-ACCVIO, access violation, reason mask=00, virtual address=00000000, PC
-=000239AE, PSL=03C00004
+%SYSTEM-F-ACCVIO, access violation, reason mask=00, virtual address=00000000, PC
+=0007F60D, PSL=03C00004
 1 2 0 @
 @
-No word found at 521229
+No word found at 521741
 No word found at 135274
  0
  9
 
-%RMS-F-FNF, file not found
-%DCL-W-SKPDAT, image data (records not beginning with "$") ignored
+%RMS-E-FNF, file not found
+'NOSUCH.STO LOAD
+LOAD
+LOAD		 D=68193, C=137361(24)
+No word found at 521748
+No word found at 135274
+ 10
+

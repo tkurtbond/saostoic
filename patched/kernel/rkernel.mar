@@ -22,6 +22,7 @@ ROGER=1
 	.enabl dbg,tbk
 	.dsabl gbl
 	.extrn	lib$signal,lib$stop,lib$sig_to_ret,ss$_resignal
+	.extrn	sys$unwind,ss$_unwind,ss$_continue
 	.extrn	sssize,ssbyte,tyiosize
 	.extrn	rmsdata,ssdata,tyiodata,tyiodata
 	.extrn	fablen,rablen,xablen
@@ -470,17 +471,36 @@ top_loop:
 done:	ret
 
 i_cond_handler:				;default condition handler
-	.word	0			;entry mask
+	.word	^m<r2>			;entry mask
 	movl	4(ap),r0		;0->signal array
+	cmpl	4(r0),#ss$_unwind	;being unwound?
+	beql	20$			;if so, nothing to do
 	movl	(r0),r1			;1<# args
 	movl	-4(r0)[r1],error_pc(r11)  ;save user pc
 	movl	4(r0),cond_code(r11)	;save condition code
+	subl2	#2,(r0)			;without pc and psl,
+	$putmsg_s msgvec=(r0)		;report it, with the true pc
+	movl	4(ap),r0
+	addl2	#2,(r0)			;restore the count
+	blbs	4(r0),20$		;success or information: go on
+	movl	8(ap),r2		;2->mechanism array
+	tstl	8(r2)			;signalled in our own frame?
+	bneq	10$			;if not, unwind to it
+	movl	(r0),r1
 	movl	abort(r11),-4(r0)[r1]	;set restart address to abort
-	bicl2	#7,4(r0)		;clear severity code
-	cmpl	^x0c(fp),frame_0(r11)	;just one level away?
-	beql	10$
-	$unwind_s depadr=oneadr		;if more, do an unwind
-10$:	movzwl	#ss$_resignal,r0	;signal resignal
+	bicl2	#^x08000000,(r0)[r1]	;clear psl<fpd>, or abort is skipped
+	brb	20$
+10$:	movl	fp,r1			;find the call our code made:
+15$:	cmpl	12(r1),4(r2)		;called from our frame?
+	beql	17$			;if so, that's it
+	movl	12(r1),r1		;else, back a frame
+	bneq	15$
+	brb	18$			;not found: keep the signal pc
+17$:	movl	16(r1),error_pc(r11)	;where our code called out
+18$:	pushl	abort(r11)		;newpc: abort
+	pushal	8(r2)			;depth: back to our frame
+	calls	#2,g^sys$unwind		;unwind there (from mth$, lib$signal)
+20$:	movzwl	#ss$_continue,r0	;continue
 	ret
 
 header I_ABORT
@@ -558,9 +578,16 @@ header SYSERR
 .NLIST	ME
 	blbc	(r10)+,20$		;if error
 	rsb
-20$:	pushl	-(r10)
-	calls	#1,g^lib$signal
-	halt				;should never get here
+20$:	movl	(sp)+,error_pc(r11)	;where it was called from
+	movl	-4(r10),cond_code(r11)	;the condition code
+	clrq	-(sp)			;zeros for any FAO arguments
+	clrq	-(sp)			;(a status has none)
+	pushl	cond_code(r11)		;message vector: the code,
+	pushl	#1			;and a count of 1
+	movl	sp,r0
+	$putmsg_s msgvec=(r0)		;report it
+	addl2	#24,sp			;drop the vector
+	jmp	@abort(r11)		;and abort (lib$signal could not)
 wterm					;end the word definition
 
 ;----I_DATE_ERROR: date on save file, I_DATE_ERROR
@@ -1083,7 +1110,6 @@ prompt0:: string	^$<^x20><^x0D><^x0A><^x30><^x3E><^x20>$
 oc_prot:		;prototype output conversion stack
 	.blkl 3		;start, end, pointer
 	.blkb 40	;stack space
-oneadr:	.long	1	;for condition handler's unwind
 
 .restore
 
@@ -1137,8 +1163,7 @@ header ERASE
 header OPEN
 	bsbw	preopen
 	jsbext	_open
-	movl	(r10)+,r0
-	.errstop
+	jsb	syserr			;report a failure, and abort
 	rsbx
 
 ;----MAPOPEN: filename descriptor, MAPOPEN, RMS channel, completion code
@@ -1181,16 +1206,14 @@ header .WOPEN_FTN
 header WOPEN
 	bsbw	preopen
 	bsb	.wopen
-	movl	(r10)+,r0
-	.errstop
+	jsb	syserr			;report a failure, and abort
 	rsbx
 
 ;----RWOPEN:  filename, channel, RWOPEN
 header RWOPEN
 	bsbw	preopen
 	bsb	.rwopen
-	movl	(r10)+,r0
-	.errstop
+	jsb	syserr			;report a failure, and abort
 	rsbx
 
 ;----.XLOAD: file name, count, channel, .XLOAD
@@ -1284,16 +1307,14 @@ header .APPEND
 header APPEND
 	bsbw	preopen
 	bsb	.append
-	movl	(r10)+,r0
-	.errstop
+	jsb	syserr			;report a failure, and abort
 	rsbx
 
 ;----ROPEN:  filename, channel, ROPEN
 header ROPEN
 	bsbw	preopen
 	jsbext	_ropen
-	movl	(r10)+,r0
-	.errstop
+	jsb	syserr			;report a failure, and abort
 	rsbx
 
 ;----.ROPEN:  filename, channel, .ROPEN, completion code
@@ -1338,15 +1359,18 @@ header LASTINCH
 ;----LOAD: file name, LOAD
 header LOAD
 	bsbw	nextinch
-	bsbw	open
+	bsbw	preopen
+	jsbext	_open
+	blbs	(r10),10$		;if it failed,
+	decl	u_ifi(r11)		;give the input file back
+10$:	jsb	syserr			;report a failure, and abort
 	rsbx
 
 ;----CLOSE:  STOIC channel #, CLOSE
 header CLOSE
 	.extrn	_close
 	jsb	_close
-	movl	(r10)+,r0		;condition code
-	.errstop
+	jsb	syserr			;report a failure, and abort
 	rsbx
 
 
@@ -1426,8 +1450,17 @@ header	GET_STRING
 	addl3	s^#2,r3,(r10)		;buffer address
 	movzwl	-2(r3),-(r10)		;buffer length
 	movl	r2,-(r10)		;channel
+	pushl	r2			;keep the channel
 	jsb	.get
-	jsb	syserr
+	movl	(sp)+,r2
+	tstl	r2			;the console?
+	bneq	20$			;if not, just check
+	blbs	(r10),10$		;if a console read failed,
+	aoblss	#3,console_errs(r11),20$ ;count it; the third in a row
+	movl	(r10),r0		;ends STOIC, with its status
+	$exit_s	code=r0
+10$:	clrl	console_errs(r11)	;a good read: start again
+20$:	jsb	syserr
 	movq	(r10)+,r0
 	cvtlw	r1,@(r10)+		;return count
 	movl	r0,-(r10)		;eof code
@@ -2056,6 +2089,7 @@ table_offset=table_offset+4		;this should be a quadword for fp
 	.blkl	2
 	table_offset=table_offset+8	;3 longword entry
 	dlrte	RMBUF
+	dlrte	CONSOLE_ERRS		;console read errors in a row
 
 ;	Size calculations for data prototype
 

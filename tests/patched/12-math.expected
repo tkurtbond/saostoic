@@ -7,53 +7,38 @@ EXP LOG  2.718281828459045      1.000000000000000      3.000000000000000
 HYPER   0.0000000000000000E+00  1.000000000000000     0.0000000000000000E+00
 POWDD    8.000000000000000      8.000000000000000    
 LOG 0   
-%SYSTEM-W-ROPRAND, reserved operand fault at PC=000239AE, PSL=03C00000
+%MTH-F-LOGZERNEG, logarithm of zero or negative value
+  user PC 0001FCD8
 "LOG 0   " MSG 0. .LOG .= CR
 CR
 No word found at 130264
-No word found at 521249
+No word found at 521761
 No word found at 135274
 POW OVF 
-%SYSTEM-W-ROPRAND, reserved operand fault at PC=000239AE, PSL=03C00000
+%MTH-F-FLOOVEMAT, floating overflow in math library
+  user PC 0001FD10
 "POW OVF " MSG 10. 1000. .^ .= CR
 CR
 No word found at 130320
-.^		 D=81069, C=149231(5)
-No word found at 521260
+.^		 D=81069, C=149762(5)
+No word found at 521772
 No word found at 135274
 ASIN 2  
-%SYSTEM-W-ROPRAND, reserved operand fault at PC=000239AE, PSL=03C00000
+%MTH-F-INVARGMAT, invalid argument to math library
+  user PC 0001FC70
 "ASIN 2  " MSG 2. .ASIN .= CR
 CR
 No word found at 130160
-No word found at 521249
+No word found at 521761
 No word found at 135274
 NEXT LINE
 SQRT -1 
-%SYSTEM-F-ACCVIO, access violation, reason mask=01, virtual address=03C00000, PC
-=80000010, PSL=03C00004
+%MTH-F-SQUROONEG, square root of negative value
+  user PC 000487D0
+"SQRT -1 " MSG -1. .SQRT .= CR
+CR
+No word found at 130290
+No word found at 521761
+No word found at 135274
+NOT REACHED
 
-  Improperly handled condition, image exit forced.
-
-	Signal arguments	      Stack contents
-
-	Number = 00000005		 80421840
-	Name   = 0000000C		 00000002
-		 00000001		 7FE45B1C
-		 03C00000		 7FE45B04
-		 80000010		 00000004
-		 03C00004		 7FE45B30
-					 00000000
-					 00008000
-					 00000000
-					 05000001
-
-	Register dump
-
-	R0 = 03C00000  R1 = 03C00000  R2 = 000485D0  R3 = 00048693
-	R4 = 00000000  R5 = 000803A8  R6 = FFFFFFFF  R7 = 0007EE00
-	R8 = 00027C00  R9 = 0007EA00  R10= 0007E600  R11= 000884F9
-	AP = 7FE45AB8  FP = 7FE45A78  SP = 7FE45AF4  PC = 80000010
-	PSL= 03C00004
-
-%DCL-W-SKPDAT, image data (records not beginning with "$") ignored

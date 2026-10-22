@@ -1,0 +1,17 @@
+
+%SYSTEM-W-ROPRAND, reserved operand fault at PC=00023998, PSL=03C00000
+0. .LOG .= CR
+CR
+No word found at 130264
+No word found at 846863
+No word found at 135266
+ 1
+
+%SYSTEM-W-ROPRAND, reserved operand fault at PC=00023998, PSL=03C00000
+2. .ASIN .= CR
+CR
+No word found at 130160
+No word found at 846863
+No word found at 135266
+ 2
+

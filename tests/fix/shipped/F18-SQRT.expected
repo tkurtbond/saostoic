@@ -1,0 +1,28 @@
+
+%SYSTEM-F-ACCVIO, access violation, reason mask=01, virtual address=03C00000, PC
+=80000010, PSL=03C00004
+
+  Improperly handled condition, image exit forced.
+
+	Signal arguments	      Stack contents
+
+	Number = 00000005		 80421840
+	Name   = 0000000C		 00000002
+		 00000001		 7FE45B1C
+		 03C00000		 7FE45B04
+		 80000010		 00000004
+		 03C00004		 7FE45B30
+					 00000000
+					 00008000
+					 00000000
+					 05000001
+
+	Register dump
+
+	R0 = 03C00000  R1 = 03C00000  R2 = 000671D0  R3 = 00067293
+	R4 = 00000000  R5 = 000CFB99  R6 = FFFFFFFF  R7 = 000CE600
+	R8 = 00027C00  R9 = 000CE200  R10= 000CDE00  R11= 000D7CF9
+	AP = 7FE45AB8  FP = 7FE45A78  SP = 7FE45AF4  PC = 80000010
+	PSL= 03C00004
+
+%DCL-W-SKPDAT, image data (records not beginning with "$") ignored
