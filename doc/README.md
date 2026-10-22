@@ -23,7 +23,7 @@ family.
 | [`red.md`](red.md) | RED, the screen editor: buffers, the command line, the keypad, the display, and how it differs from `red.mem`. |
 | [`build.md`](build.md) | Rebuilding the kernel, STOIC.EXE, RED.EXE and REDHIREZ.EXE from source on V5.5-2H4, and the patched build. |
 | [`gm-variant.md`](gm-variant.md) | The GM Research kernel, compared with SAO's. From the source only; it has not been built or run. |
-| [`defects.md`](defects.md) | The 49 defects found, each with a repro, the cause, the impact and a suggested fix. |
+| [`defects.md`](defects.md) | The 50 defects found, each with a repro, the cause, the impact and a suggested fix. |
 | [`patches.md`](patches.md) | The Phase 6 patches: one for each fixed defect, with its test, and what behaves differently from the shipped exes. |
 | [`errata.md`](errata.md) | Corrections to `stoic.mem` and `red.mem`, in manual order, and which ones the patched build changes. |
 | [`cmpfix.md`](cmpfix.md) | cmpfix: the patched build with the comparison words as in the manual and CP/M STOIC (defect 13), and how it was tested. To build and run it from its sources, see [`../cmpfix/README.md`](../cmpfix/README.md). |

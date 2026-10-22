@@ -15,7 +15,7 @@ system on a real (SIMH) VAX and document its design**.
 | `saostoic-text/stoic/` | The STOIC layer: `rdef` (the standard word set), `image`, `float`, `obuf`, `vt100`, `stoic.cre`, and the manual `stoic.mem`/`stoic.rno`. |
 | `saostoic-text/red/` | RED: `err dyna e window edv eb command immed cli kbd red`, `red.cre`, `hirez.cre`, `red.mem`. |
 | `saostoic-text/gm/` | GM variant: `kernel.mar`, `ss.mar`, `float.sto`, and `newstoic.mem` (the GM "Detailed Guide to VAX/VMS STOIC", 19 May 1982). |
-| `doc/` | The verified documentation (Phase 5). Start at `doc/README.md`; `doc/defects.md` lists all 49 defects, `doc/patches.md` the Phase 6 fixes and `doc/errata.md` the manual corrections. |
+| `doc/` | The verified documentation (Phase 5). Start at `doc/README.md`; `doc/defects.md` lists all 50 defects, `doc/patches.md` the Phase 6 fixes and `doc/errata.md` the manual corrections. |
 | `patched/` | The Phase 6 sources: a full copy of the VMS tree with the fixes. On the VAX it is `[.WORK.PATCHED...]`. |
 | `cmpfix/` | Phase 8: `patched/` with the comparison words as in the manual and CP/M STOIC (defect 13), and every use swapped by `tools/cmp-swap`. On the VAX it is `[.WORK.CMPFIX...]`; see `doc/cmpfix.md`. `cmpfix/README.md` tells others how to build and run it (checked by a fresh build in `[.WORK.CMPFRESH...]`). |
 | `notes/` | The first design drafts (`kernel-design.md`, `stoic-level-design.md`), written from reading the code. Historical: `doc/` supersedes them. |
@@ -304,8 +304,9 @@ every one apart from 13, 35 and 36, which are corrected in
 `doc/errata.md`, and 11 and 21, which are closed. Defects 43–49, found
 later (BPUSH's off-by-one, `.PUT`'s missing limit, BPUSH and `#A`
 not aborting, SEARCH_STRING's long groups, `-.000`, float output
-in a non-decimal radix, and RED's `[` overrunning the loop stack), are
-fixed there too. The list below describes
+in a non-decimal radix, and RED's `[` overrunning the loop stack), and
+50, IMAGE writing exes with variable-length records that ZIP and FTP
+refuse, are fixed there too. The list below describes
 the shipped exes. The patched exes are
 `DUA1:[USERS.CLAUDE.WORK.PATCHED.STOIC]STOIC.EXE` and
 `[.WORK.PATCHED.RED]RED.EXE`. Their data region is at 402200 on any

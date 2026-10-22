@@ -12,7 +12,7 @@ suite, and fixed versions of the sources.
 
 Use **[`cmpfix/`](cmpfix/)**. It is the 1985 STOIC with these changes:
 
-- 45 of the 49 defects found are fixed;
+- 46 of the 50 defects found are fixed;
 - the code and dictionary have more room;
 - the comparison words mean what the manual says they mean;
 - what you type at the terminal is no longer uppercased.
@@ -34,7 +34,7 @@ Start at [`doc/README.md`](doc/README.md). It covers:
 | [`image.md`](doc/image.md) | IMAGE, which writes the running STOIC as a new `.EXE` |
 | [`red.md`](doc/red.md) | The RED editor |
 | [`build.md`](doc/build.md) | Rebuilding from source |
-| [`defects.md`](doc/defects.md) | The 49 defects, each with a repro, cause and fix |
+| [`defects.md`](doc/defects.md) | The 50 defects, each with a repro, cause and fix |
 | [`errata.md`](doc/errata.md) | Corrections to the manuals |
 
 Each claim in `doc/` cites a source line or a test. The original manuals

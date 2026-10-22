@@ -13,11 +13,11 @@ ROT      2.000000000000000      1.000000000000000      3.000000000000000      1.
 VAR      2.500000000000000      4.500000000000000    
 BIG     0.1000000000000000E+31
 OVERFLOW 
-%SYSTEM-F-FLTOVF_F, arithmetic fault, floating overflow at PC=00035033, PSL=03C0
+%SYSTEM-F-FLTOVF_F, arithmetic fault, floating overflow at PC=00035051, PSL=03C0
 0000
 "OVERFLOW " MSG 1.E30 1.E30 .* .= CR
 CR
-.*		 D=147DA, C=35033(4)
+.*		 D=147DA, C=35051(4)
 No word found at 40142D
 No word found at 313A4
 F= ERR  Floating point output conversion error.NEXT LINE

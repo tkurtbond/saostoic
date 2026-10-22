@@ -20,7 +20,7 @@ POW OVF
 "POW OVF " MSG 10. 1000. .^ .= CR
 CR
 No word found at 196403
-.^		 D=83988, C=217151(5)
+.^		 D=83988, C=217181(5)
 No word found at 4199468
 No word found at 201636
 ASIN 2  

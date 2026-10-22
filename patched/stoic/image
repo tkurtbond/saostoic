@@ -234,6 +234,7 @@ IORB<
 
 'WRITE_NEW :  % file name, WRITE_NEW (the schedule is ready)
   IMAGE_FRAB CUR_FRAB !  % set up for output
+  FAB.C_FIX FAB.B_RFM B!  200 FAB.W_MRS W!  % fixed 512-byte records, as LINK writes
   COUNT FAB.M_PUT FAB.M_BIO OR FCREATE SYSERR  % open the file to be written
   DATE D@  % save the current image's date
   SET_REVISION  % set a new date for the new image

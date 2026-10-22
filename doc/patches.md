@@ -25,7 +25,7 @@ gives the corrections.
 
 ## Status
 
-**Fixed and tested:** 44 of the 49 defects (43–49 were added on
+**Fixed and tested:** 45 of the 50 defects (43–50 were added on
 2026-10-22). **Documented** in
 `errata.md`, with no code change: 13, 35 and 36. **Closed**, with a
 stated reason: 11 and 21.
@@ -33,7 +33,7 @@ stated reason: 11 and 21.
 On the final build (2026-10-22):
 
 - the 18 suite tests pass against `tests/patched/`;
-- the 38 `tests/fix/` tests pass;
+- the 39 `tests/fix/` tests pass;
 - the RED scripts r0–r11 match their shipped results, apart from the
   differences listed below;
 - r12-bounds, which the shipped RED cannot run, gives the screens in
@@ -92,6 +92,7 @@ On the final build (2026-10-22):
 | 47 | `float` | `.SELECT` tests with `.LTZ` | F47-FZERO |
 | 48 | `float` | `.#`, `.#>` and `.E#>` use 10 and `ASCII 0`, not RADIX and `#A` | F48-FRADIX |
 | 49 | `cli`, `clihirez` | C.[ allows 24 levels (`18 GT_IF`), and CLEAR_L_STACK sets C.LOOP_COUNT to 0 | `tests/red/r12-bounds.tcl` (nest24, nest25, nest33, nest24-search, open30) |
+| 50 | `image` | WRITE_NEW sets fixed 512-byte records (RFM FIX, MRS 200) in the FAB before FCREATE | F50-IMAGERFM |
 
 `red/dyna` also changes: D.DISPLINE and D.DISP (the buffer table) print
 the buffer origins 8 wide, not 6, since the data region is now at 400000.

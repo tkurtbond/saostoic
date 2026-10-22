@@ -14,8 +14,10 @@ The numbers are those of `PLAN.md`'s defect checklist and `AGENTS.md`.
 - 43–49 were found on 2026-10-22, while writing the boundary tests in
   `tests/cmp/` and `tests/red/r12-bounds.tcl` for the comparison change
   (`PLAN.md`, Phase 8).
+- 50 was found the same day, while trying ways to copy the exes to
+  another VAX.
 
-**Result:** all 49 are confirmed or characterized. Number 9 came from
+**Result:** all 50 are confirmed or characterized. Number 9 came from
 reading the source; Phase 6 confirmed it with REMSTART on the null device
 (`tests/fix/F09-REMOTE.con`).
 
@@ -26,7 +28,7 @@ Each entry gives:
 - the impact;
 - a suggested fix.
 
-Phase 6 fixed 37 of them in `patched/`, and 43–49 were fixed there later (never in `saostoic-text/`); the
+Phase 6 fixed 37 of them in `patched/`, and 43–50 were fixed there later (never in `saostoic-text/`); the
 Status column gives the batch (`PLAN.md`), and [`patches.md`](patches.md)
 lists each patch and its test. 13, 35 and 36 are corrected in the manual
 instead ([`errata.md`](errata.md)), and 11 and 21 are closed.
@@ -84,6 +86,7 @@ instead ([`errata.md`](errata.md)), and 11 and 21 are closed.
 | 47 | A float zero prints as `-.000` | float | wrong sign, one column lost | fixed |
 | 48 | F=, E= and `.<#>` mix the radix with decimal | float | wrong digits outside DECIMAL | fixed |
 | 49 | RED's `[` can overrun the loop stack, and its count never resets | RED `cli` | RED ends with a traceback, or can no longer loop | fixed |
+| 50 | IMAGE writes exes with variable-length records | IMAGE | ZIP and binary FTP refuse the exes | fixed |
 
 ## Kernel and rdef
 
@@ -788,3 +791,27 @@ recover R11 as the ^C routine does, and make the descriptors consistent.
 - **Fix:** allow 24 levels, `C.LOOP_COUNT @ 18 GT_IF`, which leaves 32
   longwords for the loop bodies, and have CLEAR_L_STACK set C.LOOP_COUNT
   to 0. The same in `clihirez`.
+
+## Found while preparing a distribution
+
+### 50. IMAGE writes exes with variable-length records
+
+- **Repro:** `F$FILE_ATTRIBUTES` gives RFM=VAR and MRS=0 for the shipped
+  `[.SAOSTOIC.STOIC]STOIC.EXE`, and RFM=FIX and MRS=512 for HEAD0.EXE,
+  which LINK made (`tests/fix/F50-IMAGERFM.dcl`). On the VAX, `ZIP "-V"`
+  of an exe made by IMAGE says "could not read input file", and a binary
+  FTP fetch of one is refused with 550. Both work on the linked
+  RKERNEL.EXE and HEAD0.EXE.
+- **Cause:** WRITE_NEW opens the new exe with `FCREATE`
+  (`image:203-204`), which sets only the access, the file name and its
+  size in the FAB (`rms.mar:483-494`). The FAB is a copy of the
+  prototype, a plain `$fab` (`rms.mar:120-122`), so the file gets RMS's
+  default record format, variable length with no maximum. IMAGE then
+  writes it with block I/O, so the records are never used, and VMS runs
+  the exe; but the attributes do not describe the blocks in it.
+- **Impact:** STOIC.EXE, RED.EXE, CALC and every exe a user makes with
+  IMAGE can't be zipped or fetched by FTP as they are. They must first
+  go into a BACKUP saveset. V5.5 has no `SET FILE/ATTRIBUTES` to repair
+  them.
+- **Fix:** set fixed 512-byte records in the FAB before FCREATE, as LINK
+  does: `FAB.C_FIX FAB.B_RFM B!  200 FAB.W_MRS W!` (RAT stays none).

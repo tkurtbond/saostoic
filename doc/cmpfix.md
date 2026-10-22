@@ -140,7 +140,7 @@ itself. Each test set was run on both:
 |---|---|---|
 | Boundary tests `tests/cmp/` C1–C8: MIN and MAX, number output, MOVE_BYTES, SEARCH_STRING, strings, float output, the VT100 words, WHAT. They use no comparison word, and exercise the rdef, float and vt100 words whose code does | `STOIC_TREE=cmpfix tools/patched-suite --cmp` | 8/8 identical to `tests/cmp/patched/` |
 | The regression suite `tests/` (18) | `… patched-suite --update`, into `tests/cmpfix/` | identical to `tests/patched/` apart from 02-compare and 12-float |
-| The defect tests `tests/fix/` (38) | `… patched-suite --fix --update`, into `tests/fix/cmpfix/` | identical to `tests/fix/patched/` apart from F15-DGE |
+| The defect tests `tests/fix/` (39) | `… patched-suite --fix --update`, into `tests/fix/cmpfix/` | identical to `tests/fix/patched/` apart from F15-DGE |
 | IMAGE groups a-pat, e-pat, f, g | `STOIC_TREE=cmpfix tests/image/run …`, into `tests/image/results/cmpfix/` | identical apart from dates and the exes' paths |
 | The big application and the code-space fill (`tests/big/`) | `STOIC_TREE=cmpfix tests/big/run`, `runfill` | identical to the patched results |
 | RED scripts r0–r12 (not r6, which needs the shipped RED) | `STOIC_RED=…CMPFIX.RED]RED.EXE tools/red-drive -o tests/red/cmpfix …` | identical screens apart from r5's file dates and the `^c` step of r7 (below). r12 checks the 24-level limit of `[` (defect 49) |

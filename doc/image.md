@@ -126,6 +126,13 @@ the dictionary and code pages above `USER_DICTIONARY` and `USER_CODE` are
 recreated writable at startup. Words compiled before IMAGE cannot be
 patched in the child.
 
+IMAGE writes the file with block I/O, but in the 1985 source it never
+sets the record format, so the exe is marked as variable-length records
+with no maximum. A linked exe is fixed 512. VMS runs it either way, but
+ZIP and binary FTP refuse the variable form (defect 50). The patched
+IMAGE sets fixed 512-byte records before FCREATE
+(`patched/stoic/image:237`; `tests/fix/F50-IMAGERFM.dcl`).
+
 ### What the child inherits
 
 The data region is copied as it is, so the child starts with whatever the

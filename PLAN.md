@@ -21,7 +21,7 @@ Phase 1 passes. Phase 5 is written gradually as results come in.
 | 5 Documentation | done (see "Phase 5 outcome"; `doc/README.md`, `tests/lang/`) |
 | 6 Fixes | **done** (2026-10-21): Batches A–H; 37 fixed, 3 documented, 2 closed (`doc/patches.md`) |
 | 7 Raise the code window | **done** (2026-10-21): `JSB L^`, longword header displacement, code to K_END 6FF2D with a spare page after it, 128 KB dictionary (`doc/patches.md`) |
-| 8 Comparisons as in the manual (cmpfix) | **done** (2026-10-22): boundary tests `tests/cmp/` and r12; defects 43–49 found and fixed; `cmpfix/` built and tested, defect 13 fixed there (`doc/cmpfix.md`) |
+| 8 Comparisons as in the manual (cmpfix) | **done** (2026-10-22): boundary tests `tests/cmp/` and r12; defects 43–50 found and fixed; `cmpfix/` built and tested, defect 13 fixed there (`doc/cmpfix.md`) |
 
 Update this table as work proceeds.
 
@@ -448,6 +448,7 @@ that settle them:
 | 47 | A float zero prints as `-.000` | fix F47-FZERO | **new** (Phase 8), confirmed |
 | 48 | F=, E= and `.<#>` mix the radix with decimal | fix F48-FRADIX | **new** (Phase 8), confirmed |
 | 49 | RED's `[` overruns the loop stack at 33 levels; its count never resets | red r12-bounds (patched only) | **new** (Phase 8), confirmed: ACCVIO at 4007FC in NOTE; after 33 open loops every `[` fails |
+| 50 | IMAGE writes exes with variable-length records | fix F50-IMAGERFM | **new** (Phase 8), confirmed: RFM=VAR, MRS=0; `ZIP "-V"` and binary FTP refuse them |
 
 ### Done when
 
@@ -1055,6 +1056,13 @@ change, and stays alongside it.
   the interactive checks as patched apart from the terminal name's
   length, and a new check, `tests/interactive/case.tcl`
   (`doc/cmpfix.md`, "Console case").
+- **Defect 50**, found while trying ways to copy the exes to another VAX:
+  IMAGE's exes have variable-length records, so ZIP and binary FTP refuse
+  them. WRITE_NEW now sets fixed 512-byte records, as LINK does, in
+  patched and cmpfix. Both rebuilt; STOIC.EXE is FIX/512, `ZIP "-V"` and
+  a binary FTP fetch of it work, and F50-IMAGERFM checks it. Every other
+  result is unchanged apart from addresses after IMAGE's code, 1E higher
+  (11-errors, 12-float, 12-math, F39-FSUNDER), and dates.
 
 ---
 

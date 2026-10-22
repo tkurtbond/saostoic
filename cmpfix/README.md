@@ -4,7 +4,7 @@ This directory holds the sources of **cmpfix**, a fixed and extended SAO
 STOIC for VAX/VMS. It is the 1985 SAO STOIC, by Roger Hauck and Jonathan
 Mark, with these changes:
 
-- **Defects fixed.** 45 of the 49 defects found in testing are fixed
+- **Defects fixed.** 46 of the 50 defects found in testing are fixed
   (`../doc/defects.md`, `../doc/patches.md`). For example, a missing LOAD
   file no longer ends STOIC, every CTRL/C works, and the compile buffer
   and the code and data windows are checked.

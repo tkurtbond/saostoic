@@ -1,0 +1,8 @@
+Creating writable image
+If installing in system, use /OPEN/HEAD switches only
+
+SHIPPED STOIC: RFM=VAR MRS=0
+LINKED HEAD0:  RFM=FIX MRS=512
+BUILT STOIC:   RFM=FIX MRS=512
+IMAGE F50.TMP: RFM=FIX MRS=512 5
+
