@@ -62,6 +62,8 @@ without changes.
 ## Credits
 
 STOIC and RED are by Roger Hauck and Jonathan Mark of the Smithsonian
-Astrophysical Observatory. The original sources carry no copyright or
-licence notice. The testing, documentation and fixes here were done in
+Astrophysical Observatory. They were distributed on the DECUS VAX85C tape.
+The original sources carry no copyright or licence notice; see
+[`LICENSE-UNKNOWN.md`](LICENSE-UNKNOWN.md), which also gives where the
+originals can be found today. The testing, documentation and fixes here were done in
 2026 by T. Kurt Bond with Claude (Anthropic).
