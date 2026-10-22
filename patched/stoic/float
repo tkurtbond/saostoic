@@ -9,7 +9,7 @@ RADIX @ HEX  % save radix and set to hexadecimal
 
 % Storage
 
-15 'F_STRING SVARIABLE  % room for 16 digits, plus ".", plus "Esnn"
+16 'F_STRING SVARIABLE  % room for 16 digits, plus ".", plus "Esnn"
 
 % Floating<-->Integer conversion words
 
