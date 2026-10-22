@@ -1,0 +1,34 @@
+|                                    1.50|
+|                                     1.50|
+|                                                        1.50|
+|                                1.50E+00|
+|                                    1.50E+00|
+ 538976288
+
+%SYSTEM-F-ACCVIO, access violation, reason mask=A3, virtual address=03C00000, PC
+=000CEC0E, PSL=00021062
+
+  Improperly handled condition, image exit forced.
+
+	Signal arguments	      Stack contents
+
+	Number = 00000003		 000CEC0E
+	Name   = 0000000C		 00021062
+		 000210A3		 00021065
+		 03C00000		 2FFC0000
+					 7FE45BFC
+					 7FE45BE8
+					 7FEB3DF2
+					 0000000F
+					 7FEB3A89
+					 7FFE5E0C
+
+	Register dump
+
+	R0 = 0000000C  R1 = 00000003  R2 = 00000000  R3 = 000CFB9A
+	R4 = 00000000  R5 = 000CFB9A  R6 = FFFFFFFF  R7 = 000CE600
+	R8 = 00027C00  R9 = 000CE200  R10= 000CDE00  R11= 000D7CF9
+	AP = 7FE45B54  FP = 7FE45B14  SP = 7FE45B88  PC = 000210A3
+	PSL= 03C00000
+
+%DCL-W-SKPDAT, image data (records not beginning with "$") ignored

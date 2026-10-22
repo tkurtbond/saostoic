@@ -251,16 +251,22 @@ Phase 7 (`PLAN.md`) raised the code limit in the patched build. A call
 past the `W^` window compiles as `JSB L^disp(R8)`, each header holds a
 longword code displacement, and the KERNEL psect is padded to 256 KB.
 The DICTIONARY psect is padded to 128 KB, which moves CODE_0 to 2FE00, so
-the code region runs from 2FE00 to K_END (7012D). Nothing limited the
+the code region runs from 2FE00 to K_END (6FF2D). Nothing limited the
 dictionary to 64 KB: its links are longword offsets from DICT_BASE, and
-"Dictionary full." compares with R8−8000. IMAGE needed no change: each
+"Dictionary full." compares with R8−8200. IMAGE needed no change: each
 resident ISD grows over the pages in use and the demand-zero ISD after it
 shrinks, as before. The longer headers cost the dictionary 2 bytes a word.
 
+Each region keeps its last page spare: "Code space full." starts at K_END,
+a page below the end of the KERNEL psect (7012D), and "Dictionary full."
+at R8−8200, a page below CODE_0. IMAGE rounds each region up to a page,
+so a region that is full to its limit still leaves a page of its
+demand-zero section, as FIX_DZRO requires ("Filling the code space").
+
 | Exe (patched, Phase 7) | Code free | Dictionary free |
 |---|---|---|
-| STOIC.EXE | 39F2D (231.8 KB) | 1A800 (106.0 KB) |
-| RED.EXE | 3372D (205.8 KB) | 17A00 (94.5 KB) |
+| STOIC.EXE | 39D2D (231.3 KB) | 1A600 (105.5 KB) |
+| RED.EXE | 3352D (205.3 KB) | 17800 (94.0 KB) |
 
 The dictionary runs from USER_DICTIONARY up to CODE_0. Each word costs its
 name plus 16 bytes of header, so RED has room for several thousand more
@@ -298,8 +304,8 @@ application on the patched RED.EXE. `tests/big/gen` writes `BIGAPP.STO`:
 Both are far past the old limits: 13 KB of code in the Phase 6 RED.EXE,
 and 30.5 KB of dictionary before the dictionary was enlarged. The words
 after the first 13 KB of code are past R8+7FFF (3FDFF), so calls go both
-ways across the window. After the load, 87.7 KB of code (156DC) and
-32 KB of dictionary (819D) are left.
+ways across the window. After the load, 85.2 KB of code (154DC) and
+31.9 KB of dictionary (7F9D) are left.
 
 - **The load** (`load.txt`): APP_TOTAL gives −26181FF, the generator's
   FD9E7E01 printed signed, as `<#>` does.
@@ -323,31 +329,33 @@ adds up the group and the groups before it, and `FS_LAST` is redefined to
 push gg and `FS_gg`. The names count groups in decimal; FS_LAST and
 `FILLAPP.EXP` give the group in hex, with the generator's total.
 
-- **The load.** 418 words loaded. The code went from 3CA00 to 700F7:
-  210679 bytes (205.7 KB) of application, leaving 36 bytes below K_END.
-  The dictionary grew by only 2B11 (10.8 KB). `FS_LAST` gives group 28
+- **The load.** 416 words loaded. The code went from 3CA00 to 6FF03:
+  210179 bytes (205.3 KB) of application, leaving 2A bytes below K_END.
+  The dictionary grew by only 2AFB (10.7 KB). `FS_LAST` gives group 28
   (FS_40) and 6DBA4E96, which matches `FILLAPP.EXP`.
 - **Code space full.** For each word that didn't fit, ENTER said "Code
   space full." That ended only the definition's line, and the LOAD went
-  on. FS_41, which names F_0418, was then a compile error, and that ended
+  on. FS_41, which names F_0416, was then a compile error, and that ended
   the LOAD. A 70-literal word typed after the load got "Code space full."
-  as well, while a small word (`'TINY : 1 2 + ;`) still fit and ran.
-- **IMAGE of the full RED refuses:** "IMAGE: the code region has outgrown
-  its demand-zero section in HEAD0". Rounded up to a page, the code
-  (70200) uses every page of the DZRO after the code ISD, which ends at
-  K_END's page. FIX_DZRO refuses when the growth is at least the DZRO's
-  page count (defect 26), and here it is equal. So IMAGE needs
-  `CODE_PNTR` at or below 70000: the last 12D bytes (301) of the code
-  region can be used, but not IMAGEd.
-- **Forgetting back** to the last `FS_LAST` (group 27, FS_39, at 6F1A3, with F8A
-  bytes free) lets IMAGE write `[.WORK]FILLRED.EXE`. Run by command
-  tails, it gives group 27 and 15B685D4, matching `FILLAPP.EXP`, and
-  F2D bytes of code free (USER_CODE rounds up to 6F200).
+  as well, while a small word (`'TINY : 1 2 + ;`) still fit and ran,
+  leaving 20 bytes.
+- **IMAGE of the full RED works** and writes `[.WORK]FILLRED.EXE`.
+  Rounded up to a page, the code (70000) leaves the spare page of the DZRO
+  after the code ISD, so FIX_DZRO accepts it. Before the spare page,
+  K_END was 7012D, the code could reach 70200, and IMAGE refused with
+  "IMAGE: the code region has outgrown its demand-zero section in HEAD0"
+  (defect 26's check).
+- **FILLRED.EXE**, run by command tails, gives group 28 and 6DBA4E96, as
+  `FILLAPP.EXP` does, and TINY still runs. Its USER_CODE is the parent's
+  CODE_PNTR rounded up to 70000, which is D3 bytes past K_END, so it has
+  no code room ("CODE FREE=-D3"): every new word gets "Code space full."
+  and nothing is written past the region.
 - **The editor in FILLRED.EXE** (`r-fill.scr`) inserts text, writes the
-  file and reopens it. After ESC S, `FS_LAST` gives the same total, and a
-  new word (`'NEW1 : FS_LAST + ;`) compiles into the room left and runs.
+  file and reopens it. After ESC S, `FS_LAST` gives the same total. A new
+  word (`'NEW1 : FS_LAST + ;`) does not fit, so the line that uses it is
+  a compile error.
 - **FORGET of a module** placed before FS_20's words (`'FILL_HALF MODULE`) takes
-  the code back to 55440, with 1ACED bytes free. `FS_LAST` then gives
+  the code back to 55440, with 1AAED bytes free. `FS_LAST` then gives
   group 13 (FS_19) and 52004822, as in `FILLAPP.EXP`, and a new word lands at
   55440.
 

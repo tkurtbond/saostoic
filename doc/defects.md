@@ -11,8 +11,11 @@ The numbers are those of `PLAN.md`'s defect checklist and `AGENTS.md`.
   `language.md` (`tests/lang/`, output in `tests/lang/phase5.out`).
 - 41 was found in Phase 6, while fixing defect 10, and 42 while testing
   the fix for 22.
+- 43–49 were found on 2026-10-22, while writing the boundary tests in
+  `tests/cmp/` and `tests/red/r12-bounds.tcl` for the comparison change
+  (`PLAN.md`, Phase 8).
 
-**Result:** all 42 are confirmed or characterized. Number 9 came from
+**Result:** all 49 are confirmed or characterized. Number 9 came from
 reading the source; Phase 6 confirmed it with REMSTART on the null device
 (`tests/fix/F09-REMOTE.con`).
 
@@ -23,7 +26,7 @@ Each entry gives:
 - the impact;
 - a suggested fix.
 
-Phase 6 fixed 37 of them in `patched/` (never in `saostoic-text/`); the
+Phase 6 fixed 37 of them in `patched/`, and 43–49 were fixed there later (never in `saostoic-text/`); the
 Status column gives the batch (`PLAN.md`), and [`patches.md`](patches.md)
 lists each patch and its test. 13, 35 and 36 are corrected in the manual
 instead ([`errata.md`](errata.md)), and 11 and 21 are closed.
@@ -74,6 +77,13 @@ instead ([`errata.md`](errata.md)), and 11 and 21 are closed.
 | 40 | `>` does not check for an empty branch stack | kernel | console unusable | fixed (A) |
 | 41 | DEF_INIT copies a long command tail past LINE_BUFFER | rdef/kernel | corrupted tail, overwritten data | fixed (D) |
 | 42 | NOCREF cannot read or write an exe header | image | NOCREF unusable | fixed (F) |
+| 43 | BPUSH lets a 41st byte into the conversion area | rdef | corrupts `<#`, then faults | fixed |
+| 44 | `.PUT` writes past the conversion area | float | overwrites TIME_STRING; a later SHOW_TIME ends STOIC | fixed |
+| 45 | BPUSH and `#A` do not abort | rdef | wrong digit, line runs on | fixed |
+| 46 | A long SEARCH_STRING skips the end of the source | rdef | RED's search misses or misplaces a match past 64 KB | fixed |
+| 47 | A float zero prints as `-.000` | float | wrong sign, one column lost | fixed |
+| 48 | F=, E= and `.<#>` mix the radix with decimal | float | wrong digits outside DECIMAL | fixed |
+| 49 | RED's `[` can overrun the loop stack, and its count never resets | RED `cli` | RED ends with a traceback, or can no longer loop | fixed |
 
 ## Kernel and rdef
 
@@ -638,3 +648,138 @@ recover R11 as the ^C routine does, and make the descriptors consistent.
   (`SYSTEM-F-NOTINSTALL`), as its fixup-vector section becomes a writable
   shareable one; installing was not tried (`doc/image.md`).
 
+
+## Found while writing the boundary tests
+
+### 43. BPUSH lets a 41st byte into the conversion area
+
+- **Repro:** `0 <# 41 ( 35 #PUT ) #> TYPE` types 41 `#`s, and then
+  `OCONSTACK 8 + @` is 23402662, not 402662. The next `<#`, or any `=`,
+  faults with ACCVIO at 23402661 (`tests/fix/F43-BPUSH.con`).
+- **Cause:** the output conversion stack, OCONSTACK, is three longwords
+  (low limit, pointer, reset value) and 40 bytes (`rkernel.mar:500-503`,
+  `1076-1078`). BPUSH (`rdef:1137-1144`) gives "Stack overflow." only
+  when the pointer is already below the low limit (`GT`). When it equals
+  the limit, it decrements the pointer and stores the byte below the
+  area: the top byte of the reset value, which `<#` (`rdef:1154-1156`)
+  loads.
+- **Impact:** only explicit `#PUT`s and `#`s can reach it. A number
+  printed with `=`, `I=` or `<#>` takes at most 33 bytes, and `I=` types
+  its blanks without pushing them.
+- **Fix:** test with `GE`, so the low limit is the last byte used.
+
+### 44. `.PUT` writes past the conversion area
+
+- **Repro:** `FLOAT< DECIMAL`, then `1.5 60 2 F=`. The field prints, but
+  its last 20 bytes go past the 40-byte area, over the TIME_STRING
+  descriptor, and the next SHOW_TIME ends STOIC with "Improperly handled
+  condition, image exit forced" (`tests/fix/F44-FPUT.con`). A field of
+  41 to 44 changes the descriptor's length, and from 45 its address.
+- **Cause:** `.PUT` (`float:130-133`), which F=, E=, `.<#>` and the rest
+  of the float output words use, stores at the pointer and increments it
+  with no limit. `.ERRCHK` (`float:192-196`) checks the field size only
+  against the digits. The kernel puts `i_time_string`
+  (`rkernel.mar:1711-1714`) straight after OCONSTACK in DATINIT.
+  SHOW_TIME (`rkernel.mar:1691-1707`) is what `I_DATE_ERROR` uses
+  (`rkernel.mar:575`, `579`) when XLOAD reads a save file from another
+  exe.
+- **Impact:** an F= or E= field over 40 corrupts the data after the area.
+  In the patched build, where I_DATE_ERROR is installed (29), a later
+  XLOAD of a foreign save file then ends STOIC.
+- **Fix:** `.PUT` compares the pointer with the reset value, the end of
+  the area, and gives "Floating point output conversion error." as
+  `.ERRCHK` does.
+
+### 45. BPUSH and `#A` do not abort
+
+- **Repro:** `10 #A TYO "NOT REACHED" MSG` in DECIMAL prints "Output
+  conversion error.", a stray character and "NOT REACHED". After 43 is
+  fixed, a 41st `#PUT` likewise prints "Stack overflow." and the line runs
+  on (`tests/fix/F45-ABORT.con`).
+- **Cause:** BPUSH and `#A` end their error branches with `ABORT`
+  (`rdef:1141`, `1174`). ABORT is a user variable (`rkernel.mar:1973`),
+  which pushes the address of its cell; it does not call the routine the
+  cell holds. The kernel calls it with `jmp @abort(r11)`
+  (`rkernel.mar:551`). So each error leaves its arguments and the
+  cell address on the stack and returns. `#A` returns the cell's low
+  byte as the digit.
+- **Impact:** an out-of-range digit prints as a wrong character, and an
+  overflowing `#PUT` is dropped, each with the message but no abort.
+  Callers carry on with a deeper stack.
+- **Fix:** `ABORT @ JMP @(P)+`, as RED_ABORT does, so the installed ABORT
+  (ERROR_TRACE, or RED_ABORT in RED) runs.
+
+### 46. A long SEARCH_STRING skips the end of the source
+
+- **Repro:** in DECIMAL, with the pattern 200 bytes from 65336 bytes into
+  a 65536-byte source, `SEARCH_STRING` fails; and a 130672-byte search
+  for the 200 bytes just below the source succeeds, 199 bytes before the
+  source (`tests/fix/F46-SEARCH.con`, `tests/cmp/C4-SEARCH.sto`).
+- **Cause:** a source of FFFF bytes or more is searched in groups
+  (`rdef:1216-1230`). The code divides the source length N by
+  G = FFFF−p+1, where p is the pattern length. It makes the first group
+  N mod G bytes long and each later group G bytes long, each starting p−1
+  bytes back from the end of the last. Each group should be G+p−1 = FFFF
+  bytes. As written, the last q·(p−1) bytes (q = N div G) are never
+  searched, and when N mod G is 0 the first group is empty, so the second
+  starts p−1 bytes before the source.
+- **Impact:** RED's forward search, C.+S (`red/command:147`), can miss a
+  match near the end of a buffer over 64 KB, or report one that starts in
+  the bytes before the search start. SBF (`red/e:148`, `red/dyna:67`)
+  searches for one byte (p = 1), so it is not affected.
+- **Fix:** count the N−p+1 starting places and divide them into groups of
+  G. The first group is (places mod G)+p−1 bytes and each later group is
+  FFFF bytes. The cell that held G keeps FFFF. On failure a long search
+  still returns the last p−1 bytes as the rest of the source, where a
+  short one returns length 0 at its end; nothing in the sources looks at
+  the rest after a failure.
+
+### 47. A float zero prints as `-.000`
+
+- **Repro:** `FLOAT< DECIMAL`, then `0. 6 3 F=` prints ` -.000`, and
+  `0. 10 3 E=` prints ` -.000E+00` (`tests/fix/F47-FZERO.con`).
+- **Cause:** `.SELECT` (`float:198-200`) tests the value with `.LEZ`, so
+  zero takes the negative branch: a column for the sign and a `-`.
+- **Impact:** zero prints with a minus sign, and one column less of
+  field.
+- **Fix:** `.LTZ`.
+
+### 48. F=, E= and `.<#>` mix the radix with decimal
+
+- **Repro:** `FLOAT<` in HEX, then `255. .<#> TYPE` types `414.7AE1`,
+  `255. 8 2 F=` prints `  414.7A`, and `1.E20 C 2 E=` prints
+  `19999.99E+10`. In octal, `99. 6 1 F=` prints `  77.2`, and a digit 9
+  aborts with "Output conversion error." (`tests/fix/F48-FRADIX.con`).
+- **Cause:** `.EFIX` and `.=` (FOR$CVT_D_TG) split the value with a
+  decimal exponent, but `.#` (`float:164-167`) scales each digit by
+  RADIX and makes it with `#A`, and `.#>` and `.E#>` (`float:147`,
+  `158`) print the exponent with `RADIX @ /MOD` and `#A`.
+- **Impact:** in any radix but DECIMAL the float output words print wrong
+  digits. FLODEF and CALC set DECIMAL, so they are not affected.
+- **Fix:** scale by 10 and add `ASCII 0` in all three. The float file
+  loads in HEX, so the constant is `A`.
+
+### 49. RED's `[` can overrun the loop stack, and its count never resets
+
+- **Repro:** in the patched RED (the shipped one does not run, defect 30),
+  `0T#A` then 33 `1[`, `#A+1T#A`, 33 `]` and `#A` ACCVIOs at 4007FC, in
+  NOTE called from C.[, and drops to the STOIC prompt; 32 levels work.
+  And after 33 command lines that each leave a `[` open (`1[`), every
+  loop, even `2[...]`, fails with "Too many nested iteration loops."
+  (`tests/red/r12-bounds.tcl`, snaps nest33 and open30).
+- **Cause:** each `[` NOTEs 4 longwords (`red/cli:1512-1518`), and the
+  loop stack is one page, 128 longwords (`rkernel.mar:78`). C.[ allows a
+  new level while `C.LOOP_COUNT @ 20 GE_IF`, that is while the count is at
+  most 20 hex (`red/cli:1511`), so the 33rd level writes into the moat
+  page below the stack, and a 32nd level leaves no room for anything the
+  loop body NOTEs, such as a search. CLI empties the loop stack at the
+  start of each command line (CLEAR_L_STACK, `red/cli:172-173`, `1670`),
+  but nothing sets C.LOOP_COUNT (`red/command:24`) back to 0, so every
+  loop left open by an error, a branch or the end of the line counts for
+  the rest of the session.
+- **Impact:** deep nesting, or a deep loop that searches, ends RED with a
+  traceback and leaves the terminal in RED's modes; after enough open
+  loops RED can no longer iterate at all.
+- **Fix:** allow 24 levels, `C.LOOP_COUNT @ 18 GT_IF`, which leaves 32
+  longwords for the loop bodies, and have CLEAR_L_STACK set C.LOOP_COUNT
+  to 0. The same in `clihirez`.

@@ -23,16 +23,20 @@ gives the corrections.
 
 ## Status
 
-**Fixed and tested:** 37 of the 42 defects. **Documented** in
+**Fixed and tested:** 44 of the 49 defects (43–49 were added on
+2026-10-22). **Documented** in
 `errata.md`, with no code change: 13, 35 and 36. **Closed**, with a
 stated reason: 11 and 21.
 
-On the final build (2026-10-21):
+On the final build (2026-10-22):
 
 - the 18 suite tests pass against `tests/patched/`;
-- the 32 `tests/fix/` tests pass;
+- the 38 `tests/fix/` tests pass;
 - the RED scripts r0–r11 match their shipped results, apart from the
   differences listed below;
+- r12-bounds, which the shipped RED cannot run, gives the screens in
+  `tests/red/patched/r12-bounds.scr`: the comparisons in expressions, TF,
+  the buffer and register limits, and nesting to 24 levels (49);
 - the interactive checks in `tests/interactive/patched/` give what the
   fixes predict. Every CTRL/C aborts (`ctrlc`, `ctrlc3`). NLEN keeps its
   value after TYI (`tty`). `compbuf` stops with "Compile buffer full",
@@ -79,6 +83,13 @@ On the final build (2026-10-21):
 | 40 | `rkernel.mar` | `>` refuses to pop the last branch ("Vocabulary stack empty.", as in `stoic.mem`) | F40-POP |
 | 41 | `ss.mar` | GETCMD limits the tail to LINE_BUFFER's size. A longer tail gives `%LIB-W-INPSTRTRU` and an empty line | F10-TAIL |
 | 42 | `image` | NOCREF reads and writes the header with block I/O, after INIT_FRABS | F42-NOCREF (not run installed: the rules here forbid INSTALL) |
+| 43 | `rdef` | BPUSH tests with `GE`, so the low limit is the last byte used | F43-BPUSH |
+| 44 | `float` | `.PUT` gives "Floating point output conversion error." at the end of the area | F44-FPUT |
+| 45 | `rdef` | BPUSH and `#A` abort with `ABORT @ JMP @(P)+` | F45-ABORT |
+| 46 | `rdef` | SEARCH_STRING groups the starting places; every later group is FFFF bytes | F46-SEARCH |
+| 47 | `float` | `.SELECT` tests with `.LTZ` | F47-FZERO |
+| 48 | `float` | `.#`, `.#>` and `.E#>` use 10 and `ASCII 0`, not RADIX and `#A` | F48-FRADIX |
+| 49 | `cli`, `clihirez` | C.[ allows 24 levels (`18 GT_IF`), and CLEAR_L_STACK sets C.LOOP_COUNT to 0 | `tests/red/r12-bounds.tcl` (nest24, nest25, nest33, nest24-search, open30) |
 
 `red/dyna` also changes: D.DISPLINE and D.DISP (the buffer table) print
 the buffer origins 8 wide, not 6, since the data region is now at 400000.
@@ -134,7 +145,8 @@ Phase 7 (`PLAN.md`) removes the 64 KB code limit of defect 6.
 |---|---|
 | `rkernel.mar`, `crtl.mar`, `ttio.mar`, `ss.mar` | the `header` and `nullhead` macros store the code displacement as a longword |
 | `rkernel.mar` | I_JUMP_TO_ME compiles `JSB W^disp(R8)` when the displacement fits in a word and `JSB L^disp(R8)` when not, so "Code out of range" is gone. I_COMPILE reads the displacement with MOVL. I_ENTER writes a longword, counts 16 bytes of header, and checks the code end against K_END |
-| `extend.mar` | KERNEL is padded to 40000 bytes and DICTIONARY to 20000, so K_START is 2FE00 and K_END 7012D |
+| `extend.mar` | KERNEL is padded to 40000 bytes and DICTIONARY to 20000, so K_START is 2FE00. K_END is 6FF2D, a page below the psect's end (k_top, 7012D) |
+| `rkernel.mar` | the startup remaps the code region to k_top, so the spare page is mapped; "Dictionary full." compares with R8−8200, a page below the kernel code |
 | `rdef` | CODE_COUNT and FORGET read a longword displacement |
 
 **Tests:** `tests/fix/F06-CODE` defines words on both sides of R8+8000
@@ -145,5 +157,9 @@ its new DZRO section after the fixup ISD, since the code ISD reaches VPN
 200. The suite, `--fix` and image expectations changed only in addresses
 and in IMAGE's DZRO page counts.
 
-Room left: about 232 KB of code in STOIC.EXE and 206 KB in RED.EXE. The
-dictionary has 106 KB and 94.5 KB (`image.md`).
+The spare pages let IMAGE write an exe whose code or dictionary is
+full: rounded up to a page, the region still leaves a page of its
+demand-zero section (`tests/big/runfill`).
+
+Room left: about 231 KB of code in STOIC.EXE and 205 KB in RED.EXE. The
+dictionary has 105.5 KB and 94 KB (`image.md`).

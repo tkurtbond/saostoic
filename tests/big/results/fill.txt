@@ -3,53 +3,55 @@
 === fill1-load ===
 BEFORE CODE_PNTR=3CA00 DICT_PNTR=18400
 Code space full.
+  02 0 DO I + LOOP ;
+;
+No word found at 0
+:		 D=1095D, C=31924(40)
+No word found at 401410
+No word found at 313A4
+Code space full.
   0369B6CE8 + 06071388B + 040D8FA33 - 09 0 DO I + LOOP ;
 ;
 No word found at 0
-:		 D=1095D, C=3191A(40)
+:		 D=1095D, C=31924(40)
 No word found at 401410
-No word found at 3139A
+No word found at 313A4
 Code space full.
   030D3B1D0 - 04740F71E + 062781FCA + 07 0 DO I + LOOP ;
 ;
 No word found at 0
-:		 D=1095D, C=3191A(40)
+:		 D=1095D, C=31924(40)
 No word found at 401410
-No word found at 3139A
-F_0418
-undefined error compiling...  F_0418  ...in line
+No word found at 313A4
+F_0416
+undefined error compiling...  F_0416  ...in line
 'FS_41 : FS_40 F_0410 + F_0411 + F_0412 + F_0413 + F_0414 + F_0415 + F_0416 + F_0417 + F_0418 +
-AFTER  CODE_PNTR=700F7 DICT_PNTR=1AF11
-CODE FREE=36  DICT FREE=14EEF
+AFTER  CODE_PNTR=6FF03 DICT_PNTR=1AEFB
+CODE FREE=2A  DICT FREE=14D05
 LAST 6DBA4E96  GROUP 28
 FS_LAST		 D=1AE4A, C=6F1A3(E)
 Code space full.
   017A102DA + 05F3BB4D8 + 02A5CDAEF + 04F8A8292 + 0671758AA + 0540F68B1 + 046BB583F + ;
 ;
 No word found at 0
-:		 D=1095D, C=3191A(40)
+:		 D=1095D, C=31924(40)
 No word found at 40140D
-No word found at 3139A
+No word found at 313A4
 FAT DONE
-CODE FREE=36  DICT FREE=14EEF
+CODE FREE=2A  DICT FREE=14D05
 TINY  3
-CODE FREE=2C  DICT FREE=14EDB
-Creating writable image
-If installing in system, use /OPEN/HEAD switches only
-IMAGE: the code region has outgrown its demand-zero section in HEAD0
-BACK   CODE_PNTR=6F1A3 DICT_PNTR=1AE4A
-CODE FREE=F8A  DICT FREE=14FB6
-LAST 15B685D4  GROUP 27
+CODE FREE=20  DICT FREE=14CF1
 Creating writable image
 If installing in system, use /OPEN/HEAD switches only
 FORGOT CODE_PNTR=55440 DICT_PNTR=198A0
-CODE FREE=1ACED  DICT FREE=16560
+CODE FREE=1AAED  DICT FREE=16360
 LAST 52004822  GROUP 13
 AFTER_FORGET 52004836
 AFTER_FORGET	 D=198A0, C=55440(10)
 
 === fill2-run ===
-RUN FILLREDLAST 15B685D4  GROUP 27
-CODE FREE=F2D  DICT FREE=14E00
+RUN FILLREDLAST 6DBA4E96  GROUP 28
+TINY  3
+CODE FREE=-D3  DICT FREE=14C00
 
 %RMS-S-NORMAL, normal successful completion

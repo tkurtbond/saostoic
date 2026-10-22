@@ -13,9 +13,9 @@ Code space full.
 'W9 : 1 2 + 3 4 + 5 6 + 7 8 + + + + ;
 ;
 No word found at 0
-:		 D=1095D, C=3191A(40)
+:		 D=1095D, C=31924(40)
 No word found at 40140C
-No word found at 3139A
+No word found at 313A4
 W9
 W5  136
 W5		 D=1565D, C=36204(E)

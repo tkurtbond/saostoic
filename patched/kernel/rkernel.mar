@@ -38,7 +38,7 @@ ROGER=1
 	.extrn	ttio_ttio,ttioglob,ss_kernel	;points to other vocabularies
 	.extrn	crtl_crtl
 	.extrn	dict_start,k_start		;beginning of dictionary
-	.extrn	k_end,dict_end,dat_fin
+	.extrn	k_end,k_top,dict_end,dat_fin
 	.extrn	string_to_float		;floating point conversion routine
 	.mcall	$rab
 
@@ -408,8 +408,14 @@ sname:	.word	len
 	.errstop
 	movl	8(r10),dict_pntr(r11)		;make a pointer to the start
 	addl2	#8,r10				;pop 2 entries from stack
-	moval	k_end-1,-(r10)			;push end address for kernel
+	moval	k_top-1,-(r10)			;push end address for kernel
+						;(the psect's, past the spare
+						;page: USER_CODE may pass K_END)
 	addl3	#^x1ff,user_code(r11),-(r10)	;push start address
+	cmpl	(r10),4(r10)			;in the last page (a child of
+	blequ	30$				;a full exe)? then end there
+	movl	(r10),4(r10)			;too: a start past the end
+30$:						;makes VMS work downward
 	$deltva_s inadr=(r10)			;delete the space
 	.errstop
 	$cretva_s inadr=(r10),retadr=8(r10)	;create it again
@@ -977,7 +983,8 @@ header I_ENTER
 	addl2	dict_pntr(r11),r1	;plus the dictionary pointer
 	addl2	#16,r1			;plus links, count, attribute,
 					;code length and displacement
-	subl3	#^x8000,r8,r2		;the kernel code follows the dictionary
+	subl3	#^x8200,r8,r2		;the kernel code follows the dictionary;
+					;keep its last page spare for IMAGE
 	cmpl	r1,r2			;would the header run into it?
 	bgtru	dict_full		;if so, refuse
 	movl	dict_pntr(r11),r0	;remember where we are in dictionary

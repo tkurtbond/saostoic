@@ -1,0 +1,187 @@
+#!/usr/bin/env python3
+"""List the words of the patched build that depend on a two-value comparison.
+
+    tools/cmp-deps            # counts, then one line per dependent word
+    tools/cmp-deps --entries  # the RED commands and keys that reach one
+    tools/cmp-deps --gaps     # the STOIC-layer dependents no test names
+
+The comparisons are GT LT GE LE, .GT .LT .GE .LE, the _IF forms of
+both, MAX, MIN and DGE: the words whose sense the cmpfix tree reverses (defect 13,
+doc/cpm-compare.md). A word depends on one if its definition names one, or
+names a word that does. Every other word cannot change with that swap.
+
+It reads the definitions in patched/stoic (rdef image float obuf vt100)
+and patched/red (red.cre's order), with the tokenizer rules of
+tools/word-index: a leading run of `"` is a string to the next `"`, and a
+leading run of `%` is a comment to the next `%` or the end of the line. A
+definition is `'NAME` and a defining word; its body runs to `;` (for `:`
+and CODE). Words in INLINE< ... >INLINE are VAX opcodes and are skipped.
+
+A line ends with the tests (under tests/, any .sto .con .dcl .tcl) that
+name the word, comments and strings not counted. For RED words a name is
+rarely typed, so --entries lists, for each C.x command and each DISPATCH
+target that reaches a comparison, the words on the way; tests/cmp/README.md
+says which RED script exercises each.
+
+Python 3, standard library only. Run it from anywhere.
+"""
+
+import os
+import re
+import sys
+
+ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+TREE = os.environ.get('CMP_TREE', 'patched')
+FILES = [('stoic', f) for f in 'rdef image float obuf vt100'.split()] + \
+        [('red', f) for f in 'err dyna e window edv eb command immed cli kbd red'.split()]
+SEEDS = {'GT', 'LT', 'GE', 'LE', 'GT_IF', 'LT_IF', 'GE_IF', 'LE_IF',
+         '.GT', '.LT', '.GE', '.LE', '.GT_IF', '.LT_IF', '.GE_IF', '.LE_IF',
+         'MAX', 'MIN', 'DGE'}
+DEFINERS = {':', 'CODE', 'AC', 'CONSTANT', 'VARIABLE', 'ARRAY', 'SVARIABLE',
+            'STRINGTAB', 'FRAB', 'BRANCH', 'MODULE'}
+
+
+def tokens(path):
+    """(token, line) pairs, without comments and strings."""
+    out = []
+    with open(path, errors='replace') as f:
+        for n, line in enumerate(f, 1):
+            i = 0
+            while i < len(line):
+                if line[i].isspace():
+                    i += 1
+                    continue
+                j = i
+                while j < len(line) and not line[j].isspace():
+                    j += 1
+                t = line[i:j]
+                if t.startswith('%'):
+                    k = line.find('%', i + (len(t) - len(t.lstrip('%'))))
+                    if k < 0:
+                        break
+                    i = k + 1
+                    continue
+                if t.startswith('"'):
+                    q = i + len(t) - len(t.lstrip('"'))
+                    k = line.find('"', q)
+                    if k < 0:
+                        break
+                    while k < len(line) and line[k] == '"':
+                        k += 1
+                    i = k
+                    continue
+                out.append((t, n))
+                i = j
+    return out
+
+
+def parse():
+    defs = {}    # name -> (file, line, set of words named)
+    for d, f in FILES:
+        path = os.path.join(ROOT, TREE, d, f)
+        toks = tokens(path)
+        i = 0
+        while i < len(toks) - 1:
+            t, n = toks[i]
+            nxt = toks[i + 1][0]
+            if t.startswith("'") and len(t) > 1 and nxt in DEFINERS:
+                body, j = set(), i + 1
+                if nxt in (':', 'CODE'):
+                    j = i + 2
+                    inline = False
+                    while j < len(toks) and toks[j][0] != ';':
+                        w = toks[j][0]
+                        if w == 'INLINE<':
+                            inline = True
+                        elif w == '>INLINE':
+                            inline = False
+                        elif not inline:
+                            body.add(w)
+                        j += 1
+                defs[t[1:]] = ('%s/%s' % (d, f), n, body)
+                i = j
+            elif t == 'DISPATCH' and i + 2 < len(toks):
+                dispatch.add(toks[i + 2][0])
+            i += 1
+    return defs
+
+
+def test_names():
+    """word -> set of test files that name it."""
+    seen = {}
+    for dp, dn, fn in os.walk(os.path.join(ROOT, 'tests')):
+        for f in fn:
+            if os.path.splitext(f)[1].lower() not in ('.sto', '.con', '.dcl', '.tcl'):
+                continue
+            p = os.path.join(dp, f)
+            rel = os.path.relpath(p, os.path.join(ROOT, 'tests'))
+            for t, _ in tokens(p):
+                seen.setdefault(t, set()).add(rel)
+    return seen
+
+
+dispatch = set()
+
+
+def main():
+    mode = sys.argv[1] if len(sys.argv) > 1 else ''
+    defs = parse()
+    users = {}
+    for n, (_, _, body) in defs.items():
+        for w in body:
+            users.setdefault(w, set()).add(n)
+    dep, direct = set(), set()
+    for n, (_, _, body) in defs.items():
+        if body & SEEDS:
+            direct.add(n)
+    work = list(direct)
+    dep |= direct
+    while work:
+        w = work.pop()
+        for u in users.get(w, ()):
+            if u not in dep:
+                dep.add(u)
+                work.append(u)
+    stoic = sorted((n for n in dep if defs[n][0].startswith('stoic/')),
+                   key=lambda n: (defs[n][0], defs[n][1]))
+    red = sorted((n for n in dep if defs[n][0].startswith('red/')),
+                 key=lambda n: (defs[n][0], defs[n][1]))
+    if mode == '--entries':
+        for n in red:
+            if n.startswith('C.') or n in dispatch:
+                # shortest chain of calls down to a word that compares
+                prev, todo = {n: None}, [n]
+                while todo and not any(w in direct for w in todo):
+                    nxt = []
+                    for w in todo:
+                        for b in sorted(defs[w][2] & dep):
+                            if b not in prev:
+                                prev[b] = w
+                                nxt.append(b)
+                    todo = nxt
+                w = min(w for w in todo if w in direct)
+                path = []
+                while w != n:
+                    path.insert(0, w)
+                    w = prev[w]
+                print('%-20s %s:%d  via %s' % (n, defs[n][0], defs[n][1],
+                                               ' '.join(path) or '(direct)'))
+        return
+    names = test_names()
+    if mode == '--gaps':
+        for n in stoic:
+            if n not in names:
+                print('%-20s %s:%d' % (n, defs[n][0], defs[n][1]))
+        return
+    print('definitions %d; using a comparison %d; depending on one %d '
+          '(STOIC layer %d, RED %d)' % (len(defs), len(direct), len(dep),
+                                        len(stoic), len(red)))
+    for n in stoic + red:
+        f, l, body = defs[n]
+        t = sorted(names.get(n, ()))
+        print('%-20s %-14s %s %s' % (n, '%s:%d' % (f, l),
+                                     'D' if n in direct else ' ',
+                                     ' '.join(t[:3]) + (' ...' if len(t) > 3 else '')))
+
+
+main()

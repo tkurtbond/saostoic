@@ -9,6 +9,9 @@
 #   tools/patched-push [-n] [<patched/file>...]
 #
 #   -n   list what would be copied, and copy nothing
+#
+# STOIC_TREE names another tree made the same way, such as cmpfix: its
+# files go from cmpfix/ to [.WORK.CMPFIX...].
 set -e
 here=$(cd "$(dirname "$0")" && pwd)
 top=$here/..
@@ -16,22 +19,24 @@ host=${VAX_HOST:-192.168.2.20}
 netrc=${VAX_NETRC:-$HOME/.netrc-claude-vax}
 dry=
 [ "$1" = -n ] && { dry=yes; shift; }
+tree=${STOIC_TREE:-patched}
+TREE=$(echo "$tree" | tr a-z A-Z)
 cd "$top"
 if [ $# -eq 0 ]; then
-  set -- $(find patched -type f | sort | while read -r f; do
-    cmp -s "$f" "saostoic-text/${f#patched/}" || echo "$f"; done)
+  set -- $(find "$tree" -type f | sort | while read -r f; do
+    cmp -s "$f" "saostoic-text/${f#$tree/}" || echo "$f"; done)
 fi
 [ $# -gt 0 ] || { echo "patched-push: nothing differs"; exit 0; }
 args=
 for f; do
-  case $f in patched/*) ;; *) echo "patched-push: $f is not under patched/" >&2; exit 2 ;; esac
+  case $f in "$tree"/*) ;; *) echo "patched-push: $f is not under $tree/" >&2; exit 2 ;; esac
   [ -f "$f" ] || { echo "patched-push: no $f" >&2; exit 2; }
-  rel=${f#patched/}
+  rel=${f#$tree/}
   d=$(dirname "$rel"); n=$(basename "$rel" | tr a-z A-Z)
   case $n in *.*) ;; *) n=$n. ;; esac
   # absolute, since each CWD in the one session is from the last
-  if [ "$d" = . ]; then dir=DUA1:%5BUSERS.CLAUDE.WORK.PATCHED%5D
-  else dir=DUA1:%5BUSERS.CLAUDE.WORK.PATCHED.$(echo "$d" | tr a-z A-Z)%5D; fi
+  if [ "$d" = . ]; then dir=DUA1:%5BUSERS.CLAUDE.WORK.$TREE%5D
+  else dir=DUA1:%5BUSERS.CLAUDE.WORK.$TREE.$(echo "$d" | tr a-z A-Z)%5D; fi
   echo "$f -> $dir/$n"
   args="$args -T $f ftp://$host/$dir/$n"
 done

@@ -222,4 +222,6 @@ at load time valid in RED.EXE (defect 30).
 Phase 7 pads the patched KERNEL psect to 40000 bytes, not 10000
 and the DICTIONARY psect to 20000 (`patched/kernel/extend.mar`). The map
 shows DICTIONARY at FA00–2FC46 and KERNEL at 2FE00–7012C, and the images
-are a few blocks larger: the extra pages are demand-zero.
+are a few blocks larger: the extra pages are demand-zero. K_END, where
+"Code space full." starts, is a page below the psect's end, at 6FF2D; the
+spare page lets IMAGE write an exe whose code is full (`image.md`).

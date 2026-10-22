@@ -170,7 +170,7 @@ ASSEMBLER<
   ;
 
 'CLEAR_L_STACK :  % CLEAR_L_STACK, resets loop stack
-  L_STACK_0 @ MOVL (P)+ L ;
+  L_STACK_0 @ MOVL (P)+ L  C.LOOP_COUNT 0<- ;  % no loops are open
 >
 
 'SFSEP :  % n, string descriptor, SFSEP,
@@ -1508,7 +1508,7 @@ ASSEMBLER<
   ;
 
 'C.[ :  % opening iteration bracket
-  C.LOOP_COUNT @ 20 GE_IF  % is there a huge number of nested loops?
+  C.LOOP_COUNT @ 18 GT_IF  % fewer than 24 nested loops? (each uses 4 of 128 L cells)
     ERR_SUPPRESS @ NOTE  % save state of error suppress flag
     CURKBUF @ D@- NOTE  % save position in command line
     C.DEFAULT? @ IF  % explicit argument?

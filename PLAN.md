@@ -20,7 +20,8 @@ Phase 1 passes. Phase 5 is written gradually as results come in.
 | 4 RED | done (see "Phase 4 outcome"; `doc/red.md`, `tests/red/`) |
 | 5 Documentation | done (see "Phase 5 outcome"; `doc/README.md`, `tests/lang/`) |
 | 6 Fixes | **done** (2026-10-21): Batches A–H; 37 fixed, 3 documented, 2 closed (`doc/patches.md`) |
-| 7 Raise the code window | **done** (2026-10-21): `JSB L^`, longword header displacement, code to K_END 7012D, 128 KB dictionary (`doc/patches.md`) |
+| 7 Raise the code window | **done** (2026-10-21): `JSB L^`, longword header displacement, code to K_END 6FF2D with a spare page after it, 128 KB dictionary (`doc/patches.md`) |
+| 8 Comparisons as in the manual (cmpfix) | **in progress** (2026-10-22): boundary tests `tests/cmp/` and r12 recorded on patched; defects 43–49 found and fixed; cmpfix tree to build and test (`doc/cmpfix.md`) |
 
 Update this table as work proceeds.
 
@@ -440,6 +441,13 @@ that settle them:
 | 40 | `>` does not check for an empty branch stack | lang L3-POP | **new**, confirmed: after `> > > >` every line faults in I_LOOKUP |
 | 41 | DEF_INIT copies the command tail into the 132-byte LINE_BUFFER unchecked | fix F10-TAIL | **new** (Phase 6), confirmed: a 203-character tail is corrupted (`^@+ECIMAL` undefined) |
 | 42 | NOCREF's keyed GET and PUT; no INIT_FRABS | fix F42-NOCREF (patched only) | **new** (Phase 6), confirmed: IFI alone; RAC on an exe made by IMAGE; NEF on a linked exe |
+| 43 | BPUSH lets a 41st byte into the conversion area | fix F43-BPUSH | **new** (Phase 8), confirmed |
+| 44 | `.PUT` writes past the conversion area | fix F44-FPUT | **new** (Phase 8), confirmed |
+| 45 | BPUSH and `#A` do not abort | fix F45-ABORT | **new** (Phase 8), confirmed |
+| 46 | A long SEARCH_STRING skips the end of the source | fix F46-SEARCH, cmp C4-SEARCH | **new** (Phase 8), confirmed |
+| 47 | A float zero prints as `-.000` | fix F47-FZERO | **new** (Phase 8), confirmed |
+| 48 | F=, E= and `.<#>` mix the radix with decimal | fix F48-FRADIX | **new** (Phase 8), confirmed |
+| 49 | RED's `[` overruns the loop stack at 33 levels; its count never resets | red r12-bounds (patched only) | **new** (Phase 8), confirmed: ACCVIO at 4007FC in NOTE; after 33 open loops every `[` fails |
 
 ### Done when
 
@@ -930,6 +938,11 @@ window binds first: the patched RED.EXE has 13 KB of code room left.
    K_START moves from 1FE00 to 2FE00 and K_END to 7012D. The links are
    longword offsets and "Dictionary full." compares with R8−8000, so
    nothing else changes.
+5. **Spare pages** (added after the fill test, at the user's request):
+   IMAGE could not write a RED whose code reached the last page, so K_END
+   moves a page below the psect's end (6FF2D; the end is k_top, 7012D,
+   which the startup remaps to) and "Dictionary full." compares with
+   R8−8200.
 
 Nothing else in the STOIC or RED sources compiles a call or reads the
 displacement (searched: `W->L`, `CODE_COUNT`, `C8`, `JSB`, `R8@+`).
@@ -969,14 +982,16 @@ displacement (searched: `W->L`, `CODE_COUNT`, `C8`, `JSB`, `R8@+`).
   words, 120 KB of code and 62 KB of dictionary, load on the patched
   RED.EXE and give the generator's total. IMAGE makes BIGRED.EXE, whose
   editor works and whose STOIC prompt (ESC S) runs the application.
-- **Filling the code space** (`tests/big/runfill`, `doc/image.md`): 418
-  generated words, 205.7 KB of code, fill the patched RED.EXE to 36 bytes
+- **Filling the code space** (`tests/big/runfill`, `doc/image.md`): 416
+  generated words, 205.3 KB of code, fill the patched RED.EXE to 2A bytes
   below K_END, with the generator's totals. "Code space full." ends only
-  the definition that doesn't fit. IMAGE refuses once the code reaches
-  the last page (past 70000); 4 KB below that it writes FILLRED.EXE, whose
-  editor works and which still compiles new words.
-- **Room now:** code 231.8 KB in STOIC.EXE and 205.8 KB in RED.EXE;
-  dictionary 106 KB and 94.5 KB. With the code window alone, the
+  the definition that doesn't fit. At first IMAGE refused once the code
+  reached the last page (past 70000), so K_END was moved a page down and
+  the dictionary limit likewise: the spare page lets IMAGE write
+  FILLRED.EXE from the full RED. Its editor works; it has no code room
+  left.
+- **Room now:** code 231.3 KB in STOIC.EXE and 205.3 KB in RED.EXE;
+  dictionary 105.5 KB and 94 KB. With the code window alone, the
   dictionary (42 KB and 30.5 KB) bound first; enlarging it moved K_START
   and every kernel address, which changed only addresses and IMAGE's
   page counts in the expectations.

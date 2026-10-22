@@ -1,0 +1,23 @@
+DEC     0 9 10 99 100 -1 -10 2147483647 -2147483648
+BIN     0 1 10 101 -1
+BIN MAX 1111111111111111111111111111111 -10000000000000000000000000000000
+OCT     7 10 77 100 -10
+HEX     9 A F 10 FF -10
+R36     9 A Z 10 ZZ 100 -Z
+R37     Z [ 10
+#A DEC 09
+#A HEX 09AF
+#A R36 AZ
+#A NEG /&
+#A 10  
+Output conversion error.#A 11  
+Output conversion error.#A H16 
+Output conversion error.#A H17 
+Output conversion error.#A BIG 0NOT REACHED
+<#>    |0|-7|1000000|
+# #S   |34|1234|
+I=     |   5|123|   |345|
+I= -1  |  4294967295|
+D<#>   31 FF-31
+AFTER   12345
+

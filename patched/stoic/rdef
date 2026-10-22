@@ -1136,15 +1136,16 @@ DEFINITIONS
   .D+!
   ;
 
-
+ASSEMBLER<
 'BPUSH :  % byte, stack, BPUSH  (pushes byte onto stack)
   DUP 4 + @  % pointer
   OVER @  % low limit
-  GT IF  % overflow?
-    CR = "Stack overflow." MSG ABORT ELSE  % yes
+  GE IF  % overflow? (the low limit is the last free byte)
+    CR = "Stack overflow." MSG ABORT @ JMP @(P)+ ELSE  % yes
     4 + DUP 1-<-  % decrement pointer
     @ B! THEN  % store byte
   ;
+>
 
 %  Output Integer Conversion
 
@@ -1169,15 +1170,15 @@ DEFINITIONS
   OCONSTACK BPUSH
   ;
 
+ASSEMBLER<
 '#A :  % value(less than radix), #A, corresponding ASCII character
   DUP RADIX @ GT IF
     DUP A GT IF  % convert to number or letter?
       ASCII 0 + ELSE  % number
       A - ASCII A + THEN ELSE  % letter
-    CR "Output conversion error." MSG ABORT THEN
+    CR "Output conversion error." MSG ABORT @ JMP @(P)+ THEN
   ;
 
-ASSEMBLER<
 '# :  % value, #, value/radix  (converts next digit onto number stack)
   RADIX @  MOVQ (P)+ R0  CLRL R2  EDIV R0 R1 R1 R0  % unsigned, unlike /MOD
   MOVQ R0 -(P)  #A #PUT
@@ -1221,15 +1222,15 @@ ASSEMBLER<
     MATCHC R0 (R1) R2 (R3) ELSE  % do it
    % long search
     MOVL (P)+ R3  % address of source string to R3
-    SUBL3 (P) B^(P) -C R0  INCL R0  % # bytes per subsequent group
-    MOVL B^(P) -8 R1  CLRL R2  % full count, prepare to divide
-    EDIV R0 R1 -(L) R2  % initial count to R2, # groups to loop stack
-    MOVL R0 B^(P) -C  % save subsequent length
+    SUBL3 (P) B^(P) -C R0  INCL R0  % # starting places per FFFF bytes
+    SUBL3 (P) B^(P) -8 R1  INCL R1  CLRL R2  % # starting places in all
+    EDIV R0 R1 -(L) R2  % places in first group to R2, # groups to loop stack
+    ADDL2 (P) R2  DECL R2  % length of first group
     MOVQ (P) R0  % pattern descriptor to R0, R1
     (CMARK)  % loop # groups + 1
       MATCHC R0 (R1) R2 (R3)  % try next group
       BEQL (TARGET)  % success?
-        MOVL B^(P) -C R2  % subsequent count to R2
+        MOVL B^(P) -C R2  % FFFF bytes in each subsequent group
         SUBL2 R0 R3  INCL R3  % new starting address in source string
         SOBGEQ (L) (SWAP) (TARGET) (SWAP) (ARCHER)  % no, all done?
       (CMARK) (ARCHER)  % all done

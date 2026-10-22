@@ -9,10 +9,21 @@
 # tests/big/genfill remakes FILLAPP.STO and FILLAPP.EXP.
 cd "$(dirname "$0")/../.." || exit 2
 T=tests/big R=tests/big/results
+# STOIC_TREE names another tree, such as cmpfix: its exes are run, and
+# the results go to $R/<tree>/.
+tree=${STOIC_TREE:-patched}
+TREE=$(echo "$tree" | tr a-z A-Z)
+if [ "$tree" != patched ]; then
+  R=$R/$tree
+  P=${TMPDIR:-/tmp}/stoic-$tree-image; mkdir -p $P
+  for f in a1-pat.dcl e1-pat.dcl; do sed "s/PATCHED/$TREE/g" tests/image/$f > $P/$f; done
+else
+  P=tests/image
+fi
 mkdir -p $R
 VAX_DO_TIMEOUT=3000 tools/stoic-run -m -f $T/FILLAPP.STO \
-  -x 'DUA1:[USERS.CLAUDE.WORK.PATCHED.RED]RED.EXE' \
-  tests/image/a1-pat.dcl $T/fill1-load.con $T/fill2-run.dcl > $R/fill.txt 2>&1
+  -x "DUA1:[USERS.CLAUDE.WORK.$TREE.RED]RED.EXE" \
+  $P/a1-pat.dcl $T/fill1-load.con $T/fill2-run.dcl > $R/fill.txt 2>&1
 echo "load: exit $?"
 STOIC_RED='DUA1:[USERS.CLAUDE.WORK]FILLRED.EXE' tools/red-drive -o $R $T/r-fill.tcl
 echo "red: exit $?"

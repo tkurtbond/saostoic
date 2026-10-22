@@ -19,6 +19,7 @@
 #   -o <dir>       where the files come back to (default .)
 #   -get <NAME>    a file the procedure leaves, to bring back (repeatable)
 #   -p <word>      the procedure's P1: letters, digits and underscores
+#                  (a second -p gives P2, and so on)
 #   -keep          leave the files on the VAX
 #   -t <file>      write what the procedure writes to the terminal (where
 #                  STOIC's output goes) to <file>, with the closing prompt
@@ -72,7 +73,7 @@ while [ $# -gt 0 ]; do
     -p)
       [ $# -ge 2 ] || usage
       case $2 in *[!A-Za-z0-9_]*|"") echo "vax-do: -p $2 is not a word" >&2; exit 2 ;; esac
-      VAX_DO_PARAMETER=$2; shift 2 ;;
+      VAX_DO_PARAMETER=${VAX_DO_PARAMETER:+$VAX_DO_PARAMETER }$2; shift 2 ;;
     -keep) VAX_DO_KEEP=yes; shift ;;
     -t) [ $# -ge 2 ] || usage; terminal=$2; shift 2 ;;
     -*) usage ;;

@@ -24,10 +24,10 @@ Syntax Error error compiling...  ;  ...in line
 MSG CR
 CR
 No word found at 200225
-TYPE		 D=85255, C=218802(52)
-MSG		 D=85275, C=218854(9)
+TYPE		 D=85255, C=218940(52)
+MSG		 D=85275, C=218992(9)
 No word found at 4199428
-No word found at 201626
+No word found at 201636
  4
 
 %SYSTEM-F-INTDIV, arithmetic trap, integer divide by zero at PC=00032658, PSL=03
@@ -36,7 +36,7 @@ C00002
 =
 /		 D=76370, C=206421(4)
 No word found at 4199438
-No word found at 201626
+No word found at 201636
  5
 
 %SYSTEM-F-ACCVIO, access violation, reason mask=00, virtual address=00000000, PC
@@ -44,25 +44,25 @@ No word found at 201626
 0 @ =
 =
 No word found at 4199431
-No word found at 201626
+No word found at 201636
  6
 
 %SYSTEM-F-ACCVIO, access violation, reason mask=04, virtual address=00400608, PC
-=00031E59, PSL=03C00000
+=00031E63, PSL=03C00000
 DROP DROP DROP
 DROP
-I_READLINE	 D=69514, C=204365(42)
-No word found at 201599
+I_READLINE	 D=69514, C=204375(42)
+No word found at 201609
  7
 
 %SYSTEM-F-ACCVIO, access violation, reason mask=04, virtual address=00400608, PC
-=00031F94, PSL=03C00000
+=00031F9E, PSL=03C00000
 DROP DROP DROP =
 =
-SPACE		 D=69961, C=204692(7)
-=		 D=69982, C=204699(67)
+SPACE		 D=69961, C=204702(7)
+=		 D=69982, C=204709(67)
 No word found at 4199437
-No word found at 201626
+No word found at 201636
  8
 
 %SYSTEM-F-ACCVIO, access violation, reason mask=00, virtual address=00000000, PC
@@ -70,15 +70,15 @@ No word found at 201626
 1 2 0 @
 @
 No word found at 4199437
-No word found at 201626
+No word found at 201636
  0
  9
 
 %RMS-E-FNF, file not found
 'NOSUCH.STO LOAD
 LOAD
-LOAD		 D=69121, C=204135(24)
+LOAD		 D=69121, C=204145(24)
 No word found at 4199444
-No word found at 201626
+No word found at 201636
  10
 

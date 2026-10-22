@@ -1,0 +1,65 @@
+#!/usr/bin/env python3
+# Swaps the two-value comparison words in STOIC source, for the cmpfix
+# tree:
+#
+#   tools/cmp-swap [-n] file...
+#
+# GT<->LT and GE<->LE, with their _IF forms and the float . forms, are
+# swapped where they are words of code: not in a comment (from a % word to
+# the end of the line), not in a "string", and not as a 'NAME. In cmpfix
+# the new LT compiles to what the old GT did, so each swapped use means the
+# same as before. Each change is listed as file:line: old -> new. With -n
+# nothing is written.
+import re, sys
+
+SWAP = {'GT': 'LT', 'LT': 'GT', 'GE': 'LE', 'LE': 'GE'}
+
+def swap_word(w):
+    m = re.fullmatch(r'(\.?)(GT|LT|GE|LE)(_IF)?', w)
+    if not m:
+        return None
+    return m.group(1) + SWAP[m.group(2)] + (m.group(3) or '')
+
+def swap_line(line):
+    out, i, n, changes = [], 0, len(line), []
+    while i < n:
+        if line[i] in ' \t\n':
+            out.append(line[i]); i += 1; continue
+        j = i
+        if line[i] == '"':  # a string runs to the next quote
+            j = line.find('"', i + 1)
+            j = n if j < 0 else j + 1
+            while j < n and line[j] == '"':
+                j += 1
+            out.append(line[i:j]); i = j; continue
+        while j < n and line[j] not in ' \t\n':
+            j += 1
+        w = line[i:j]
+        if w == '%':  # a comment to the end of the line
+            out.append(line[i:]); break
+        s = swap_word(w)
+        if s:
+            changes.append((w, s)); w = s
+        out.append(w); i = j
+    return ''.join(out), changes
+
+def main():
+    args = sys.argv[1:]
+    dry = args[:1] == ['-n']
+    if dry:
+        args = args[1:]
+    total = 0
+    for f in args:
+        lines = open(f, encoding='latin-1').readlines()
+        new = []
+        for k, line in enumerate(lines, 1):
+            s, ch = swap_line(line)
+            for a, b in ch:
+                print(f'{f}:{k}: {a} -> {b}')
+            total += len(ch)
+            new.append(s)
+        if not dry:
+            open(f, 'w', encoding='latin-1').writelines(new)
+    print(f'{total} swapped', file=sys.stderr)
+
+main()

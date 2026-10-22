@@ -128,6 +128,8 @@ RADIX @ HEX  % save radix and set to hexadecimal
 0 'F.WHOLE VARIABLE  % integer part presently converted
 
 '.PUT :
+  OCONSTACK 4 + @ OCONSTACK 8 + @ LE IF  % past the end of the area?
+    "Floating point output conversion error." MSG I_ABORT THEN
   OCONSTACK 4 + @ B!  % store the digit on the stack
   OCONSTACK 4 + 1+!  % increment the pointer
   ;
@@ -144,7 +146,7 @@ RADIX @ HEX  % save radix and set to hexadecimal
   F.10POWER @ NEZ_IF  % is there some exponent?
     UNDROP DUP GEZ_IF ASCII + ELSE ASCII - THEN  % get sign
     ASCII E .PUT .PUT  % make "Es"
-    ABS RADIX @ /MOD SWAP #A .PUT #A .PUT  % store two digits
+    ABS A /MOD SWAP ASCII 0 + .PUT ASCII 0 + .PUT  % store two decimal digits
   THEN
   OCONSTACK @   % beginning of string
   OCONSTACK 4 + @  % end of string
@@ -155,16 +157,16 @@ RADIX @ HEX  % save radix and set to hexadecimal
   .DROP  % get rid of un-converted portion
   F.10POWER @ DUP GEZ_IF ASCII + ELSE ASCII - THEN  % get sign
   ASCII E .PUT .PUT  % make "Es"
-  ABS RADIX @ /MOD SWAP #A .PUT #A .PUT  % store two digits
+  ABS A /MOD SWAP ASCII 0 + .PUT ASCII 0 + .PUT  % store two decimal digits
   OCONSTACK @   % beginning of string
   OCONSTACK 4 + @  % end of string
   OVER -  % count
   ;
 
 '.# :
-  RADIX @ DUP I->F .* F.WHOLE @ * F.WHOLE !  % adjust by radix
+  A DUP I->F .* F.WHOLE @ * F.WHOLE !  % adjust by 10: .EFIX is decimal
   .DUP F->I F.WHOLE @ -  % get whole part and subtract for digit
-  #A .PUT  % store the digit
+  ASCII 0 + .PUT  % store the decimal digit
   F.10POWER DUP @ F.EXPADD @ + <-  % fix exponent
   .DUP F->I F.WHOLE !  % get this whole part for the next one
   ;
@@ -197,7 +199,7 @@ RADIX @ HEX  % save radix and set to hexadecimal
 
 '.SELECT :  % size, digits of fraction, .SELECT: converts digits
   SWAP  % now digits, field size
-  .DUP .LEZ IF 1- .MINUS -1 ELSE 0 THEN NOTE  % take action if negative
+  .DUP .LTZ IF 1- .MINUS -1 ELSE 0 THEN NOTE  % take action if negative
   1-  % fix for decimal point space  
   OVER -  % get number of digits allowed before decimal point
   DUP F.10POWER @ - ( 20 .PUT )  % set up leading blanks

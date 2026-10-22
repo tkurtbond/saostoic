@@ -1,19 +1,28 @@
 #!/bin/sh
 # Runs a suite against the Phase 6 patched build in [.WORK.PATCHED...]:
 #
-#   tools/patched-suite [--fix] [--shipped] [--update] [<name>...]
+#   tools/patched-suite [--fix | --cmp] [--shipped] [--update] [<name>...]
 #
 # Without --fix: the regression suite tests/*, compared with
 # tests/patched/*.expected. With --fix: the defect tests tests/fix/*,
 # compared with tests/fix/patched/*.expected, or with --shipped run on the
 # shipped STOIC.EXE and RED.EXE (only the tests that have a result there)
-# and compared with tests/fix/shipped/. Other
+# and compared with tests/fix/shipped/. With --cmp: the boundary tests
+# tests/cmp/*, which name no comparison word, compared with
+# tests/cmp/patched/*.expected. Other
 # arguments go to tools/stoic-suite. The build's date is masked.
+#
+# STOIC_TREE names another tree, such as cmpfix: its exes in
+# [.WORK.CMPFIX...] are run, the tests' [.WORK.PATCHED...] paths are
+# changed to it, and the results are compared with tests/cmpfix/,
+# tests/fix/cmpfix/ and, since they must not change, tests/cmp/patched/.
 here=$(cd "$(dirname "$0")" && pwd)
 t=$here/../tests
-exe=DUA1:[USERS.CLAUDE.WORK.PATCHED.STOIC]STOIC.EXE
-red=DUA1:[USERS.CLAUDE.WORK.PATCHED.RED]RED.EXE
-fix= shipped=
+tree=${STOIC_TREE:-patched}
+TREE=$(echo "$tree" | tr a-z A-Z)
+exe=DUA1:[USERS.CLAUDE.WORK.$TREE.STOIC]STOIC.EXE
+red=DUA1:[USERS.CLAUDE.WORK.$TREE.RED]RED.EXE
+fix= shipped= cmp=
 # the build time changes with every build (REVISION, and rdef's XLOAD date
 # error)
 STOIC_SUITE_SED=${STOIC_SUITE_SED:-'s/^REVISION .*/REVISION (build time)/;s/^Date for this version:.*/Date for this version:	(build time)/'}
@@ -21,10 +30,24 @@ export STOIC_SUITE_SED
 while :; do
   case $1 in
     --fix) fix=yes; shift ;;
+    --cmp) cmp=yes; shift ;;
     --shipped) shipped=yes; shift ;;
     *) break ;;
   esac
 done
+# a copy of a test directory with its paths changed to the tree
+treedir() {
+  if [ "$tree" = patched ]; then echo "$1"; return; fi
+  d=${TMPDIR:-/tmp}/stoic-$tree-$(basename "$1")
+  rm -rf "$d"; mkdir -p "$d"
+  for f in "$1"/*.sto "$1"/*.con "$1"/*.dcl "$1"/*.STO; do
+    [ -f "$f" ] && sed "s/WORK\.PATCHED/WORK.$TREE/g" "$f" > "$d/$(basename "$f")"
+  done
+  echo "$d"
+}
+if [ -n "$cmp" ]; then
+  exec "$here/stoic-suite" -x "$exe" -r "$red" -d "$(treedir "$t/cmp")" -e "$t/cmp/patched" "$@"
+fi
 if [ -n "$fix" ]; then
   if [ -n "$shipped" ]; then
     # only the tests with a shipped result: F24 would loop for ever
@@ -33,6 +56,8 @@ if [ -n "$fix" ]; then
     fi
     exec "$here/stoic-suite" -d "$t/fix" -e "$t/fix/shipped" "$@"
   fi
-  exec "$here/stoic-suite" -x "$exe" -r "$red" -d "$t/fix" -e "$t/fix/patched" "$@"
+  mkdir -p "$t/fix/$tree"
+  exec "$here/stoic-suite" -x "$exe" -r "$red" -d "$(treedir "$t/fix")" -e "$t/fix/$tree" "$@"
 fi
-exec "$here/stoic-suite" -x "$exe" -r "$red" -e "$t/patched" "$@"
+mkdir -p "$t/$tree"
+exec "$here/stoic-suite" -x "$exe" -r "$red" -d "$(treedir "$t")" -e "$t/$tree" "$@"

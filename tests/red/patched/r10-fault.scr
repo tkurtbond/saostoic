@@ -18,10 +18,10 @@
 |KBD              D=18304, C=3C5AE(74)                                           |
 |.RED             D=18367, C=3C6F0(DC)                                           |
 |RED              D=18391, C=3C7DE(12)                                           |
-|I_COMPILE        D=10876, C=316B5(5D)                                           |
-|EXEC             D=1402D, C=3409C(3)                                            |
-|DEF_INIT         D=140D6, C=3421C(102)                                          |
-|No word found at 3131F                                                          |
+|I_COMPILE        D=10876, C=316BF(5D)                                           |
+|EXEC             D=1402D, C=340AA(3)                                            |
+|DEF_INIT         D=140D6, C=3422A(102)                                          |
+|No word found at 31329                                                          |
 |                                                                                |
 |0>                                                                              |
 +--------------------------------------------------------------------------------+
@@ -43,10 +43,10 @@
 |KBD              D=18304, C=3C5AE(74)                                           |
 |.RED             D=18367, C=3C6F0(DC)                                           |
 |RED              D=18391, C=3C7DE(12)                                           |
-|I_COMPILE        D=10876, C=316B5(5D)                                           |
-|EXEC             D=1402D, C=3409C(3)                                            |
-|DEF_INIT         D=140D6, C=3421C(102)                                          |
-|No word found at 3131F                                                          |
+|I_COMPILE        D=10876, C=316BF(5D)                                           |
+|EXEC             D=1402D, C=340AA(3)                                            |
+|DEF_INIT         D=140D6, C=3422A(102)                                          |
+|No word found at 31329                                                          |
 |                                                                                |
 |0>                                                                              |
 |                                                                                |
@@ -67,10 +67,10 @@
 |KBD              D=18304, C=3C5AE(74)                                           |
 |.RED             D=18367, C=3C6F0(DC)                                           |
 |RED              D=18391, C=3C7DE(12)                                           |
-|I_COMPILE        D=10876, C=316B5(5D)                                           |
-|EXEC             D=1402D, C=3409C(3)                                            |
-|DEF_INIT         D=140D6, C=3421C(102)                                          |
-|No word found at 3131F                                                          |
+|I_COMPILE        D=10876, C=316BF(5D)                                           |
+|EXEC             D=1402D, C=340AA(3)                                            |
+|DEF_INIT         D=140D6, C=3422A(102)                                          |
+|No word found at 31329                                                          |
 |                                                                                |
 |0>                                                                              |
 |                                                                                |
@@ -93,10 +93,10 @@
 |KBD              D=18304, C=3C5AE(74)                                           |
 |.RED             D=18367, C=3C6F0(DC)                                           |
 |RED              D=18391, C=3C7DE(12)                                           |
-|I_COMPILE        D=10876, C=316B5(5D)                                           |
-|EXEC             D=1402D, C=3409C(3)                                            |
-|DEF_INIT         D=140D6, C=3421C(102)                                          |
-|No word found at 3131F                                                          |
+|I_COMPILE        D=10876, C=316BF(5D)                                           |
+|EXEC             D=1402D, C=340AA(3)                                            |
+|DEF_INIT         D=140D6, C=3422A(102)                                          |
+|No word found at 31329                                                          |
 |                                                                                |
 |0>                                                                              |
 |                                                                                |
@@ -118,10 +118,10 @@
 |KBD              D=18304, C=3C5AE(74)                                           |
 |.RED             D=18367, C=3C6F0(DC)                                           |
 |RED              D=18391, C=3C7DE(12)                                           |
-|I_COMPILE        D=10876, C=316B5(5D)                                           |
-|EXEC             D=1402D, C=3409C(3)                                            |
-|DEF_INIT         D=140D6, C=3421C(102)                                          |
-|No word found at 3131F                                                          |
+|I_COMPILE        D=10876, C=316BF(5D)                                           |
+|EXEC             D=1402D, C=340AA(3)                                            |
+|DEF_INIT         D=140D6, C=3422A(102)                                          |
+|No word found at 31329                                                          |
 |                                                                                |
 |0>                                                                              |
 |                                                                                |

@@ -15,7 +15,7 @@ system on a real (SIMH) VAX and document its design**.
 | `saostoic-text/stoic/` | The STOIC layer: `rdef` (the standard word set), `image`, `float`, `obuf`, `vt100`, `stoic.cre`, and the manual `stoic.mem`/`stoic.rno`. |
 | `saostoic-text/red/` | RED: `err dyna e window edv eb command immed cli kbd red`, `red.cre`, `hirez.cre`, `red.mem`. |
 | `saostoic-text/gm/` | GM variant: `kernel.mar`, `ss.mar`, `float.sto`, and `newstoic.mem` (the GM "Detailed Guide to VAX/VMS STOIC", 19 May 1982). |
-| `doc/` | The verified documentation (Phase 5). Start at `doc/README.md`; `doc/defects.md` lists all 42 defects, `doc/patches.md` the Phase 6 fixes and `doc/errata.md` the manual corrections. |
+| `doc/` | The verified documentation (Phase 5). Start at `doc/README.md`; `doc/defects.md` lists all 49 defects, `doc/patches.md` the Phase 6 fixes and `doc/errata.md` the manual corrections. |
 | `patched/` | The Phase 6 sources: a full copy of the VMS tree with the fixes. On the VAX it is `[.WORK.PATCHED...]`. |
 | `notes/` | The first design drafts (`kernel-design.md`, `stoic-level-design.md`), written from reading the code. Historical: `doc/` supersedes them. |
 
@@ -299,15 +299,21 @@ NOCREF never working. Each has a repro, cause and fix in `doc/defects.md`.
 
 **Phase 6 fixed 37 of the 42 in the patched build** (`doc/patches.md`):
 every one apart from 13, 35 and 36, which are corrected in
-`doc/errata.md`, and 11 and 21, which are closed. The list below describes
+`doc/errata.md`, and 11 and 21, which are closed. Defects 43–49, found
+later (BPUSH's off-by-one, `.PUT`'s missing limit, BPUSH and `#A`
+not aborting, SEARCH_STRING's long groups, `-.000`, float output
+in a non-decimal radix, and RED's `[` overrunning the loop stack), are
+fixed there too. The list below describes
 the shipped exes. The patched exes are
 `DUA1:[USERS.CLAUDE.WORK.PATCHED.STOIC]STOIC.EXE` and
 `[.WORK.PATCHED.RED]RED.EXE`. Their data region is at 402200 on any
 layout, so `IORB<` and RED's obuf work. **Phase 7** raised their code
 window: headers hold a longword code displacement, a call out of `W^`
 range compiles as `JSB L^disp(R8)`, the dictionary is 128 KB and code
-runs from K_START 2FE00 to K_END 7012D. STOIC.EXE has about 230 KB of
-code and 106 KB of dictionary free; RED.EXE about 205 KB and 94 KB.
+runs from K_START 2FE00 to K_END 6FF2D, with a spare page after it (and
+one below the kernel code for the dictionary) so that IMAGE works when
+either is full. STOIC.EXE has about 231 KB of code and 105 KB of
+dictionary free; RED.EXE about 205 KB and 94 KB.
 
 1. DIGIT treats any character above `Z` as a decimal point, so lowercase
    undefined words in LOAD files (which are not uppercased) compile silently

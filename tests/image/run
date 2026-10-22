@@ -26,8 +26,19 @@
 cd "$(dirname "$0")/../.." || exit 2
 T=tests/image
 R=$T/results
+# STOIC_TREE names another tree, such as cmpfix: its exes are run, and
+# the results go to $R/<tree>/.
+tree=${STOIC_TREE:-patched}
+TREE=$(echo "$tree" | tr a-z A-Z)
+if [ "$tree" != patched ]; then
+  R=$R/$tree
+  P=${TMPDIR:-/tmp}/stoic-$tree-image; mkdir -p $P
+  for f in a1-pat.dcl e1-pat.dcl; do sed "s/PATCHED/$TREE/g" tests/image/$f > $P/$f; done
+else
+  P=tests/image
+fi
 NEW='DUA1:[USERS.CLAUDE.WORK.SAOSTOIC.STOIC]STOIC.EXE'
-PAT='DUA1:[USERS.CLAUDE.WORK.PATCHED.STOIC]STOIC.EXE'
+PAT="DUA1:[USERS.CLAUDE.WORK.$TREE.STOIC]STOIC.EXE"
 mkdir -p $R
 [ $# -gt 0 ] || set -- a-ship a-new b d loop
 A="$T/a2-show.sto $T/a3-make1.con $T/a4-run1.dcl $T/a5-make2.con $T/a6-run2.dcl $T/a7-xload.con"
@@ -35,7 +46,7 @@ for g; do
   case $g in
     a-ship) tools/stoic-run -m -f $T/imgutil.sto $T/a1-ship.dcl $A > $R/$g.txt 2>&1 ;;
     a-new)  tools/stoic-run -m -f $T/imgutil.sto -x "$NEW" $T/a1-new.dcl $A > $R/$g.txt 2>&1 ;;
-    a-pat)  tools/stoic-run -m -f $T/imgutil.sto -x "$PAT" $T/a1-pat.dcl $A > $R/$g.txt 2>&1 ;;
+    a-pat)  tools/stoic-run -m -f $T/imgutil.sto -x "$PAT" $P/a1-pat.dcl $A > $R/$g.txt 2>&1 ;;
     b)      tools/stoic-run -m -f $T/imgutil.sto $T/a1-ship.dcl $T/b1-datawin.sto $T/b2-bigdata.con \
               $T/b2-run.dcl $T/b4-dict.con $T/c1-nested.sto $T/c1-run.dcl \
               $T/b5-empty.dcl $T/b5-image.con $T/a1-new.dcl $T/b6-mix.con \
@@ -44,15 +55,15 @@ for g; do
               echo "--- rebuilt"; tools/stoic-run -m -x "$NEW" $T/d1-branch.con; } > $R/$g.txt 2>&1 ;;
     e-new)  tools/stoic-run -m -x "$PAT" -f $T/e2make.com -f $T/widen.sto $T/e1-new.dcl \
               $T/e3-widen.con $T/e4-run.dcl > $R/$g.txt 2>&1 ;;
-    e-pat)  tools/stoic-run -m -x "$PAT" -f $T/e2make.com -f $T/widen.sto $T/e1-pat.dcl \
+    e-pat)  tools/stoic-run -m -x "$PAT" -f $T/e2make.com -f $T/widen.sto $P/e1-pat.dcl \
               $T/e3-widen.con $T/e4-run.dcl > $R/$g.txt 2>&1 ;;
     f)      for x in 'DUA1:[USERS.CLAUDE.SAOSTOIC.STOIC]STOIC.EXE' \
                      'DUA1:[USERS.CLAUDE.SAOSTOIC.RED]RED.EXE' \
                      "$NEW" 'DUA1:[USERS.CLAUDE.WORK.SAOSTOIC.RED]RED.EXE' \
-                     "$PAT" 'DUA1:[USERS.CLAUDE.WORK.PATCHED.RED]RED.EXE'; do
+                     "$PAT" "DUA1:[USERS.CLAUDE.WORK.$TREE.RED]RED.EXE"; do
                 echo "--- $x"; tools/stoic-run -x "$x" $T/f1-room.con
               done > $R/$g.txt 2>&1 ;;
-    g)      tools/stoic-run -m -f $T/imgutil.sto -x "$PAT" $T/a1-pat.dcl $T/g1-high.con \
+    g)      tools/stoic-run -m -f $T/imgutil.sto -x "$PAT" $P/a1-pat.dcl $T/g1-high.con \
               $T/g2-run.dcl > $R/$g.txt 2>&1 ;;
     loop)   VAX_DO_TIMEOUT=60 tools/stoic-run -m -f $T/imgutil.sto $T/b3-code.con 2>&1 | head -40 > $R/$g.txt ;;
     *) echo "tests/image/run: no group $g" >&2; exit 2 ;;

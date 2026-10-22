@@ -398,7 +398,11 @@ START (`rkernel.mar:283-436`) is the transfer address: 20DD2 shipped,
    runs `$DELTVA` and `$CRETVA` from USER_DICTIONARY to DICT_END and from
    USER_CODE to K_END. This gives fresh writable pages, and it sets
    DICT_PNTR and CODE_PNTR to their starts. `doc/image.md` explains why
-   IMAGE depends on this.
+   IMAGE depends on this. In the patched build the code range runs to
+   k_top, the end of the KERNEL psect, a spare page past K_END, and its
+   end is never below its start: VMS works downward through a range whose
+   start is above its end, and a child of a full exe then got a
+   CODE_PNTR of 701FF (`doc/image.md`, "Filling the code space").
 7. **Opens the console:**
    - installs the prompt (`rkernel.mar:412-413`);
    - opens SYS$INPUT on channel 0 with `_WOPEN_NCR`
