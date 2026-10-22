@@ -7,8 +7,8 @@
 # The procedure and the files are copied by FTP to the work directory,
 # DUA1:[USERS.CLAUDE.WORK] (or the subdirectory of it that $VAX_WORKDIR
 # names, such as [.WORK.TESTS]), each named as its file name uppercased.
-# Text goes in ASCII mode, as variable-length records; a .exe goes in
-# binary mode. Then, over telnet, the procedure is run there as
+# Text goes in ASCII mode, as variable-length records; a .exe or .zip
+# goes in binary mode. Then, over telnet, the procedure is run there as
 # @NAME/OUTPUT=VAXDO.LOG [P1]. Finally VAXDO.LOG and each -get file are
 # copied back into <dir>.
 #

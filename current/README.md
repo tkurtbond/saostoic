@@ -34,6 +34,24 @@ links it, and STOIC then builds itself.
 - No privileges. Nothing is installed, and no system logical name is
   changed.
 
+## From the zip
+
+If you have the release zip, `saostoic-current-src.zip`, and Info-ZIP
+UnZip on VMS, it replaces steps 1 and 2. Copy the zip to VMS by binary
+FTP and unzip it in the directory that should hold the tree:
+
+```
+$ UNZIP -a SAOSTOIC-CURRENT-SRC.ZIP
+```
+
+This makes `[.SAOSTOIC]`, with KERNEL, STOIC and RED under it, and
+everything else in this distribution: the documentation in `[.SAOSTOIC.DOC]`
+and the files the build does not need. `-a` writes the text as
+variable-length records, as ASCII FTP would; without it UnZip writes
+Stream_LF files, which build just as well. Then go on with step 3.
+
+Without UnZip, unpack the zip on another machine and follow steps 1 and 2.
+
 ## 1. Make the directories
 
 Choose a top directory and make three subdirectories in it, named exactly
@@ -179,6 +197,25 @@ the exes, which is enough after a change to the STOIC or RED sources.
 **Keep `[.KERNEL]HEAD0.EXE`.** IMAGE reads it each time it writes an exe,
 through the logical name SAO$KERNEL, and refuses to work with a HEAD0
 from another build.
+
+## Or use the prebuilt exes
+
+The release also has `saostoic-current-exe.zip`, which holds the exes
+built from these sources: `[.KERNEL]HEAD0.EXE`, `[.STOIC]STOIC.EXE`,
+`[.RED]RED.EXE` and `[.RED]REDHIREZ.EXE`, under `[.SAOSTOIC]` like the
+sources. They were built and tested on VAX/VMS V5.5-2H4 only, and may not
+run on other versions; if they do not, build from the sources instead.
+
+Copy the zip to VMS by **binary** FTP, and unzip it in the directory that
+holds (or will hold) `[.SAOSTOIC]`:
+
+```
+$ UNZIP SAOSTOIC-CURRENT-EXE.ZIP
+```
+
+The zip was made on VMS with `ZIP "-V"`, so UnZip restores the exes as
+VMS made them, fixed 512-byte records. Then define the commands as in
+step 4. Keep HEAD0.EXE with STOIC.EXE: IMAGE needs it to write a new exe.
 
 ## 4. Define the commands
 

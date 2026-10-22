@@ -1,0 +1,49 @@
+#!/bin/sh
+# Makes the source zip of the current tree for a release, from the commit
+# HEAD (so commit first), in build/dist:
+#
+#   tools/make-dist [<name>]      (default saostoic-current-src.zip)
+#
+# The zip holds one directory, saostoic/: every file of current/, the
+# documentation from doc/ that is useful beside it (in saostoic/doc/,
+# with dist/doc-README.md as its README.md) and LICENSE-UNKNOWN.md.
+# current/README.md is rewritten so its paths fit that layout: ../doc/
+# becomes doc/, and ../tests/ is named as the repository's.
+#
+# The exe zip is made on the VAX with ZIP "-V" (doc/dist.md).
+set -e
+
+name=${1:-saostoic-current-src.zip}
+docs="language errata current defects patches red float image kernel words
+build cpm-compare"
+
+top=$(git rev-parse --show-toplevel)
+cd "$top"
+out=$top/build/dist
+mkdir -p "$out"
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+
+paths="current LICENSE-UNKNOWN.md dist/doc-README.md"
+for d in $docs; do paths="$paths doc/$d.md"; done
+git archive HEAD $paths | tar -x -C "$tmp"
+
+mkdir "$tmp/saostoic"
+(cd "$tmp/current" && tar -cf - .) | (cd "$tmp/saostoic" && tar -xf -)
+mkdir "$tmp/saostoic/doc"
+for d in $docs; do mv "$tmp/doc/$d.md" "$tmp/saostoic/doc/"; done
+mv "$tmp/dist/doc-README.md" "$tmp/saostoic/doc/README.md"
+mv "$tmp/LICENSE-UNKNOWN.md" "$tmp/saostoic/"
+sed -e 's#`\.\./doc/#`doc/#g' \
+    -e 's#`\.\./tests/#the repository'"'"'s `tests/#g' \
+    "$tmp/current/README.md" > "$tmp/saostoic/README.md"
+if grep -n '\.\./' "$tmp/saostoic/README.md"; then
+  echo "make-dist: README.md still has ../ paths" >&2; exit 1
+fi
+
+# every file dated as the commit, so the zip depends only on HEAD
+when=$(git log -1 --format=%cd --date=format:%Y%m%d%H%M.%S)
+find "$tmp/saostoic" -exec touch -t "$when" {} +
+rm -f "$out/$name"
+(cd "$tmp" && find saostoic | LC_ALL=C sort | zip -q -X -D -@ "$out/$name")
+echo "$out/$name: $(unzip -Z1 "$out/$name" | wc -l) files, $(wc -c < "$out/$name") bytes"

@@ -5,14 +5,14 @@
 # there, keeping the FTP session alive. Afterwards it copies VAXDO.LOG and
 # each <GET> back into <dir>, and, unless $VAX_DO_KEEP is "yes", deletes
 # every version of all of them there, whatever happened. A <file> whose
-# name ends in .exe goes in binary mode. Prints one line
+# name ends in .exe or .zip goes in binary mode. Prints one line
 # "VAXDO-STATUS <hex $STATUS>". Exits 0, 1 if a file did not come back,
 # or 2 if the VAX could not be used.
 #
 #   expect -f tools/vax-do.exp <host> <NAME> <dir> {<file> <NAME.EXT>}... -- <GET>...
 #
 # <P1> is $VAX_DO_PARAMETER, which tools/vax-do's -p sets. A <GET> ending
-# in .EXE comes back in binary mode. When $VAX_DO_TERMINAL names a file,
+# in .EXE or .ZIP comes back in binary mode. When $VAX_DO_TERMINAL names a file,
 # what the procedure writes to the terminal goes there. STOIC writes to
 # SYS$COMMAND, the terminal, not to SYS$OUTPUT, so its output is found
 # there and not in VAXDO.LOG.
@@ -48,7 +48,7 @@ exit -onexit {
 }
 
 foreach {file remote} $puts {
-  if {[string match -nocase *.exe $file]} {
+  if {[string match -nocase *.exe $file] || [string match -nocase *.zip $file]} {
     set copy ftp_put_binary
   } else {
     set copy ftp_put
@@ -119,7 +119,7 @@ expect eof
 
 set status 0
 foreach remote [concat VAXDO.LOG $gets] {
-  if {[string match -nocase *.exe $remote]} {
+  if {[string match -nocase *.exe $remote] || [string match -nocase *.zip $remote]} {
     set copy ftp_get_binary
   } else {
     set copy ftp_get
