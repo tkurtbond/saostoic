@@ -283,7 +283,7 @@ the results with DIRECTORY and TYPE (r5 `dir`, `type`).
 | DELETE | works | as the first key, it drops the last character of the previous line and keeps the rest | r4 `del-first`, `del-run` |
 | ^U, ^R | works | clear the command line; redraw the screen | r4 `^u`, `^r` |
 | ^F | works | edits the command line as a buffer (row 1 shows K0); a second ^F restores it | r3 `^f-on`, `^f-off`, `^f-run` |
-| ^C | works | stops a runaway `[...]`. VMS echoes "Cancel". RED clears its output buffer and redraws (`kbd:484-487`). The text is intact, and the keyboard is not locked | r7 `^c`, `after-^c` |
+| ^C | works | stops a runaway `[...]`: VMS echoes "Cancel", the next command in the loop ends with "Command aborted." (`cli:1645`), and RETURN redraws the screen. A ^C typed when no command is running makes RED clear its output buffer and redraw (`kbd:484-487`). The text is intact either way. Which one r7 sees depends on whether its 9-second loop has ended | r9 `^c`, `ack`, `^c-after`; r7 `^c`, `after-^c` |
 | kp0 | works | toggles IMMEDIATE MODE: typed keys go into the text, RETURN breaks the line, DELETE rubs out, and BACKSPACE+letter enters a control character | r4 `kp0` … `kp0-off` |
 | ENTER | undocumented | toggles immediate mode too (`kbd:290`) | r4 `enter` … `enter-off` |
 | kp. | works | toggles a light or dark background (ESC[?5h, ESC[?5l) | r4 `kp.`, `kp.-again` |

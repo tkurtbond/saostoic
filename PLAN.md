@@ -19,7 +19,7 @@ Phase 1 passes. Phase 5 is written gradually as results come in.
 | 3 IMAGE | done (see "Phase 3 outcome"; `doc/image.md`, `tests/image/`) |
 | 4 RED | done (see "Phase 4 outcome"; `doc/red.md`, `tests/red/`) |
 | 5 Documentation | done (see "Phase 5 outcome"; `doc/README.md`, `tests/lang/`) |
-| 6 Fixes | in progress: Batches A–D done; decisions taken (all as recommended) |
+| 6 Fixes | in progress: Batches A–E done; decisions taken (all as recommended) |
 
 Update this table as work proceeds.
 
@@ -438,6 +438,7 @@ that settle them:
 | 39 | FS underflow not caught | lang F4-FSUNDER | **new**, confirmed: `.DROP .=` prints NULs; the next float literal faults |
 | 40 | `>` does not check for an empty branch stack | lang L3-POP | **new**, confirmed: after `> > > >` every line faults in I_LOOKUP |
 | 41 | DEF_INIT copies the command tail into the 132-byte LINE_BUFFER unchecked | fix F10-TAIL | **new** (Phase 6), confirmed: a 203-character tail is corrupted (`^@+ECIMAL` undefined) |
+| 42 | NOCREF's keyed GET and PUT; no INIT_FRABS | fix F42-NOCREF (patched only) | **new** (Phase 6), confirmed: IFI alone; RAC on an exe made by IMAGE; NEF on a linked exe |
 
 ### Done when
 
@@ -764,6 +765,42 @@ check (5), and no shipped-equivalent exe (6).
 - The new cells and buffers make the data section one page longer; the
   suite diffs were addresses only, and a-pat is unchanged apart from
   addresses and dates.
+
+### Batch E outcome (2026-10-21)
+
+- Fixed 22 and 30, and with them STACK, `.VARIABLE` and `D.START`, by
+  decision 4a.
+  - `fix_p0` in the kernel's startup grows P0 to end at 400000 before
+    the regions are `$EXPREG`'d (it fails with VASFULL if P0 is already
+    past that). So USER_DATA is 402200 on any layout that leaves room.
+  - BRANCH compiles the cell's displacement from R11, and I_PUSH_VOCAB
+    adds R11 at run time (`addl3 r11,@#disp,-(r10)`). This is the run-time
+    half of 4a.
+  - RED's `D.DISP` shows buffer origins with 8 digits (`red/dyna`), as
+    they are now above 400000.
+- The planned layout test, a link against an extra shareable, does not
+  work: the fixup-vector section always follows the last cluster, so a pad
+  moves the fixups as well. Instead, `tests/image/widen.sto` adds a 512-page
+  (200 hex) demand-zero ISD after the fixup ISD of an exe made by IMAGE,
+  which moves its shareables and regions 40000 higher (`doc/image.md`,
+  "Moving the shareables"). e-new shows the defects in the unpatched
+  rebuild: O.BUFSTRT is off by −4F28D, the STACK overflows, and the
+  `.VARIABLE` reads garbage. e-pat runs both exes at 402200 with
+  everything right.
+- `tests/fix/F22-BRANCH.con` defines and uses a branch (shipped: a cell
+  at −5516F; patched: 629).
+- The suites, `tests/fix/` and image groups a-pat and d differ from
+  before only in addresses. RED r0–r8 give the same screens apart from
+  addresses, dates and r3's wider `D.DISP`.
+- r7's ^C differed in one run: the ^C landed while the 9-second loop was
+  still running, and RED said "Command aborted." (`cli:1645`) in place of
+  redrawing. Both kernels do both, depending only on timing, so the new
+  `tests/red/r9-ctrlc.tcl` sends one ^C during a loop and one after it.
+  The rebuilt and patched REDs give the same screens.
+- 42 (new): NOCREF never worked. It omits INIT_FRABS (IFI), and its keyed
+  GET fails on an exe made by IMAGE (variable-length records, RAC) and its
+  keyed PUT on a linked one (NEF). `tests/fix/F42-NOCREF.dcl`, patched
+  only, as it needs `IORB<`. Left for Batch F.
 
 ### Produces
 

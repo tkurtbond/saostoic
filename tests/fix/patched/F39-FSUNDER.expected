@@ -4,8 +4,8 @@ CR
 No word found at 0
 F->S		 D=82072, C=151206(30)
 .=		 D=82090, C=151236(14)
-No word found at 522777
-No word found at 136087
+No word found at 4199449
+No word found at 136090
 NEXT        2.500000000000000    
 DROP ALONE 
 Float stack empty.
@@ -14,5 +14,5 @@ CR
 No word found at 0
 NEXT        3.500000000000000    
 BALANCED    4.000000000000000    
-F_STACK    521216
+F_STACK    4197888
 

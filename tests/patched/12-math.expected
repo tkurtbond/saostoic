@@ -12,8 +12,8 @@ LOG 0
 "LOG 0   " MSG 0. .LOG .= CR
 CR
 No word found at 130811
-No word found at 522785
-No word found at 136087
+No word found at 4199457
+No word found at 136090
 POW OVF 
 %MTH-F-FLOOVEMAT, floating overflow in math library
   user PC 0001FF33
@@ -21,16 +21,16 @@ POW OVF
 CR
 No word found at 130867
 .^		 D=81581, C=150786(5)
-No word found at 522796
-No word found at 136087
+No word found at 4199468
+No word found at 136090
 ASIN 2  
 %MTH-F-INVARGMAT, invalid argument to math library
   user PC 0001FE93
 "ASIN 2  " MSG 2. .ASIN .= CR
 CR
 No word found at 130707
-No word found at 522785
-No word found at 136087
+No word found at 4199457
+No word found at 136090
 NEXT LINE
 SQRT -1 
 %MTH-F-SQUROONEG, square root of negative value
@@ -38,7 +38,7 @@ SQRT -1
 "SQRT -1 " MSG -1. .SQRT .= CR
 CR
 No word found at 130837
-No word found at 522785
-No word found at 136087
+No word found at 4199457
+No word found at 136090
 NOT REACHED
 

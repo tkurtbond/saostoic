@@ -18,7 +18,7 @@ OVERFLOW
 "OVERFLOW " MSG 1.E30 1.E30 .* .= CR
 CR
 .*		 D=13E79, C=24CF6(4)
-No word found at 7FA2D
-No word found at 21397
+No word found at 40142D
+No word found at 2139A
 F= ERR  Floating point output conversion error.NEXT LINE
 

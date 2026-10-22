@@ -22,7 +22,7 @@ ROGER=1
 	.enabl dbg,tbk
 	.dsabl gbl
 	.extrn	lib$signal,lib$stop,lib$sig_to_ret,ss$_resignal
-	.extrn	sys$unwind,ss$_unwind,ss$_continue
+	.extrn	sys$unwind,ss$_unwind,ss$_continue,ss$_vasfull
 	.extrn	sssize,ssbyte,tyiosize
 	.extrn	rmsdata,ssdata,tyiodata,tyiodata
 	.extrn	fablen,rablen,xablen
@@ -284,6 +284,14 @@ sname:	.word	len
 
 	.entry	start,^m<r2,r3,r4,r5,r6,r7,r8,r9,r10,r11>
 
+;	Start the blocks at a fixed address, so the data region is in the
+;	same place on every system (defects 22 and 30: words like BRANCH,
+;	STACK and O.BUFSTRT keep its addresses in constants). P0 is made to
+;	end at P0_BASE by creating the page below it; the next $EXPREG,
+;	in ISOLATE_BLOCK, then starts there.
+
+	bsbw	fix_p0
+
 ;	Allocate stacks and buffers, leave pointers on control stack
 
 	movl	#p_stack_size,r0	;get space for p-stack
@@ -474,6 +482,28 @@ top_loop:
 
 
 done:	ret
+
+p0_base=^x400000			;first block (P0 page 2000)
+
+fix_p0:	pushl	r2
+	clrq	-(sp)			;address pair, at (r2): the $..._S
+	movl	sp,r2			;macros push onto sp, so not (sp)
+	$expreg_s pagcnt=#1,retadr=(r2),region=#0	;where P0 ends
+	.errstop
+	cmpl	(r2),#<p0_base-^x200>	;already the page below the base?
+	beql	20$			;if so, keep it
+	blssu	10$			;if below it, move it
+	movzwl	#ss$_vasfull,r0		;past the base: give up
+	.errstop
+10$:	$deltva_s inadr=(r2)		;give the page back
+	.errstop
+	movl	#<p0_base-^x200>,(r2)	;the page below the base
+	movl	#<p0_base-1>,4(r2)
+	$cretva_s inadr=(r2)		;create it; P0 now ends at the base
+	.errstop
+20$:	addl2	#8,sp
+	movl	(sp)+,r2
+	rsb
 
 i_cond_handler:				;default condition handler
 	.word	^m<r2>			;entry mask
@@ -1083,6 +1113,7 @@ nomatch:	clrl	-(r10)
 	op_jsb=^x16
 	op_movl=^xd0
 	op_moval=^xde
+	op_addl3=^xc1
 	op_absolute=^x9f
 	op_auto_dec=^x7a
 	word_disp=^xc8
@@ -1953,11 +1984,20 @@ header	BRANCH
 	movl	#4,-(r10)		;code length is one longword
 	movzbl	#push_vocab,-(r10)	;attribute
 	jsb	@enter(r11)
-	jsb	comma			;literal pointing to branch pointer
+	movl	code_pntr(r11),r0	;keep the branch pointer's displacement
+	subl3	r11,(r10)+,(r0)+	;from r11, not its address (defect 22)
+	movl	r0,code_pntr(r11)
 	rsbx
 
+;compile "addl3 r11,@#disp,-(r10)", the branch pointer's address now
 header	I_PUSH_VOCAB
-	jsb	i_push_this_wd
+	movl	comp_buf_pntr(r11),r0
+	movb	#op_addl3,(r0)+
+	movb	#^x5b,(r0)+		;r11
+	movb	#op_absolute,(r0)+	;@#
+	movl	(r10)+,(r0)+		;the displacement in the definition
+	movb	#op_auto_dec,(r0)+	;-(r10)
+	movl	r0,comp_buf_pntr(r11)
 	movl	#v_push,-(r10)
 	jsb	i_jump_to_me
 	rsbx

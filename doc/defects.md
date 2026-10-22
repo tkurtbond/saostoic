@@ -9,9 +9,10 @@ The numbers are those of `PLAN.md`'s defect checklist and `AGENTS.md`.
   and 30–36 in Phase 4 (RED).
 - 37–40 were found in Phase 5, while checking the claims in `float.md` and
   `language.md` (`tests/lang/`, output in `tests/lang/phase5.out`).
-- 41 was found in Phase 6, while fixing defect 10.
+- 41 was found in Phase 6, while fixing defect 10, and 42 while testing
+  the fix for 22.
 
-**Result:** all 41 are confirmed or characterized. Number 9 came from
+**Result:** all 42 are confirmed or characterized. Number 9 came from
 reading the source; Phase 6 confirmed it with REMSTART on the null device
 (`tests/fix/F09-REMOTE.con`).
 
@@ -70,6 +71,7 @@ None of the fixes has been made or tested. Changes to the sources belong in
 | 39 | FS underflow is not caught | kernel, float | later fault |
 | 40 | `>` does not check for an empty branch stack | kernel | console unusable |
 | 41 | DEF_INIT copies a long command tail past LINE_BUFFER | rdef/kernel | corrupted tail, overwritten data |
+| 42 | NOCREF cannot read or write an exe header | image | NOCREF unusable |
 
 ## Kernel and rdef
 
@@ -368,6 +370,12 @@ recover R11 as the ^C routine does, and make the descriptors consistent.
   `USER_DATA @ 491 + V_PUSH` (`tests/image/imgutil.sto`).
 - **Fix:** store the cell as an offset from USER_DATA and add it at run
   time, as DISP_TO_R11 does for user variables.
+- **Fixed in Phase 6 (Batch E).** BRANCH compiles the cell's displacement
+  from R11, and the kernel's I_PUSH_VOCAB adds R11 at run time
+  (`addl3 r11,@#disp,-(r10)`). The patched kernel also puts the data
+  region at a fixed address, 402200 (decision 4). `tests/fix/F22-BRANCH.con`
+  defines and uses a branch; the shipped exe gives `IORB< -5516F`, a cell
+  below USER_DATA, and the patched one `IORB< 629`.
 
 ### 23. IMAGE inside a LOAD saves the LOAD level
 
@@ -411,6 +419,13 @@ recover R11 as the ^C routine does, and make the descriptors consistent.
   `[.WORK.SAOSTOIC.RED]RED.EXE`.
 - **Fix:** as for 22: keep offsets from USER_DATA, or compute the
   addresses at run time.
+- **Fixed in Phase 6 (Batch E)** by the fixed data address: the patched
+  kernel makes P0 end at 400000 before it `$EXPREG`s its regions
+  (`fix_p0`), so USER_DATA is 402200 wherever the shareable images end,
+  and `O.BUFSTRT` stays right. `tests/image/` e-pat runs an exe after
+  adding 512 pages (200 hex) of demand-zero space below its shareables (WIDEN):
+  O.BUFSTRT−USER_DATA stays F0C. e-new does the same with the unpatched
+  rebuild: the data region moves to D0200, and the offset becomes −4F28D.
 
 ### 31. After the fault in 30, the terminal is changed and `;F` hangs
 
@@ -542,3 +557,29 @@ recover R11 as the ^C routine does, and make the descriptors consistent.
 - **Fix:** limit the tail to the buffer's size. The patched GETCMD reads it
   with LIB$GET_FOREIGN into its own buffer, limited to LINE_BUFFER's size
   word, and gives `%LIB-W-INPSTRTRU` with an empty line when it is longer.
+
+### 42. NOCREF cannot read or write an exe header
+
+- **Repro:** `tests/fix/F42-NOCREF.dcl`, patched exe only (it needs
+  `IORB<`, 22). It runs NOCREF on copies of the patched STOIC.EXE and
+  HEAD0.EXE:
+  - alone, it gives `%RMS-F-IFI`;
+  - after INIT_FRABS, on STOIC.EXE, it gives `%RMS-F-RAC`;
+  - after INIT_FRABS, on HEAD0.EXE, it gives `%RMS-F-NEF`.
+- **Cause:** NOCREF (`image:225-238`) has three faults.
+  - It uses HEAD0_FRAB without calling INIT_FRABS (`image:28-33`), so the
+    RAB has no file unless an IMAGE ran first.
+  - FRANDOGET and FRANDOPUT (`image:16-26`) do keyed (relative record)
+    access. An exe made by IMAGE has variable-length records, because
+    IMAGE writes it with `$PUT`s, and RMS allows keyed access to a
+    sequential file only with fixed-length records. So the GET fails.
+  - A linked exe has fixed 512-byte records, so the GET works, but a
+    keyed `$PUT` to a sequential file must add a record at the end of
+    file; replacing one needs `$UPDATE`.
+- **Impact:** NOCREF, which was meant to clear copy-on-reference in an
+  exe's resident ISDs, has never worked on VMS. Nothing else uses
+  FRANDOPUT. `.IMAGE` reads HEAD0 with FRANDOGET, which works, as HEAD0 is
+  linked.
+- **Fix:** open the file for block I/O and read and write VBN 1 with
+  FREAD and FWRITE, as `tests/image/widen.sto` does.
+

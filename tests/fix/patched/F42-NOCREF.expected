@@ -1,0 +1,25 @@
+NOCREF ALONE
+
+%RMS-F-IFI, invalid internal file identifier (IFI) value
+"NOCREF ALONE" MSG CR "F42.TMP" NOCREF
+NOCREF
+NOCREF		 D=13D21, C=24A9C(A4)
+No word found at 40142B
+No word found at 2139A
+AFTER INIT_FRABS, AN EXE MADE BY IMAGE
+
+%RMS-F-RAC, invalid record access mode
+"AFTER INIT_FRABS, AN EXE MADE BY IMAGE" MSG CR INIT_FRABS "F42.TMP" NOCREF
+NOCREF
+NOCREF		 D=13D21, C=24A9C(A4)
+No word found at 401449
+No word found at 2139A
+A LINKED EXE
+
+%RMS-F-NEF, not positioned to EOF on $PUT (sequential organization only)
+"A LINKED EXE" MSG CR INIT_FRABS "F42H.TMP" NOCREF "DONE" MSG CR
+CR
+NOCREF		 D=13D21, C=24A9C(A4)
+No word found at 401430
+No word found at 2139A
+

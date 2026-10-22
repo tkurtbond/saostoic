@@ -179,7 +179,7 @@ shipped or the rebuilt `HEAD0.EXE` in `[.WORK.IMG]`.
 
 | Test | What it does | Result |
 |---|---|---|
-| a2-show | prints HEAD0's header and the pointers | as in the table above. Reading STOIC.EXE's header the same way gives RMS-W-RAC, not investigated further |
+| a2-show | prints HEAD0's header and the pointers | as in the table above. Reading STOIC.EXE's header the same way gives RMS-W-RAC: an exe made by IMAGE has variable-length records, so keyed access fails (defect 42) |
 | a3-make1 | defines `SQ`, a VARIABLE `V1`=4321, a string `S1`; SAVE; `'T1.TMP IMAGE`; `'R1.TMP 0 .IMAGE` | T1 written; parent's revision unchanged (−1) |
 | a4-run1 | `T1 7 SQ = V1 @ = S1 MSG DATE @ REV0 @ NE = CR ;F` | `49 4321HELLO FROM LAYER 1 -1`: words, variable and string kept, new date. `R1`: BADISD |
 | a5-make2 | in T1: adds `CUBE`, `V2`, changes `S1` and `V1`; `'T2.TMP IMAGE` | T1's new words start at 14C00 and 25C00, the pages IMAGE rounded to |
@@ -271,6 +271,42 @@ Also noted, not defects:
 - If IMAGE finds fewer or more than three regions, it says so after the
   file is written (`image:188`).
 - IMAGE marks the resident sections no-write in every form.
+
+## Moving the shareables (Phase 6)
+
+An exe made by IMAGE holds absolute data addresses wherever a word
+made a CONSTANT of `.D@` or a branch cell: BRANCH (defect 22),
+`O.BUFSTRT` (30), STACK (`rdef:1127-1128`) and FLOAT's `.VARIABLE`
+(`float:226-227`). They stay right only while the data region
+lands where it was when IMAGE ran, and the region sits just above the
+shareable images, so it moves when they grow. The e groups test that
+without a second system. `tests/image/widen.sto` (WIDEN) adds a
+demand-zero ISD of 200 hex pages at 40000 to an exe's header, after the
+fixup-vector ISD; it reads and writes VBN 1 with block I/O, as keyed
+access fails on an exe made by IMAGE (42). ANALYZE/IMAGE accepts the
+result. The exe's shareables, and every region the kernel `$EXPREG`s,
+then land 40000 higher.
+
+`e2make.com` builds E2, a STOIC with a STACK and a `.VARIABLE`, from a
+tree's own kernel and HEAD0; `E2W` is E2 widened. Results are in
+`tests/image/results/e-*.txt`.
+
+| Group | Exe | USER_DATA | O.BUFSTRT−USER_DATA | STACK | `.VARIABLE` 2.5 | IORB< cell |
+|---|---|---|---|---|---|---|
+| e-new (rebuild) | E2 | 80200 | D73 | 41 | 2.5 | 491 |
+| | E2W | D0200 | −4F28D | Stack overflow, ACCVIO | −.717E−18 | −4FB6F |
+| e-pat (patched) | E2 | 402200 | F0C | 41 | 2.5 | 629 |
+| | E2W | 402200 | F0C | 41 | 2.5 | 629 |
+
+The patched kernel's `fix_p0` makes P0 end at 400000 before it allocates
+its regions, so the data region is at the same address in both. BRANCH
+also compiles an offset from R11 now, so IORB< would work even if it
+moved.
+
+A first attempt linked a pad section in front of the shareables. It does
+not work: the linker always puts the fixup-vector section after the last
+cluster, so the pad moved the fixups too, and the code IMAGE wrote then
+pointed at the wrong ones (LIB$GET_FOREIGN faulted at 2032E).
 
 ## Not done
 

@@ -13,6 +13,10 @@
 #   b       the limits: data window, data size, dictionary window, no
 #           HEAD0, a HEAD0 from another build, IMAGE inside a LOAD
 #   d       defect 22: IORB< in the shipped and the rebuilt STOIC.EXE
+#   e-new   defects 22 and 30: a STOIC with a STACK and a .VARIABLE, run as
+#           made (E2) and with P0 ending 40000 higher (E2W, from WIDEN.STO,
+#           as on a system with larger shareables), with the rebuild
+#   e-pat   the same with the patched build (fixed data address)
 #   loop    the code window: ends in an endless fault loop, so it is cut
 #           off by a short timeout and only its head is kept
 cd "$(dirname "$0")/../.." || exit 2
@@ -34,6 +38,10 @@ for g; do
               $T/b6-run.dcl > $R/$g.txt 2>&1 ;;
     d)      { tools/stoic-run -m $T/d1-branch.con
               echo "--- rebuilt"; tools/stoic-run -m -x "$NEW" $T/d1-branch.con; } > $R/$g.txt 2>&1 ;;
+    e-new)  tools/stoic-run -m -x "$PAT" -f $T/e2make.com -f $T/widen.sto $T/e1-new.dcl \
+              $T/e3-widen.con $T/e4-run.dcl > $R/$g.txt 2>&1 ;;
+    e-pat)  tools/stoic-run -m -x "$PAT" -f $T/e2make.com -f $T/widen.sto $T/e1-pat.dcl \
+              $T/e3-widen.con $T/e4-run.dcl > $R/$g.txt 2>&1 ;;
     loop)   VAX_DO_TIMEOUT=60 tools/stoic-run -m -f $T/imgutil.sto $T/b3-code.con 2>&1 | head -40 > $R/$g.txt ;;
     *) echo "tests/image/run: no group $g" >&2; exit 2 ;;
   esac

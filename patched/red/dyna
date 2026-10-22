@@ -273,13 +273,13 @@ K0 'CURKBUF VARIABLE  % pointer to descriptor of current keyboard #
 
 'D.DISPLINE :  % pointer to text-buffer descriptor, D.DISPLINE,
 %	pointer to next buffer descr.
-  DUP @ 6 I=  % type origin of buffer
+  DUP @ 8 I=  % type origin of buffer (8: the data region is at 400000)
   4 (  % loop through description of this buffer
     DUP D@- 6 I= 4+ )
   ;
 
 'D.DISP :
-  CR "    LOC.   TOP   GAP  BOT.  IBUF" MSG
+  CR "      LOC.   TOP   GAP  BOT.  IBUF" MSG
   K0 2 (
     CR ASCII K TYO I ASCII 0 + TYO D.DISPLINE )
   CR

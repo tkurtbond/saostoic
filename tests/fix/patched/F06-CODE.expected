@@ -3,9 +3,9 @@ Code space full.
 'W1 : 1 2 + 3 4 + 5 6 + 7 8 + + + + ;
 ;
 No word found at 0
-:		 D=10825, C=21891(40)
-No word found at 7FA0C
-No word found at 21397
+:		 D=10825, C=2191A(40)
+No word found at 40140C
+No word found at 2139A
 W1
 AFTER
 
