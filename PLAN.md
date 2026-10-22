@@ -1042,6 +1042,12 @@ change, and stays alongside it.
   otherwise). `patched-suite` swaps the tests and the helpers for
   cmpfix, apart from the tests of the comparison words and F28-HEAD0,
   which LOADs IMAGE into the old-sense rebuilt STOIC.
+- **A guide for other people**, `cmpfix/README.md`: what to copy, how to
+  build, and how to run STOIC, RED and CALC. It was checked by a build
+  from the 34 text files it lists, in an empty `[.WORK.CMPFRESH...]`: the
+  same output and sizes, the suite 18/18 against `tests/cmpfix/`, and
+  RED r0–r1 the same screens. `cmpfix/aaareadme.doc` is the 1985 guide,
+  copied unchanged.
 
 ---
 

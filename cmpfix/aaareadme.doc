@@ -1,0 +1,152 @@
+           RED, STOIC, and CALC: Installation and Maintenance
+Note: RED is a text editor with some word processing features.
+STOIC is a stack oriented language reminiscent of FORTH.
+CALC is a calculator.
+
+1.  Before You Start
+Before performing installation or maintenance,
+set your default directory to this one and type "@ASSIGN" to create
+logical names for the maintenance directories.
+
+2.  Trying Them Out
+(N.B.: If they don't work, read item 3.5, do item 4 and then try again.)
+The easist way to try out RED, STOIC or CALC is to do
+$ @ASSIGN
+as above, then define the following symbols as desired:
+$ RED :== $SAO$RED:RED RED
+$ STOIC :== $SAO$RED:RED
+$ CALC :== $SAO$RED:RED FLODEF
+Typing "STOIC" will then start STOIC, and typing "RED filename" will
+start RED with the given input file (or "RED" by itself to start
+without loading a file).  CALC is a floating-point reverse-polish
+calculator.  It is slightly documented and still under development;
+however, it works.  For example, the command line:
+$ CALC 2. .SQRT 2. ./ .ASIN 4. .* .= CR ;F
+will calculate the value of PI as four times the arcsine of
+the square root of two over two, type the result, start a new line,
+then exit.
+
+3.  Installing the RED/STOIC Image
+A single image is contains both STOIC and RED. Type
+@INSTALL
+to copy the image to SYS$SYSTEM and install it in VMS.  Installation is
+not necessary, but makes RED/STOIC more efficient, which is useful on
+heavily loaded systems.  RED/STOIC is totally re-entrant and installing
+the image allows VMS to take advantage of this fact.
+Symbolic names for commands would then be
+$ RED :== $STOIC RED
+$ STOIC :== $STOIC
+$ CALC :== $STOIC FLODEF
+
+3.5  A Possible Problem (and it's solution).
+If "quota exceeded" messages appear while running RED, RED may be sending
+more characters per write to the screen than your configuration of VMS allows.
+Examine the constant near the beginning of source file OBUF in the RED
+directory (one level below this directory) and change it if necessary.  As a
+note in that file explains, it should be at least 52 less than your SYSGEN
+parameter MAXBUF.  DEC says that it only needs to be 16 less but our experience
+is otherwise.  If your system has a large value for MAXBUF you could increase
+the size of RED's OBUF for increased efficiency.  The default value for OBUF
+is 1000 which is 56 less than DEC's default SYSGEN value for MAXBUF.
+
+4.  Building RED/STOIC from Scratch
+To generate STOIC and RED from scratch, set default to this directory and type
+"@STOBUILD". (If you type "@STOBUILD MAC" it will first assemble all modules
+making up the STOIC kernel; this is normally not necessary.) STOBUILD will link
+the STOIC kernel,producing RKERNEL.EXE.  It createsa copy of RKERNEL.EXE called
+HEAD0.EXE which is used later in creating images of fullblown STOIC and RED.
+
+STOBUILD then compiles the rest of STOIC and creates the image
+SAO$STOIC:STOIC.EXE.
+
+STOBUILD then compiles RED and creates the image SAO$RED:RED.EXE
+
+To run STOIC and RED, define symbols such as
+
+$ STOIC :== $<directory specifier>STOIC.EXE
+$ RED   :== $<directory specifier>RED.EXE RED
+
+5.  Miscellaneous Information
+The command procedure ASSIGN.COM will assign the logical names
+SAO$KERNEL, SAO$STOIC, and SAO$RED to sub-directories of the current
+directory.  The SAO$KERNEL logical name is necessary when using the
+image creation facility (to create .EXE files).
+
+6.  New RED Feature, not Documented in RED.MEM
+There is a new RED command, ",", i.e., the "comma" command.
+This commands causes RED to enter input mode and for the words
+"INPUT MODE" to be written in the command area of the screen.
+Although bulk input (typing in lots of text at one time) can be done
+conveniently from IMMEDIATE MODE, some users have found it to be expensive,
+since RED does one QIO per keystroke in IMMEDIATE mode.  INPUT MODE
+does one QIO per RETURN or DELETE.  Cursor movement and INSTANT COMMANDS
+are not available from INPUT mode; otherwise it is the same as IMMEDIATE
+MODE.  INPUT MODE is exited by typing LINE-FEED.
+
+Much the same efficiency gain could be obtained by more intelligent use
+of the terminal driver in IMMEDIATE MODE.  This may be implemented in a
+future release.
+
+7.  Information on changes for previous STOIC users from Jonathan Mark:
+
+This version of SAO STOIC/RED has been modified to work under version
+3.0 of VMS.  The old non-re-entrant version failed to work on at least
+one system running version 3.0 because of a problem with RMS buffers in
+the P0 region.  That problem has been fixed by the inclusion of the
+IOSEGMENT value in the options files RKERNEL.OPT and HEAD0.OPT.  Parts
+of some screen handling routines also failed to work under version 3
+in the old version, notably when RED was first started up and the
+ANSI_CRT terminal parameter was set.  These have been fixed by trivial
+changes to TYIO.MAR (enabling GETMODE and SETMODE to examine and alter
+the new extended terminal characteristics field) and to E (changing
+the lengths of the arrays for terminal characteristics from 8 to 12
+bytes), and a slightly larger change to the EDV module, causing RED
+to reset the ANSI_CRT parameter on startup (the parameter is returned
+to its original value on exit).
+
+This version is also able to operate as a batch job.  Previous versions,
+when run non-interactively, failed with a repeating error message when
+STOIC attempted to do QIO output to the log file.  When this version
+of STOIC is started up, it calls a routine ("outinit", defined in
+TYIO.MAR) to determine whether the job is interactive and define the
+TYO and TYPE output words accordingly, using RMS for the output if
+the job is not interactive.
+
+Later implementation note:
+
+Two changes to the STOIC link/create-images procedure were found to be
+necessary for proper operation under VMS 3.0.  It is now only necessary
+to link one executable image, instead of two as in the old re-entrant
+version.  This image, RKERNEL.EXE, is then copied into HEAD0.EXE.  This
+prevents discrepancies that came up between the kernel image and the
+prototype header image, when one was linked read/write and the other was
+linked read-only.  The kernel is now linked read/write, making it possible
+to write over the code when running RKERNEL.EXE; however, STOIC-created
+images are set up to contain only read-only image sections and are safe
+from demolition by misguided STOIC programs.
+
+The other change was to RKERNEL.OPT (now the only options file): the
+STOIC object modules are now combined (and isolated) in their own cluster
+(named STOIC).  This prevents a problem that came up when libraries
+and other object modules (such as FORTRAN subroutines) were linked
+with STOIC: the alien code would appear in STOIC's image sections,
+confusing the image creation routine.  With the STOIC code in its own
+cluster, this does not happen.
+
+				-Jonathan Mark
+
+
+8.  The efficiency improvement to IMMEDIATE mode suggested in note 6,
+above has nom been implemented.  I.e., IMMEDIATE mode is now much more
+efficient when inserting text at the end of a line or inserting
+new lines of text.  When inserting text into the middle of a line,
+IMMEDIATE mode is as (in)efficient as ever, due to the fact that it
+must refresh the rest of the line after each character typed.
+
+				-Roger Hauck
+
+12/4/85
+
+[SAOSTOIC.STOIC]IMAGE. has been modified so as to work under VMS version 4.
+
+				-Roger Hauck

@@ -17,7 +17,7 @@ system on a real (SIMH) VAX and document its design**.
 | `saostoic-text/gm/` | GM variant: `kernel.mar`, `ss.mar`, `float.sto`, and `newstoic.mem` (the GM "Detailed Guide to VAX/VMS STOIC", 19 May 1982). |
 | `doc/` | The verified documentation (Phase 5). Start at `doc/README.md`; `doc/defects.md` lists all 49 defects, `doc/patches.md` the Phase 6 fixes and `doc/errata.md` the manual corrections. |
 | `patched/` | The Phase 6 sources: a full copy of the VMS tree with the fixes. On the VAX it is `[.WORK.PATCHED...]`. |
-| `cmpfix/` | Phase 8: `patched/` with the comparison words as in the manual and CP/M STOIC (defect 13), and every use swapped by `tools/cmp-swap`. On the VAX it is `[.WORK.CMPFIX...]`; see `doc/cmpfix.md`. |
+| `cmpfix/` | Phase 8: `patched/` with the comparison words as in the manual and CP/M STOIC (defect 13), and every use swapped by `tools/cmp-swap`. On the VAX it is `[.WORK.CMPFIX...]`; see `doc/cmpfix.md`. `cmpfix/README.md` tells others how to build and run it (checked by a fresh build in `[.WORK.CMPFRESH...]`). |
 | `notes/` | The first design drafts (`kernel-design.md`, `stoic-level-design.md`), written from reading the code. Historical: `doc/` supersedes them. |
 
 The authoritative copy of every file, binaries included, is on the VAX in

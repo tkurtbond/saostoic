@@ -78,7 +78,12 @@ has `18 GT_IF`.
 
 ## Building
 
-cmpfix is built like the patched tree (`build.md`, "The patched build"),
+`cmpfix/README.md` is a guide for anyone building cmpfix on their own VAX
+from its 34 text files. A build that way, in an empty `[.WORK.CMPFRESH...]`,
+gave the same build output and exe sizes, and the same regression suite
+and RED r0–r1 results, as the build below.
+
+Here, cmpfix is built like the patched tree (`build.md`, "The patched build"),
 in `[.WORK.CMPFIX...]`:
 
 1. `tools/vax-do -p CMPFIX tools/setup-patched.com` BACKUPs
