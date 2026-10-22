@@ -45,10 +45,12 @@ On 22 October 2026, on VAX/VMS V5.5-2H4, with Zip 3.0 and UnZip 6.00:
   records (RFM=VAR), 70 files in five directories. `@STOBUILD MAC` and
   `@HIREZ.CRE` printed the lines in `current/README.md` and nothing
   else, and the exes had the usual sizes: HEAD0 and RKERNEL 44 blocks,
-  STOIC 110, RED and REDHIREZ 189. STOIC gave `0 -1` for
+  STOIC 110, RED and REDHIREZ 189. The build left the symbols `STOIC`,
+  `RED` and `CALC` defined (by `ASSIGN.COM`), and through them STOIC gave
+  `0 -1` for
   `1 2 GT = 2 1 GT =` and printed `Hello, World`, and CALC gave
   `1024.000000000000` and `3.141592653589793`. With the build, the tree
-  took 2875 blocks. (An earlier test of a zip of the 34 build files alone
+  took 2876 blocks. (An earlier test of a zip of the 34 build files alone
   showed that plain `UNZIP`, which writes Stream_LF files, builds too.)
 - **The exe zip** went down by binary FTP and back up, and was unpacked
   with `UNZIP` in an empty directory. STOIC.EXE came out as fixed 512-byte
