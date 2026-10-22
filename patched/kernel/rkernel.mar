@@ -1681,7 +1681,7 @@ jsb	space
 	bgtr	20$			;if more digits
 	tstl	r3			;test sign
 	bgeq	50$			;if not negative
-	movl	#^a/-/,-(r5)		;prefix minus
+	movb	#^a/-/,-(r5)		;prefix minus
 50$:
 	movl	r5,-(r10)		;push string location
 	subl3	r5,R9,-(r10)		;push length
