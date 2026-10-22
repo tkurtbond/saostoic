@@ -312,6 +312,45 @@ ways across the window. After the load, 87.7 KB of code (156DC) and
   - after ESC S, at the STOIC prompt, APP_TOTAL gives the total, and a
     new word calling it lands at 5AC00 and runs.
 
+#### Filling the code space
+
+`tests/big/runfill` (results in `tests/big/results/fill.txt` and
+`r-fill.*`) loads `FILLAPP.STO` on the patched RED.EXE until the code is
+full. `tests/big/genfill` writes 600 words with short names (`F_nnnn`),
+each about 500 bytes of code: a call to an earlier word, 40 to 50
+literals added or subtracted, and a DO loop. After every 10 words, `FS_gg`
+adds up the group and the groups before it, and `FS_LAST` is redefined to
+push gg and `FS_gg`. The names count groups in decimal; FS_LAST and
+`FILLAPP.EXP` give the group in hex, with the generator's total.
+
+- **The load.** 418 words loaded. The code went from 3CA00 to 700F7:
+  210679 bytes (205.7 KB) of application, leaving 36 bytes below K_END.
+  The dictionary grew by only 2B11 (10.8 KB). `FS_LAST` gives group 28
+  (FS_40) and 6DBA4E96, which matches `FILLAPP.EXP`.
+- **Code space full.** For each word that didn't fit, ENTER said "Code
+  space full." That ended only the definition's line, and the LOAD went
+  on. FS_41, which names F_0418, was then a compile error, and that ended
+  the LOAD. A 70-literal word typed after the load got "Code space full."
+  as well, while a small word (`'TINY : 1 2 + ;`) still fit and ran.
+- **IMAGE of the full RED refuses:** "IMAGE: the code region has outgrown
+  its demand-zero section in HEAD0". Rounded up to a page, the code
+  (70200) uses every page of the DZRO after the code ISD, which ends at
+  K_END's page. FIX_DZRO refuses when the growth is at least the DZRO's
+  page count (defect 26), and here it is equal. So IMAGE needs
+  `CODE_PNTR` at or below 70000: the last 12D bytes (301) of the code
+  region can be used, but not IMAGEd.
+- **Forgetting back** to the last `FS_LAST` (group 27, FS_39, at 6F1A3, with F8A
+  bytes free) lets IMAGE write `[.WORK]FILLRED.EXE`. Run by command
+  tails, it gives group 27 and 15B685D4, matching `FILLAPP.EXP`, and
+  F2D bytes of code free (USER_CODE rounds up to 6F200).
+- **The editor in FILLRED.EXE** (`r-fill.scr`) inserts text, writes the
+  file and reopens it. After ESC S, `FS_LAST` gives the same total, and a
+  new word (`'NEW1 : FS_LAST + ;`) compiles into the room left and runs.
+- **FORGET of a module** placed before FS_20's words (`'FILL_HALF MODULE`) takes
+  the code back to 55440, with 1ACED bytes free. `FS_LAST` then gives
+  group 13 (FS_19) and 52004822, as in `FILLAPP.EXP`, and a new word lands at
+  55440.
+
 ## Defects found in Phase 3
 
 The numbers continue `PLAN.md`'s defect checklist.
@@ -350,7 +389,9 @@ The numbers continue `PLAN.md`'s defect checklist.
 - **26: FIX_DZRO does not check for underflow** (`image:79-84`). Data
   beyond 7B pages wraps the DZRO's page count, and the exe fails with
   VA_IN_USE. A dictionary or code region that outgrew its DZRO would do the
-  same, but the windows (6) stop them first.
+  same, but the windows (6) stop them first. In the Phase 7 build the code
+  can reach its last DZRO page, and the fix refuses then ("Filling the
+  code space").
 - **27: a fault in the middle of MOVC3 leaves FPD set, and STOIC loops.**
   The handler (`rkernel.mar:472-484`) changes the signal PC to ABORT but
   keeps the PSL. When the fault came in the middle of an instruction that

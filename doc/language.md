@@ -331,6 +331,12 @@ TV< DEFINITIONS
 - `FORGET` resets CURRENT's chain to what it was at the `MODULE`
   (`rdef:1475-1484`). The manual's advice to use one MODULE per
   `DEFINITIONS` switch follows from this.
+- `FORGET` takes the header of a `MODULE` word, and it sets `.D` from the
+  longword after the constant in that word's code (`rdef:1487`). Given
+  the header of a colon word (from `I_LOOKUP`), it sets `.D` from that
+  word's code, and the next IMAGE refuses: "the data region has outgrown
+  its demand-zero section" (`tests/big/fill1-load.con`, which therefore
+  saves and restores `.D` around such a FORGET).
 
 ## Strings
 

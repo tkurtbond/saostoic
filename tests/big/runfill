@@ -1,0 +1,18 @@
+#!/bin/sh
+# Runs the code-filling test of Phase 7 (doc/image.md) and writes
+# tests/big/results/:
+#   fill.txt  FILLAPP.STO LOADed on the patched RED.EXE until the code is
+#             full, a word that no longer fits, IMAGE as [.WORK]FILLRED.EXE,
+#             a FORGET of half the application; then FILLRED by command
+#             tails. Compare its LAST line with tests/big/FILLAPP.EXP.
+#   r-fill.*  the editor in FILLRED.EXE (tools/red-drive)
+# tests/big/genfill remakes FILLAPP.STO and FILLAPP.EXP.
+cd "$(dirname "$0")/../.." || exit 2
+T=tests/big R=tests/big/results
+mkdir -p $R
+VAX_DO_TIMEOUT=3000 tools/stoic-run -m -f $T/FILLAPP.STO \
+  -x 'DUA1:[USERS.CLAUDE.WORK.PATCHED.RED]RED.EXE' \
+  tests/image/a1-pat.dcl $T/fill1-load.con $T/fill2-run.dcl > $R/fill.txt 2>&1
+echo "load: exit $?"
+STOIC_RED='DUA1:[USERS.CLAUDE.WORK]FILLRED.EXE' tools/red-drive -o $R $T/r-fill.tcl
+echo "red: exit $?"

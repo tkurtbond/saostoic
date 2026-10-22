@@ -1,0 +1,76 @@
+#!/usr/bin/env python3
+# Writes tests/big/FILLAPP.STO and FILLAPP.EXP, a synthetic application
+# meant to fill the code space of the patched RED.EXE (Phase 7). The words
+# are fat (about 500 bytes of code) and their names short, so the code
+# fills long before the dictionary does. More words are generated than fit.
+#
+# The words come in groups of G. After each group, FS_gg adds up the group
+# and FS_(gg-1), and FS_LAST is redefined to push gg and FS_gg. When the
+# code is full, ENTER says "Code space full." for each word that no longer
+# fits, and the next FS_gg, which names one of them, is a compile error
+# that ends the LOAD. FS_LAST then gives the last group that loaded and
+# its total, which must match the line for that group in FILLAPP.EXP.
+# 'FILL_HALF MODULE marks group HALF, for a FORGET.
+#
+#   tests/big/genfill [N]    (default 600 words; seed fixed)
+import random, sys, os
+
+N = int(sys.argv[1]) if len(sys.argv) > 1 else 600
+G, HALF = 10, 20
+M = 0xffffffff
+rnd = random.Random(1986)
+
+def wrap(head, parts, width=100):
+    # A line holds 132 characters (LINE_BUF_SIZE); a definition may span
+    # lines, but its code must fit the 400-byte compile buffer.
+    out, cur = [], head
+    for p in parts + [";"]:
+        if len(cur) + 1 + len(p) > width:
+            out.append(cur); cur = "  " + p
+        else:
+            cur += " " + p
+    return "\n".join(out + [cur])
+
+def signed(v):
+    return "%X" % v if v < 0x80000000 else "-%X" % (0x100000000 - v)
+
+vals, lines, exp = [], [], []
+fs = 0
+for k in range(N):
+    g = k // G
+    if k % G == 0 and g == HALF:
+        lines.append("'FILL_HALF MODULE")
+    body = []
+    if k == 0:
+        v = 0x1986; body.append("1986")
+    else:
+        j = rnd.randrange(k)
+        v = vals[j]; body.append("F_%04d" % j)
+    for _ in range(rnd.randint(40, 50)):
+        c = rnd.randrange(0x10000000, 0x7fffffff)
+        if rnd.random() < 0.5:
+            v = (v + c) & M; body.append("0%X +" % c)
+        else:
+            v = (v - c) & M; body.append("0%X -" % c)
+    m = rnd.randint(1, 9)
+    v = (v + m * (m - 1) // 2) & M
+    body.append("0%X 0 DO I + LOOP" % m)
+    vals.append(v)
+    lines.append(wrap("'F_%04d :" % k, body))
+    if k % G == G - 1 or k == N - 1:
+        r = range(g * G, k + 1)
+        fs = (fs + sum(vals[i] for i in r)) & M
+        prev = "FS_%02d" % (g - 1) if g else "0"
+        lines.append(wrap("'FS_%02d : %s" % (g, prev), ["F_%04d +" % i for i in r]))
+        lines.append("'FS_LAST : 0%X FS_%02d ;" % (g, g))
+        exp.append("G %X %s" % (g, signed(fs)))
+
+hdr = ["%% FILLAPP.STO: MADE BY TESTS/BIG/GENFILL (%d WORDS); DO NOT EDIT." % N, "HEX"]
+d = os.path.dirname(os.path.abspath(__file__))
+with open(os.path.join(d, "FILLAPP.STO"), "w") as f:
+    f.write("\n".join(hdr + lines) + "\n")
+with open(os.path.join(d, "FILLAPP.EXP"), "w") as f:
+    f.write("\n".join(exp) + "\n")
+print("FILLAPP.STO: %d words, %d bytes, %d groups, longest line %d" %
+      (N, os.path.getsize(os.path.join(d, "FILLAPP.STO")), len(exp),
+       max(len(l) for x in lines for l in x.split("\n"))))

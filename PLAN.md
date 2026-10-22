@@ -969,6 +969,12 @@ displacement (searched: `W->L`, `CODE_COUNT`, `C8`, `JSB`, `R8@+`).
   words, 120 KB of code and 62 KB of dictionary, load on the patched
   RED.EXE and give the generator's total. IMAGE makes BIGRED.EXE, whose
   editor works and whose STOIC prompt (ESC S) runs the application.
+- **Filling the code space** (`tests/big/runfill`, `doc/image.md`): 418
+  generated words, 205.7 KB of code, fill the patched RED.EXE to 36 bytes
+  below K_END, with the generator's totals. "Code space full." ends only
+  the definition that doesn't fit. IMAGE refuses once the code reaches
+  the last page (past 70000); 4 KB below that it writes FILLRED.EXE, whose
+  editor works and which still compiles new words.
 - **Room now:** code 231.8 KB in STOIC.EXE and 205.8 KB in RED.EXE;
   dictionary 106 KB and 94.5 KB. With the code window alone, the
   dictionary (42 KB and 30.5 KB) bound first; enlarging it moved K_START

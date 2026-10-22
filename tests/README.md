@@ -33,7 +33,9 @@ Their results are committed and described in `doc/image.md`.
 `tests/big/run` (Phase 7) loads a generated 1100-word application
 (`tests/big/gen` makes `BIGAPP.STO`) on the patched RED.EXE, IMAGEs it as
 `[.WORK]BIGRED.EXE` and drives the editor in it. Its results are in
-`tests/big/results/`, described in `doc/image.md`.
+`tests/big/results/`, described in `doc/image.md`. `tests/big/runfill`
+does the same with `FILLAPP.STO` (`tests/big/genfill`), which fills the
+code space; compare `results/fill.txt` with `FILLAPP.EXP`.
 
 The RED tests of Phase 4 are key scripts for `tools/red-drive`. r6 runs
 the shipped RED, which fails (defect 30); the others need the rebuilt one:
