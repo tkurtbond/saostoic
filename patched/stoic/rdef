@@ -1500,7 +1500,7 @@ ASSEMBLER<
   "Date for this version:" MSG 09 TYO
   DATE D@ REVSTRING ASCTIM REVSTRING MSG CR  % show the date
   "Date for the save file:" MSG 09 TYO
-  REVSTRING ASCTIM REVSTRING MSG
+  REVSTRING ASCTIM REVSTRING MSG CR
   R_STACK_0 @  % get the initial return stack pointer
   MOVL (P)+ SP  % reset the stack to get rid of the access blocks
   I_ABORT  % call regular ABORT
