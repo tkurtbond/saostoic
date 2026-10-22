@@ -23,20 +23,20 @@ Syntax Error error compiling...  ;  ...in line
 =00000000, PSL=00000000
 MSG CR
 CR
-No word found at 134689
-TYPE		 D=85255, C=153266(52)
-MSG		 D=85275, C=153318(9)
+No word found at 200225
+TYPE		 D=85255, C=218802(52)
+MSG		 D=85275, C=218854(9)
 No word found at 4199428
-No word found at 136090
+No word found at 201626
  4
 
-%SYSTEM-F-INTDIV, arithmetic trap, integer divide by zero at PC=00022658, PSL=03
+%SYSTEM-F-INTDIV, arithmetic trap, integer divide by zero at PC=00032658, PSL=03
 C00002
 1 0 / =
 =
-/		 D=76370, C=140885(4)
+/		 D=76370, C=206421(4)
 No word found at 4199438
-No word found at 136090
+No word found at 201626
  5
 
 %SYSTEM-F-ACCVIO, access violation, reason mask=00, virtual address=00000000, PC
@@ -44,25 +44,25 @@ No word found at 136090
 0 @ =
 =
 No word found at 4199431
-No word found at 136090
+No word found at 201626
  6
 
 %SYSTEM-F-ACCVIO, access violation, reason mask=04, virtual address=00400608, PC
-=00021E59, PSL=03C00000
+=00031E59, PSL=03C00000
 DROP DROP DROP
 DROP
-I_READLINE	 D=69514, C=138829(42)
-No word found at 136063
+I_READLINE	 D=69514, C=204365(42)
+No word found at 201599
  7
 
 %SYSTEM-F-ACCVIO, access violation, reason mask=04, virtual address=00400608, PC
-=00021F94, PSL=03C00000
+=00031F94, PSL=03C00000
 DROP DROP DROP =
 =
-SPACE		 D=69961, C=139156(7)
-=		 D=69982, C=139163(67)
+SPACE		 D=69961, C=204692(7)
+=		 D=69982, C=204699(67)
 No word found at 4199437
-No word found at 136090
+No word found at 201626
  8
 
 %SYSTEM-F-ACCVIO, access violation, reason mask=00, virtual address=00000000, PC
@@ -70,15 +70,15 @@ No word found at 136090
 1 2 0 @
 @
 No word found at 4199437
-No word found at 136090
+No word found at 201626
  0
  9
 
 %RMS-E-FNF, file not found
 'NOSUCH.STO LOAD
 LOAD
-LOAD		 D=69121, C=138599(24)
+LOAD		 D=69121, C=204135(24)
 No word found at 4199444
-No word found at 136090
+No word found at 201626
  10
 

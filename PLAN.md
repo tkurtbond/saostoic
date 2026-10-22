@@ -20,7 +20,7 @@ Phase 1 passes. Phase 5 is written gradually as results come in.
 | 4 RED | done (see "Phase 4 outcome"; `doc/red.md`, `tests/red/`) |
 | 5 Documentation | done (see "Phase 5 outcome"; `doc/README.md`, `tests/lang/`) |
 | 6 Fixes | **done** (2026-10-21): Batches A–H; 37 fixed, 3 documented, 2 closed (`doc/patches.md`) |
-| 7 Raise the code window | **done** (2026-10-21): `JSB L^`, longword header displacement, code to K_END 6012D (`doc/patches.md`) |
+| 7 Raise the code window | **done** (2026-10-21): `JSB L^`, longword header displacement, code to K_END 7012D, 128 KB dictionary (`doc/patches.md`) |
 
 Update this table as work proceeds.
 
@@ -922,11 +922,14 @@ window binds first: the patched RED.EXE has 13 KB of code room left.
    INVENTORY and RED's CTRL_C_HANDLER) and FORGET read a longword.
 3. **Region.** `extend.mar` pads the KERNEL psect to 40000 bytes, not
    10000: 256 KB of code from CODE_0. KERNEL is the last psect, so nothing
-   else moves; K_START stays 1FE00. I_ENTER refuses code that would pass
+   else moves. I_ENTER refuses code that would pass
    K_END ("Code space full."). The startup `$DELTVA`/`$CRETVA` already
    runs to K_END, and IMAGE already shrinks the demand-zero tail.
-4. The dictionary padding is cut by 400 bytes so that the longer kernel
-   headers do not push KERNEL onto the next page.
+4. **Dictionary** (added after the first build, at the user's request):
+   `extend.mar` pads the DICTIONARY psect to 20000 bytes, not 10000, so
+   K_START moves from 1FE00 to 2FE00 and K_END to 7012D. The links are
+   longword offsets and "Dictionary full." compares with R8−8000, so
+   nothing else changes.
 
 Nothing else in the STOIC or RED sources compiles a call or reads the
 displacement (searched: `W->L`, `CODE_COUNT`, `C8`, `JSB`, `R8@+`).
@@ -945,14 +948,14 @@ displacement (searched: `W->L`, `CODE_COUNT`, `C8`, `JSB`, `R8@+`).
 
 ### Phase 7 outcome (2026-10-21)
 
-- **Build:** assembles and links with no messages. The map shows KERNEL
-  at 1FE00–6012C and the dictionary psect ending below it. The exes are a
-  few blocks larger.
+- **Build:** assembles and links with no messages. The map shows
+  DICTIONARY at FA00–2FC46 and KERNEL at 2FE00–7012C. The exes are a few
+  blocks larger.
 - **Tests:**
   - `tools/patched-suite`: 18/18 pass. `--fix`: 32/32 pass.
   - `tests/image/run a-pat e-pat e-new f g`: all pass. The new group `g`
-    IMAGEs an exe with code past the old window and runs it (W5 at 40000
-    calls W4 at 3FF00, which calls W3 at 2FE3E with `L^`).
+    IMAGEs an exe with code past the old window and runs it (W5 at 50000
+    calls W4 at 4FF00, which calls W3 at 3FE3E with `L^`).
   - RED scripts r0–r11 (not r6): the screens differ only in dictionary
     addresses and file timestamps.
   - Expectations changed only in addresses and IMAGE's DZRO page counts.
@@ -960,10 +963,13 @@ displacement (searched: `W->L`, `CODE_COUNT`, `C8`, `JSB`, `R8@+`).
   - `widen.sto` (group e) placed its new DZRO at VPN 200, inside the
     larger code region (`%RSX-W-PFMBSY`). It now uses the first VPN after
     the fixup ISD.
-  - F06-CODE needed rewriting: "Code out of range" no longer exists.
+  - F06-CODE needed rewriting: "Code out of range" no longer exists. It
+    and g1 place code relative to R8, so they hold for any K_START.
 - **Room now:** code 231.8 KB in STOIC.EXE and 205.8 KB in RED.EXE;
-  dictionary 42 KB and 30.5 KB. The dictionary now binds. Enlarging it
-  would move K_START and every kernel address (not done).
+  dictionary 106 KB and 94.5 KB. With the code window alone, the
+  dictionary (42 KB and 30.5 KB) bound first; enlarging it moved K_START
+  and every kernel address, which changed only addresses and IMAGE's
+  page counts in the expectations.
 
 ---
 

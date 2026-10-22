@@ -134,7 +134,7 @@ Phase 7 (`PLAN.md`) removes the 64 KB code limit of defect 6.
 |---|---|
 | `rkernel.mar`, `crtl.mar`, `ttio.mar`, `ss.mar` | the `header` and `nullhead` macros store the code displacement as a longword |
 | `rkernel.mar` | I_JUMP_TO_ME compiles `JSB W^disp(R8)` when the displacement fits in a word and `JSB L^disp(R8)` when not, so "Code out of range" is gone. I_COMPILE reads the displacement with MOVL. I_ENTER writes a longword, counts 16 bytes of header, and checks the code end against K_END |
-| `extend.mar` | KERNEL is padded to 40000 bytes (code up to K_END, 6012D); DICTIONARY 400 bytes less, so K_START stays 1FE00 |
+| `extend.mar` | KERNEL is padded to 40000 bytes and DICTIONARY to 20000, so K_START is 2FE00 and K_END 7012D |
 | `rdef` | CODE_COUNT and FORGET read a longword displacement |
 
 **Tests:** `tests/fix/F06-CODE` defines words on both sides of R8+8000
@@ -146,4 +146,4 @@ its new DZRO section after the fixup ISD, since the code ISD reaches VPN
 and in IMAGE's DZRO page counts.
 
 Room left: about 232 KB of code in STOIC.EXE and 206 KB in RED.EXE. The
-dictionary (42 KB and 30.5 KB) is now the limit (`image.md`).
+dictionary has 106 KB and 94.5 KB (`image.md`).

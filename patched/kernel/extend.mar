@@ -1,7 +1,7 @@
 .title	EXTEND
 
 .psect	dictionary
-	.blkb	<^x10000-^x2000>	;fill out program sections
+	.blkb	<^x20000-^x2000>	;128 KB of dictionary (Phase 7)
 dict_end::
 
 .psect	kernel

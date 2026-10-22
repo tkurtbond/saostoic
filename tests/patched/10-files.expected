@@ -4,9 +4,9 @@ Input file table overflow.
 '10C.STO LOAD
 LOAD
 No word found at 0
-LOAD		 D=69121, C=138599(24)
+LOAD		 D=69121, C=204135(24)
 No word found at 4199441
-No word found at 136090
+No word found at 201626
 BACK IN 10B
 BACK IN 10A
 AFTER NEST

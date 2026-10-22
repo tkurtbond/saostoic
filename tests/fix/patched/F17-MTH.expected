@@ -1,19 +1,19 @@
 
 %MTH-F-LOGZERNEG, logarithm of zero or negative value
-  user PC 0001FEFB
+  user PC 0002FEFB
 0. .LOG .= CR
 CR
-No word found at 130811
+No word found at 196347
 No word found at 4199439
-No word found at 136090
+No word found at 201626
  1
 
 %MTH-F-INVARGMAT, invalid argument to math library
-  user PC 0001FE93
+  user PC 0002FE93
 2. .ASIN .= CR
 CR
-No word found at 130707
+No word found at 196243
 No word found at 4199439
-No word found at 136090
+No word found at 201626
  2
 

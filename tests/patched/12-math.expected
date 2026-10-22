@@ -8,37 +8,37 @@ HYPER   0.0000000000000000E+00  1.000000000000000     0.0000000000000000E+00
 POWDD    8.000000000000000      8.000000000000000    
 LOG 0   
 %MTH-F-LOGZERNEG, logarithm of zero or negative value
-  user PC 0001FEFB
+  user PC 0002FEFB
 "LOG 0   " MSG 0. .LOG .= CR
 CR
-No word found at 130811
+No word found at 196347
 No word found at 4199457
-No word found at 136090
+No word found at 201626
 POW OVF 
 %MTH-F-FLOOVEMAT, floating overflow in math library
-  user PC 0001FF33
+  user PC 0002FF33
 "POW OVF " MSG 10. 1000. .^ .= CR
 CR
-No word found at 130867
-.^		 D=83988, C=151601(5)
+No word found at 196403
+.^		 D=83988, C=217137(5)
 No word found at 4199468
-No word found at 136090
+No word found at 201626
 ASIN 2  
 %MTH-F-INVARGMAT, invalid argument to math library
-  user PC 0001FE93
+  user PC 0002FE93
 "ASIN 2  " MSG 2. .ASIN .= CR
 CR
-No word found at 130707
+No word found at 196243
 No word found at 4199457
-No word found at 136090
+No word found at 201626
 NEXT LINE
 SQRT -1 
 %MTH-F-SQUROONEG, square root of negative value
-  user PC 00078BD0
+  user PC 00088BD0
 "SQRT -1 " MSG -1. .SQRT .= CR
 CR
-No word found at 130837
+No word found at 196373
 No word found at 4199457
-No word found at 136090
+No word found at 201626
 NOT REACHED
 

@@ -305,9 +305,9 @@ the shipped exes. The patched exes are
 `[.WORK.PATCHED.RED]RED.EXE`. Their data region is at 402200 on any
 layout, so `IORB<` and RED's obuf work. **Phase 7** raised their code
 window: headers hold a longword code displacement, a call out of `W^`
-range compiles as `JSB L^disp(R8)`, and code runs from 1FE00 to K_END
-(6012D), about 230 KB free in STOIC.EXE. The dictionary (about 42 KB free,
-30 KB in RED) is now the limit.
+range compiles as `JSB L^disp(R8)`, the dictionary is 128 KB and code
+runs from K_START 2FE00 to K_END 7012D. STOIC.EXE has about 230 KB of
+code and 106 KB of dictionary free; RED.EXE about 205 KB and 94 KB.
 
 1. DIGIT treats any character above `Z` as a decimal point, so lowercase
    undefined words in LOAD files (which are not uppercased) compile silently

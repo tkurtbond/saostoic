@@ -220,6 +220,6 @@ exe was linked against. This also keeps the addresses that obuf freezes
 at load time valid in RED.EXE (defect 30).
 
 Phase 7 pads the patched KERNEL psect to 40000 bytes, not 10000
-(`patched/kernel/extend.mar`), and the DICTIONARY psect by 400 bytes less,
-so K_START stays 1FE00. The map shows KERNEL at 1FE00–6012C, and the
-images are a few blocks larger: the extra code pages are demand-zero.
+and the DICTIONARY psect to 20000 (`patched/kernel/extend.mar`). The map
+shows DICTIONARY at FA00–2FC46 and KERNEL at 2FE00–7012C, and the images
+are a few blocks larger: the extra pages are demand-zero.
