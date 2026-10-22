@@ -3,7 +3,7 @@ $!	kernel (assembled), HEAD0, STOIC.EXE, RED.EXE and REDHIREZ.EXE.
 $!	Run by tools/vax-do in [.WORK]; STOIC's progress goes to the
 $!	terminal (vax-do -t).  P1 "LINK" skips the assembly ("" or "MAC"
 $!	does not).  P2 names another tree made by SETUP-PATCHED, such as
-$!	CMPFIX (vax-do -p MAC -p CMPFIX).
+$!	CURRENT (vax-do -p MAC -p CURRENT).
 $ SET NOON
 $ SET VERIFY
 $ HOME = F$ENVIRONMENT("DEFAULT")

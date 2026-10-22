@@ -1,8 +1,8 @@
-# Building and running cmpfix
+# Building and running SAO STOIC
 
-This directory holds the sources of **cmpfix**, a fixed and extended SAO
-STOIC for VAX/VMS. It is the 1985 SAO STOIC, by Roger Hauck and Jonathan
-Mark, with these changes:
+This directory holds the current sources of SAO STOIC for VAX/VMS (it was
+called cmpfix before). It is the 1985 SAO STOIC, by Roger Hauck and
+Jonathan Mark, with these changes:
 
 - **Defects fixed.** 46 of the 50 defects found in testing are fixed
   (`../doc/defects.md`, `../doc/patches.md`). For example, a missing LOAD
@@ -14,11 +14,11 @@ Mark, with these changes:
 - **Comparisons as documented.** `GT`, `LT`, `GE`, `LE`, their `_IF`
   forms, the float `.GT` … forms and `DGE` mean what the manual
   (`stoic/stoic.mem`) and CP/M STOIC say: `B A GT` is true when B > A. The
-  1985 VAX exes have them the other way round (`../doc/cmpfix.md`).
+  1985 VAX exes have them the other way round (`../doc/current.md`).
 - **The console keeps its case.** The 1985 STOIC uppercases every line
-  typed at the terminal. cmpfix passes it on as typed, so strings keep
+  typed at the terminal. This one passes it on as typed, so strings keep
   their lowercase letters, and STOIC's own words must be typed in
-  uppercase (`../doc/cmpfix.md`, "Console case").
+  uppercase (`../doc/current.md`, "Console case").
 
 This guide builds STOIC.EXE, RED.EXE and REDHIREZ.EXE from these text
 files alone. No binaries are needed: the build assembles the kernel and
@@ -41,10 +41,10 @@ KERNEL, STOIC and RED. The build finds them by these names relative to the
 top directory.
 
 ```
-$ CREATE/DIRECTORY [.CMPFIX]
-$ CREATE/DIRECTORY [.CMPFIX.KERNEL]
-$ CREATE/DIRECTORY [.CMPFIX.STOIC]
-$ CREATE/DIRECTORY [.CMPFIX.RED]
+$ CREATE/DIRECTORY [.SAOSTOIC]
+$ CREATE/DIRECTORY [.SAOSTOIC.KERNEL]
+$ CREATE/DIRECTORY [.SAOSTOIC.STOIC]
+$ CREATE/DIRECTORY [.SAOSTOIC.RED]
 ```
 
 ## 2. Copy the sources
@@ -81,11 +81,11 @@ The other files here are not needed to build:
   `kernel/dker.com`, `kernel/list.com`, `kernel/txa2.lis`.
 
 For example, with curl from a Unix host, where `vax` is the VMS host, the
-`.netrc` file has your login, and the top directory is `[.CMPFIX]` in your
-login directory:
+`.netrc` file has your login, and the top directory is `[.SAOSTOIC]` in
+your login directory:
 
 ```sh
-cd cmpfix
+cd current
 for f in assign.com stobuild.com kernel/*.mar kernel/kermac.com \
          kernel/kerlink.com kernel/rkernel.opt \
          stoic/rdef stoic/image stoic/float stoic/obuf stoic/vt100 \
@@ -96,7 +96,7 @@ for f in assign.com stobuild.com kernel/*.mar kernel/kermac.com \
   case $f in kernel/foo.mar) continue ;; esac
   d=$(dirname $f | tr a-z A-Z); n=$(basename $f | tr a-z A-Z)
   case $n in *.*) ;; *) n=$n. ;; esac
-  case $d in .) dir=%5B.CMPFIX%5D ;; *) dir=%5B.CMPFIX.$d%5D ;; esac
+  case $d in .) dir=%5B.SAOSTOIC%5D ;; *) dir=%5B.SAOSTOIC.$d%5D ;; esac
   set -- "$@" -T $f "ftp://vax/$dir/$n"
 done
 curl -sS --netrc -P - --use-ascii "$@"
@@ -109,7 +109,7 @@ which UCX FTP needs.
 build, but its sections 2 to 4 describe the same steps, and section 3.5
 tells what to do if RED gives "quota exceeded" (the OBUF size and the
 SYSGEN parameter MAXBUF). Its section 3, INSTALL, has not been tested with
-cmpfix.
+these sources.
 
 ## 3. Build
 
@@ -117,7 +117,7 @@ Set your default to the top directory and run STOBUILD with `MAC`, which
 assembles the kernel first:
 
 ```
-$ SET DEFAULT [.CMPFIX]
+$ SET DEFAULT [.SAOSTOIC]
 $ @STOBUILD MAC
 ```
 
@@ -185,9 +185,9 @@ from another build.
 Put these in your `LOGIN.COM`, with your own directory:
 
 ```
-$ ASSIGN DUA1:[USERS.ME.CMPFIX.KERNEL] SAO$KERNEL
-$ ASSIGN DUA1:[USERS.ME.CMPFIX.STOIC]  SAO$STOIC
-$ ASSIGN DUA1:[USERS.ME.CMPFIX.RED]    SAO$RED
+$ ASSIGN DUA1:[USERS.ME.SAOSTOIC.KERNEL] SAO$KERNEL
+$ ASSIGN DUA1:[USERS.ME.SAOSTOIC.STOIC]  SAO$STOIC
+$ ASSIGN DUA1:[USERS.ME.SAOSTOIC.RED]    SAO$RED
 $ STOIC :== $SAO$STOIC:STOIC
 $ RED   :== $SAO$RED:RED RED
 $ CALC  :== $SAO$RED:RED FLODEF
@@ -247,11 +247,12 @@ $ CALC 2. .SQRT 2. ./ .ASIN 4. .* .= CR ;F
 ## Where to read more
 
 - `stoic/stoic.mem`, the 1985 STOIC manual, and `../doc/errata.md`, its
-  corrections. Those for defect 13 do not apply to cmpfix.
+  corrections. Those for defect 13 do not apply to
+  these sources.
 - `../doc/README.md`, the documentation of SAO STOIC and its tests: the
   language, the kernel, the word list, IMAGE, RED and the build.
-- `../doc/patches.md`, every fix in cmpfix and in the patched tree it is
-  based on, and `../doc/cmpfix.md`, the comparison change.
+- `../doc/patches.md`, every fix here and in the patched tree it is
+  based on, and `../doc/current.md`, what this tree changes.
 
 ## How this guide was tested
 
@@ -260,12 +261,13 @@ by ASCII FTP into an empty tree, `[.WORK.CMPFRESH...]`, on VAX/VMS
 V5.5-2H4. `@STOBUILD MAC` and `@HIREZ.CRE` ran there with no messages and
 printed the lines above, and the exes had the sizes given. With these
 exes, the regression suite (`../tests/`, 18 tests, among them CALC through
-the command tail) gave exactly the output recorded for cmpfix in
-`../tests/cmpfix/`, and the RED screen tests r0 and r1 drew the same
-screens as `../tests/red/cmpfix/`. The examples in step 5 printed what is
+the command tail) gave exactly the output recorded for this tree in
+`../tests/current/`, and the RED screen tests r0 and r1 drew the same
+screens as `../tests/red/current/`. The examples in step 5 printed what is
 shown there. The tree took 1773 blocks.
 
 The console change (`kernel/rkernel.mar:1228`) was made after that test.
-The tree it was made in, `[.WORK.CMPFIX...]`, then built with the same
-output and sizes, and the suite, the defect tests, the interactive checks
-and the RED tests gave the results recorded in `../doc/cmpfix.md`.
+The tree it was made in, then called `[.WORK.CMPFIX...]`, then built with
+the same output and sizes, and the suite, the defect tests, the
+interactive checks and the RED tests gave the results recorded in
+`../doc/current.md`.

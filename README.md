@@ -10,14 +10,14 @@ suite, and fixed versions of the sources.
 
 ## If you want to run STOIC
 
-Use **[`cmpfix/`](cmpfix/)**. It is the 1985 STOIC with these changes:
+Use **[`current/`](current/)**. It is the 1985 STOIC with these changes:
 
 - 46 of the 50 defects found are fixed;
 - the code and dictionary have more room;
 - the comparison words mean what the manual says they mean;
 - what you type at the terminal is no longer uppercased.
 
-[`cmpfix/README.md`](cmpfix/README.md) explains how to copy its 34 source
+[`current/README.md`](current/README.md) explains how to copy its 34 source
 files to a VAX, build STOIC.EXE and RED.EXE (no binaries are needed), and
 run STOIC, RED and CALC.
 
@@ -47,7 +47,7 @@ are [`saostoic-text/stoic/stoic.mem`](saostoic-text/stoic/stoic.mem) and
 |---|---|
 | [`saostoic-text/`](saostoic-text/) | The 1985 sources and manuals, unchanged, as Unix text. |
 | [`patched/`](patched/) | The sources with the defects fixed and the code window raised; the comparisons keep the 1985 VAX sense. |
-| [`cmpfix/`](cmpfix/) | `patched/` with the comparisons as in the manual. |
+| [`current/`](current/) | `patched/` with the comparisons as in the manual. |
 | [`doc/`](doc/) | The documentation. |
 | [`tests/`](tests/) | The tests and their expected output ([`tests/README.md`](tests/README.md)). |
 | [`tools/`](tools/) | Scripts that run the tests on the VAX over FTP and telnet ([`tools/README.md`](tools/README.md)). |

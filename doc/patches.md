@@ -9,8 +9,8 @@ gives the corrections.
 - **Sources:** `patched/` here, a full copy of the VMS tree, and
   `DUA1:[USERS.CLAUDE.WORK.PATCHED...]` on the VAX. `saostoic-text/` and
   `[.SAOSTOIC...]` are unchanged. `git log -- patched/` has one commit for
-  each early fix (Batch A), then one commit for each batch. `cmpfix/`
-  ([`cmpfix.md`](cmpfix.md)) has every patch here, and the comparison
+  each early fix (Batch A), then one commit for each batch. `current/`
+  ([`current.md`](current.md)) has every patch here, and the comparison
   words as in the manual.
 - **Build:** `tools/patched-push`, then `tools/patched-build.com`
   ([`build.md`](build.md), "The patched build"). It makes the kernel,

@@ -2,7 +2,7 @@ $!	SETUP-PATCHED: make the Phase 6 copy of STOIC, once.  Run by
 $!	tools/vax-do in [.WORK]: copies [.SAOSTOIC...] to
 $!	[.WORK.PATCHED...], where tools/patched-push puts the patched
 $!	sources and tools/patched-build.com builds them.  Does nothing if
-$!	the copy is there.  P1 names another tree, such as CMPFIX.
+$!	the copy is there.  P1 names another tree, such as CURRENT.
 $ SET NOON
 $ TREE = "PATCHED"
 $ IF P1 .NES. "" THEN TREE = P1

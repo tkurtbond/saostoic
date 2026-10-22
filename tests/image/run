@@ -26,7 +26,7 @@
 cd "$(dirname "$0")/../.." || exit 2
 T=tests/image
 R=$T/results
-# STOIC_TREE names another tree, such as cmpfix: its exes are run, and
+# STOIC_TREE names another tree, such as current: its exes are run, and
 # the results go to $R/<tree>/.
 tree=${STOIC_TREE:-patched}
 TREE=$(echo "$tree" | tr a-z A-Z)
@@ -37,9 +37,9 @@ if [ "$tree" != patched ]; then
 else
   P=tests/image
 fi
-# imgutil.sto compares; cmpfix gets a copy with its comparisons swapped
+# imgutil.sto compares; current gets a copy with its comparisons swapped
 U=$T/imgutil.sto
-if [ "$tree" = cmpfix ]; then
+if [ "$tree" = current ]; then
   U=$P/imgutil.sto; cp $T/imgutil.sto $U; tools/cmp-swap $U >&2
 fi
 NEW='DUA1:[USERS.CLAUDE.WORK.SAOSTOIC.STOIC]STOIC.EXE'

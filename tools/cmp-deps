@@ -6,7 +6,7 @@
     tools/cmp-deps --gaps     # the STOIC-layer dependents no test names
 
 The comparisons are GT LT GE LE, .GT .LT .GE .LE, the _IF forms of
-both, MAX, MIN and DGE: the words whose sense the cmpfix tree reverses (defect 13,
+both, MAX, MIN and DGE: the words whose sense the current tree reverses (defect 13,
 doc/cpm-compare.md). A word depends on one if its definition names one, or
 names a word that does. Every other word cannot change with that swap.
 

@@ -8,7 +8,7 @@
 # tests/big/gen remakes BIGAPP.STO.
 cd "$(dirname "$0")/../.." || exit 2
 T=tests/big R=tests/big/results
-# STOIC_TREE names another tree, such as cmpfix: its exes are run, and
+# STOIC_TREE names another tree, such as current: its exes are run, and
 # the results go to $R/<tree>/.
 tree=${STOIC_TREE:-patched}
 TREE=$(echo "$tree" | tr a-z A-Z)

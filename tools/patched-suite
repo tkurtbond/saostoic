@@ -12,11 +12,11 @@
 # tests/cmp/patched/*.expected. Other
 # arguments go to tools/stoic-suite. The build's date is masked.
 #
-# STOIC_TREE names another tree, such as cmpfix: its exes in
-# [.WORK.CMPFIX...] are run, the tests' [.WORK.PATCHED...] paths are
-# changed to it, and the results are compared with tests/cmpfix/,
-# tests/fix/cmpfix/ and, since they must not change, tests/cmp/patched/.
-# For cmpfix the helpers in tests/files/ (UTIL.STO's .S) are swapped by
+# STOIC_TREE names another tree, such as current: its exes in
+# [.WORK.CURRENT...] are run, the tests' [.WORK.PATCHED...] paths are
+# changed to it, and the results are compared with tests/current/,
+# tests/fix/current/ and, since they must not change, tests/cmp/patched/.
+# For current the helpers in tests/files/ (UTIL.STO's .S) are swapped by
 # tools/cmp-swap so that they work as before. So are its tests, apart
 # from 02-compare, 12-float and F15-DGE, which test the comparison words
 # themselves, and F28-HEAD0, which LOADs IMAGE into the rebuilt STOIC:
@@ -50,20 +50,20 @@ treedir() {
     n=$(basename "$f"); n=${n%.*}
     case $tree/$n in
       # F28 LOADs IMAGE into a STOIC of the old comparisons; keep its source
-      cmpfix/F28-HEAD0) cp "$f" "$d/" ;;
+      current/F28-HEAD0) cp "$f" "$d/" ;;
       *) sed "s/WORK\.PATCHED/WORK.$TREE/g" "$f" > "$d/$(basename "$f")" ;;
     esac
     case $tree/$n in
       # these test the comparison words themselves; the rest only use them
-      cmpfix/02-compare|cmpfix/12-float|cmpfix/F15-DGE|cmpfix/F28-HEAD0) ;;
-      cmpfix/*) "$here/cmp-swap" "$d/$(basename "$f")" >&2 ;;
+      current/02-compare|current/12-float|current/F15-DGE|current/F28-HEAD0) ;;
+      current/*) "$here/cmp-swap" "$d/$(basename "$f")" >&2 ;;
     esac
   done
   echo "$d"
 }
-# tests/files, or for cmpfix a copy with its comparisons swapped
+# tests/files, or for current a copy with its comparisons swapped
 filesdir() {
-  if [ "$tree" != cmpfix ]; then echo "$t/files"; return; fi
+  if [ "$tree" != current ]; then echo "$t/files"; return; fi
   d=${TMPDIR:-/tmp}/stoic-$tree-files
   rm -rf "$d"; cp -r "$t/files" "$d"
   "$here/cmp-swap" "$d"/* >&2

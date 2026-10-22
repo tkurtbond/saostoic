@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-# Swaps the two-value comparison words in STOIC source, for the cmpfix
+# Swaps the two-value comparison words in STOIC source, for the current
 # tree:
 #
 #   tools/cmp-swap [-n] file...
 #
 # GT<->LT and GE<->LE, with their _IF forms and the float . forms, are
 # swapped where they are words of code: not in a comment (from a % word to
-# the end of the line), not in a "string", and not as a 'NAME. In cmpfix
+# the end of the line), not in a "string", and not as a 'NAME. In the current tree
 # the new LT compiles to what the old GT did, so each swapped use means the
 # same as before. Each change is listed as file:line: old -> new. With -n
 # nothing is written.

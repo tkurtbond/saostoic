@@ -21,7 +21,7 @@ Phase 1 passes. Phase 5 is written gradually as results come in.
 | 5 Documentation | done (see "Phase 5 outcome"; `doc/README.md`, `tests/lang/`) |
 | 6 Fixes | **done** (2026-10-21): Batches A–H; 37 fixed, 3 documented, 2 closed (`doc/patches.md`) |
 | 7 Raise the code window | **done** (2026-10-21): `JSB L^`, longword header displacement, code to K_END 6FF2D with a spare page after it, 128 KB dictionary (`doc/patches.md`) |
-| 8 Comparisons as in the manual (cmpfix) | **done** (2026-10-22): boundary tests `tests/cmp/` and r12; defects 43–50 found and fixed; `cmpfix/` built and tested, defect 13 fixed there (`doc/cmpfix.md`) |
+| 8 Comparisons as in the manual (cmpfix) | **done** (2026-10-22): boundary tests `tests/cmp/` and r12; defects 43–50 found and fixed; `cmpfix/` built and tested, defect 13 fixed there; renamed `current/` (`doc/current.md`) |
 
 Update this table as work proceeds.
 
@@ -411,7 +411,7 @@ that settle them:
 | 10 | GETCMD uses the CLI callback | 13-calc | works on V5.5-2H4, including an empty tail |
 | 11 | IMAGE header and layout assumptions | Phase 3 | **characterized**: both HEAD0s have a one-block header and the resident/DZRO ISD pairs IMAGE expects, and two-layer IMAGE works with each. Unchecked: that HEAD0 matches the running kernel (28) and that a DZRO is big enough (26). The P0 layout is the same in every generation on one system, but depends on the shareable images linked (4F800 lower in a V5 link), which is what breaks absolute addresses (22) |
 | 12 | MOD and /MOD with a negative dividend | 00, 01-arith | **confirmed**: unsigned; `-7 3 MOD` gives 0 |
-| 13 | Comparison sense differs from the manual | 02-compare | **confirmed**: `GT` is true when the top of stack is greater; CP/M STOIC has the manual's sense, so the VAX reversed it (`doc/cpm-compare.md`); fixed in cmpfix (Phase 8, `doc/cmpfix.md`) |
+| 13 | Comparison sense differs from the manual | 02-compare | **confirmed**: `GT` is true when the top of stack is greater; CP/M STOIC has the manual's sense, so the VAX reversed it (`doc/cpm-compare.md`); fixed in cmpfix, now `current/` (Phase 8, `doc/current.md`) |
 | 14 | `=` writes a negative number as `-`, three NULs, digits | 01, 02 and others | **new**, confirmed: `EQ_SGN` builds the sign with `movl #^a/-/` (a longword) |
 | 15 | DGE compares the low longwords signed | 02-compare | **new**, confirmed: `0 0 0 -1 DGE` gives 0, `-1 5 -1 3 DGE` gives −1 |
 | 16 | `.FLIP` moves only the first longword of each D_floating value | 12-float | **new**, confirmed: 1.1 becomes 1.0999999… |
@@ -1000,6 +1000,12 @@ displacement (searched: `W->L`, `CODE_COUNT`, `C8`, `JSB`, `R8@+`).
 
 ## Phase 8: Comparisons as in the manual (cmpfix)
 
+The tree made here was later renamed: `cmpfix/` is now `current/`, the tree
+under development; `doc/cmpfix.md` is `doc/current.md`; each
+`tests/.../cmpfix/` result directory is `tests/.../current/`; and
+`[.WORK.CMPFIX...]` on the VAX is `[.WORK.CURRENT...]`. This section keeps
+the old names. See "The rename" at its end.
+
 Goal: a tree, `cmpfix/`, with the comparison words as `stoic.mem` and
 CP/M STOIC have them (defect 13), so that code written from the manual or
 brought from another STOIC runs unchanged. It is `patched/` plus that
@@ -1063,6 +1069,16 @@ change, and stays alongside it.
   a binary FTP fetch of it work, and F50-IMAGERFM checks it. Every other
   result is unchanged apart from addresses after IMAGE's code, 1E higher
   (11-errors, 12-float, 12-math, F39-FSUNDER), and dates.
+
+### The rename (2026-10-22)
+
+cmpfix became `current/`, a name that says it is the tree under
+development. The tools take `STOIC_TREE=current`. `[.WORK.CURRENT...]`
+was made afresh with `setup-patched.com` and `patched-push`, and built
+with `MAC` (STOIC.EXE 110 blocks, as before). There the suite (18), the
+defect tests (39) and the comparison tests (8) all pass, the image tests
+differ only in dates and the tree's path, and RED's r0 screens are
+unchanged. `[.WORK.CMPFIX...]` was left as it was.
 
 ---
 

@@ -10,8 +10,8 @@
 #
 #   -n   list what would be copied, and copy nothing
 #
-# STOIC_TREE names another tree made the same way, such as cmpfix: its
-# files go from cmpfix/ to [.WORK.CMPFIX...].
+# STOIC_TREE names another tree made the same way, such as current: its
+# files go from current/ to [.WORK.CURRENT...].
 set -e
 here=$(cd "$(dirname "$0")" && pwd)
 top=$here/..

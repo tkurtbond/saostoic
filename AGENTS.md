@@ -17,7 +17,7 @@ system on a real (SIMH) VAX and document its design**.
 | `saostoic-text/gm/` | GM variant: `kernel.mar`, `ss.mar`, `float.sto`, and `newstoic.mem` (the GM "Detailed Guide to VAX/VMS STOIC", 19 May 1982). |
 | `doc/` | The verified documentation (Phase 5). Start at `doc/README.md`; `doc/defects.md` lists all 50 defects, `doc/patches.md` the Phase 6 fixes and `doc/errata.md` the manual corrections. |
 | `patched/` | The Phase 6 sources: a full copy of the VMS tree with the fixes. On the VAX it is `[.WORK.PATCHED...]`. |
-| `cmpfix/` | Phase 8: `patched/` with the comparison words as in the manual and CP/M STOIC (defect 13), and every use swapped by `tools/cmp-swap`. On the VAX it is `[.WORK.CMPFIX...]`; see `doc/cmpfix.md`. `cmpfix/README.md` tells others how to build and run it (checked by a fresh build in `[.WORK.CMPFRESH...]`). |
+| `current/` | The tree under development, made in Phase 8 as cmpfix: `patched/` with the comparison words as in the manual and CP/M STOIC (defect 13), and every use swapped by `tools/cmp-swap`. On the VAX it is `[.WORK.CURRENT...]`; see `doc/current.md`. `current/README.md` tells others how to build and run it (checked by a fresh build in `[.WORK.CMPFRESH...]`). |
 | `notes/` | The first design drafts (`kernel-design.md`, `stoic-level-design.md`), written from reading the code. Historical: `doc/` supersedes them. |
 
 The authoritative copy of every file, binaries included, is on the VAX in
@@ -115,8 +115,8 @@ For unattended runs, use `tools/` (see `tools/README.md`):
 - `tools/patched-push`, `tools/patched-build.com` and
   `tools/patched-suite [--fix] [--shipped]` push, build and test the
   patched tree (`doc/build.md`, "The patched build"). `tests/fix/` has a
-  test for each defect. With `STOIC_TREE=cmpfix` they (and
-  `tests/image/run`, `tests/big/run`) work on the cmpfix tree instead.
+  test for each defect. With `STOIC_TREE=current` they (and
+  `tests/image/run`, `tests/big/run`) work on the current tree instead.
 
 STOIC writes to SYS$COMMAND, the terminal, not SYS$OUTPUT. Under `/OUTPUT`
 its output therefore lands in the telnet session, not in the log, and the
@@ -317,9 +317,11 @@ runs from K_START 2FE00 to K_END 6FF2D, with a spare page after it (and
 one below the kernel code for the dictionary) so that IMAGE works when
 either is full. STOIC.EXE has about 231 KB of code and 105 KB of
 dictionary free; RED.EXE about 205 KB and 94 KB. **Phase 8** made
-`cmpfix/`, the patched build with `GT` `LT` `GE` `LE` (and their `_IF`,
+cmpfix, the patched build with `GT` `LT` `GE` `LE` (and their `_IF`,
 `.` forms and DGE) as in the manual, so defect 13 is fixed there; its exes
-are in `[.WORK.CMPFIX.STOIC]` and `[.WORK.CMPFIX.RED]`.
+are in `[.WORK.CURRENT.STOIC]` and `[.WORK.CURRENT.RED]`. It has since been
+renamed **`current/`**: it is the tree under development, and new work
+goes there (and into `patched/` when it is not about the comparisons).
 
 1. DIGIT treats any character above `Z` as a decimal point, so lowercase
    undefined words in LOAD files (which are not uppercased) compile silently
@@ -348,7 +350,8 @@ are in `[.WORK.CMPFIX.STOIC]` and `[.WORK.CMPFIX.RED]`.
 The detailed test and documentation plan is in **`PLAN.md`**. It has nine
 phases: 0 tooling, 1 characterizing the shipped binaries, 2 rebuilding from
 source, 3 IMAGE, 4 RED, 5 documentation, 6 fixes (Batches A–H), 7
-raising the code window and 8 the comparisons as in the manual (cmpfix). Keep its status table up to date.
+raising the code window and 8 the comparisons as in the manual (the tree
+then called cmpfix, now `current/`). Keep its status table up to date.
 
 ## Working conventions
 
@@ -359,6 +362,6 @@ raising the code window and 8 the comparisons as in the manual (cmpfix). Keep it
 - Commit to git as work progresses. Don't commit fetched VAX binaries or
   logs that contain session noise unless they are deliberate test evidence.
 - VMS file names and DCL are case-insensitive, and the VAX shows them in
-  uppercase. STOIC console input is uppercased by RMS (not in cmpfix,
-  whose console keeps its case), but **LOAD files are not**, so write test
+  uppercase. STOIC console input is uppercased by RMS (not in the current
+  tree, whose console keeps its case), but **LOAD files are not**, so write test
   files in uppercase.

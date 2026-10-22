@@ -47,13 +47,13 @@ the shipped RED, which fails (defect 30); the others need the rebuilt one:
 Each writes `tests/red/*.raw` (the session) and `*.scr` (the screens).
 They are compared by eye, not diffed, and described in `doc/red.md`.
 
-The patched and cmpfix builds (Phases 6–8) have their own results:
+The patched and current builds (Phases 6–8) have their own results:
 `tests/patched/`, `tests/fix/` (with `fix/patched/` and `fix/shipped/`),
 the boundary tests `tests/cmp/` (`cmp/patched/`) and `tests/red/patched/`;
-for cmpfix, `tests/cmpfix/`, `tests/fix/cmpfix/`, `tests/red/cmpfix/` and
-the `cmpfix/` folders of `tests/image/results/` and `tests/big/results/`.
-`tools/patched-suite` runs the first three, and `STOIC_TREE=cmpfix`
-points it and the image and big runners at cmpfix (`doc/cmpfix.md`).
+for the current tree, `tests/current/`, `tests/fix/current/`, `tests/red/current/` and
+the `current/` folders of `tests/image/results/` and `tests/big/results/`.
+`tools/patched-suite` runs the first three, and `STOIC_TREE=current`
+points it and the image and big runners at the current tree (`doc/current.md`).
 
 ## Kinds of test
 
@@ -105,7 +105,7 @@ The defect numbers are those of `PLAN.md`'s defect checklist.
 | `interactive/prompt` | the prompt depth, CTRL/Z | |
 | `interactive/ctrlc` | CTRL/C twice, DELAY after an abort | only the first ^C works (2) |
 | `interactive/tty` | TYI, TYPE_TYI, IO_CTRL_C, GETMODE/SETMODE | NLEN overwritten by the IOSB (3): `NLEN @ NAMELEN EQ` gives 0 on the shipped exe, −1 when fixed |
-| `interactive/case` | ROP of the console's RAB, lowercase input, strings, `hello` and `HELLO` | uppercased on the shipped and patched exes, as typed on cmpfix (`doc/cmpfix.md`) |
+| `interactive/case` | ROP of the console's RAB, lowercase input, strings, `hello` and `HELLO` | uppercased on the shipped and patched exes, as typed on the current tree (`doc/current.md`) |
 | `interactive/compbuf` | a definition too long for the compile buffer | no check; STOIC loops on faults (4) |
 
 The full word list of the shipped exe, from INVENTORY, is
