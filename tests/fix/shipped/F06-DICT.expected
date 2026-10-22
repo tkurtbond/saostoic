@@ -1,0 +1,15 @@
+QA  1
+
+%SYSTEM-W-ACCVIO, access violation, reason mask=04, virtual address=0001FC00, PC
+=00023998, PSL=03C00000
+'QB : 2 ;
+;
+I_ENTER		 D=10665, C=214A1(4C)
+:		 D=10625, C=21425(40)
+No word found at CEC0C
+No word found at 21062
+QB
+undefined error compiling...  QB  ...in line
+"QB " MSG QB = CR
+AFTER
+

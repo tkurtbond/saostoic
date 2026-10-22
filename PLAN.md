@@ -19,7 +19,7 @@ Phase 1 passes. Phase 5 is written gradually as results come in.
 | 3 IMAGE | done (see "Phase 3 outcome"; `doc/image.md`, `tests/image/`) |
 | 4 RED | done (see "Phase 4 outcome"; `doc/red.md`, `tests/red/`) |
 | 5 Documentation | done (see "Phase 5 outcome"; `doc/README.md`, `tests/lang/`) |
-| 6 Fixes | in progress: Batches A and B done; decisions taken (all as recommended) |
+| 6 Fixes | in progress: Batches A, B and C done; decisions taken (all as recommended) |
 
 Update this table as work proceeds.
 
@@ -690,7 +690,40 @@ check (5), and no shipped-equivalent exe (6).
   the shipped exe loops; `patched-suite --fix --shipped` skips it.
 - The kernel grew past a page boundary, so the `$EXPREG`'d regions are
   200 hex higher than after Batch A.
-- Not yet checked: 27 (FPD) waits for defect 4's test in Batch C.
+- 27 (FPD) was checked in Batch C: on the Batch B build, F04-COMPBUF's
+  overflow into the moat gave one ACCVIO with PSL=0BC00001 and STOIC went
+  back to the prompt, where the shipped exe loops on OPCDEC.
+
+### Batch C outcome (2026-10-21)
+
+- Fixed 3, 4, 5, 6 and 39. Tests: `tests/fix/` F03-IOSB, F03-TTIOSB,
+  F04-COMPBUF, F05-LITOVF, F06-DATAWIN, F06-CODE, F06-DICT and
+  F39-FSUNDER; the ones the shipped exe survives have a shipped result.
+- 4: I_COMPILE refuses a word when fewer than a line plus 16 bytes are
+  left in the compile buffer ("Compile buffer full", a compile error).
+  The buffer stays 400 hex bytes.
+- 5: DIGIT accumulates with EMUL, corrected for the signed multiply, and
+  sets a new cell, U_OVF, when the high longword is non-zero. ICOMPILE
+  refuses such an integer ("Number too large"); a float literal of any
+  length still converts. DIGIT now reads the character with MOVZBL: the
+  MOVB relied on R2's upper bytes being zero, which EMUL no longer leaves.
+  `tests/06-numio` moved its BIG lines after HEX FLT, since the compile
+  error now ends the file; `HEX 123456789` (36 bits) is also refused.
+- 6: I_JUMP_TO_ME and I_DISP_TO_R11 test V after their CVTLW ("Code out
+  of range", "Data out of range"). I_ENTER refuses a definition whose code
+  would end past R8+8000 ("Code space full.") or whose header would run
+  into the kernel code at R8-8000 ("Dictionary full."), before linking it.
+- 39: the moat works; FOR$CVT_D_TG hid the ACCVIO, so `.=` printed NULs.
+  FLOAT_TO_STRING now checks FS against its base, and the outer loop
+  checks it after each line ("Float stack empty."; ABORT resets FS).
+  FATAL is now global, for crtl.mar.
+- 3: the terminal IOSB is a new quadword cell, TT_IOSB, after U_OVF.
+  NLEN keeps $TRNLOG's length; in the shipped exe it holds IOSB bytes
+  that depend on the terminal's last I/O, so F03 tests NLEN < 40.
+- `tests/image/imgutil.sto`: IORB<< uses IORB<'s own address when it is
+  in the current data region, since the new cells moved the cell from
+  USER_DATA+491 in the patched exe. a-pat is unchanged apart from
+  addresses and dates.
 
 ### Produces
 

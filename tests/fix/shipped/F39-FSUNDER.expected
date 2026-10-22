@@ -1,0 +1,23 @@
+EMPTY .=   ^@^@^@^@^@^@^@^@^@^@^@^@^@^@^@^@^@^@^@^@^@^@
+
+%SYSTEM-W-ACCVIO, access violation, reason mask=00, virtual address=000CE600, PC
+=00023998, PSL=03C00008
+"NEXT       " MSG 2.5 .= CR
+2.5
+ICOMPILE	 D=66957, C=135963(71)
+I_LITERAL	 D=67063, C=136198(18)
+I_COMPILE	 D=66898, C=135776(76)
+No word found at 135251
+DROP ALONE 
+
+%SYSTEM-W-ACCVIO, access violation, reason mask=00, virtual address=000CE600, PC
+=00023998, PSL=03C00008
+"NEXT       " MSG 3.5 .= CR
+3.5
+ICOMPILE	 D=66957, C=135963(71)
+I_LITERAL	 D=67063, C=136198(18)
+I_COMPILE	 D=66898, C=135776(76)
+No word found at 135251
+BALANCED    4.000000000000000    
+F_STACK    845312
+

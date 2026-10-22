@@ -1,0 +1,43 @@
+% F06-DATAWIN: DEFECT 6 (FROM TESTS/IMAGE/B1-DATAWIN), THE DATA WINDOW.  DATA_ADDRESS (RKERNEL.MAR:1768)
+% KEEPS A LONG DISPLACEMENT FROM R11, BUT I_DISP_TO_R11 (RKERNEL.MAR:1043)
+% COMPILES IT WITH CVTLW AS MOVAL W^DISP(R11).  EACH STEP RESERVES 1000
+% BYTES AND DEFINES VX, WHICH ,D PUTS AT .D@ - 4.  THE NEXT LINE PRINTS
+% .D@ - 4, WHAT VX PUSHES, AND WHETHER THEY AGREE.
+HEX
+1000 .D+! 0 'VX VARIABLE
+.D@ 4 - <#> TYPE "  " MSG VX <#> TYPE "  " MSG .D@ 4 - VX EQ = CR
+1000 .D+! 0 'VX VARIABLE
+.D@ 4 - <#> TYPE "  " MSG VX <#> TYPE "  " MSG .D@ 4 - VX EQ = CR
+1000 .D+! 0 'VX VARIABLE
+.D@ 4 - <#> TYPE "  " MSG VX <#> TYPE "  " MSG .D@ 4 - VX EQ = CR
+1000 .D+! 0 'VX VARIABLE
+.D@ 4 - <#> TYPE "  " MSG VX <#> TYPE "  " MSG .D@ 4 - VX EQ = CR
+1000 .D+! 0 'VX VARIABLE
+.D@ 4 - <#> TYPE "  " MSG VX <#> TYPE "  " MSG .D@ 4 - VX EQ = CR
+1000 .D+! 0 'VX VARIABLE
+.D@ 4 - <#> TYPE "  " MSG VX <#> TYPE "  " MSG .D@ 4 - VX EQ = CR
+1000 .D+! 0 'VX VARIABLE
+.D@ 4 - <#> TYPE "  " MSG VX <#> TYPE "  " MSG .D@ 4 - VX EQ = CR
+1000 .D+! 0 'VX VARIABLE
+.D@ 4 - <#> TYPE "  " MSG VX <#> TYPE "  " MSG .D@ 4 - VX EQ = CR
+1000 .D+! 0 'VX VARIABLE
+.D@ 4 - <#> TYPE "  " MSG VX <#> TYPE "  " MSG .D@ 4 - VX EQ = CR
+1000 .D+! 0 'VX VARIABLE
+.D@ 4 - <#> TYPE "  " MSG VX <#> TYPE "  " MSG .D@ 4 - VX EQ = CR
+1000 .D+! 0 'VX VARIABLE
+.D@ 4 - <#> TYPE "  " MSG VX <#> TYPE "  " MSG .D@ 4 - VX EQ = CR
+1000 .D+! 0 'VX VARIABLE
+.D@ 4 - <#> TYPE "  " MSG VX <#> TYPE "  " MSG .D@ 4 - VX EQ = CR
+1000 .D+! 0 'VX VARIABLE
+.D@ 4 - <#> TYPE "  " MSG VX <#> TYPE "  " MSG .D@ 4 - VX EQ = CR
+1000 .D+! 0 'VX VARIABLE
+.D@ 4 - <#> TYPE "  " MSG VX <#> TYPE "  " MSG .D@ 4 - VX EQ = CR
+1000 .D+! 0 'VX VARIABLE
+.D@ 4 - <#> TYPE "  " MSG VX <#> TYPE "  " MSG .D@ 4 - VX EQ = CR
+1000 .D+! 0 'VX VARIABLE
+.D@ 4 - <#> TYPE "  " MSG VX <#> TYPE "  " MSG .D@ 4 - VX EQ = CR
+1000 .D+! 0 'VX VARIABLE
+.D@ 4 - <#> TYPE "  " MSG VX <#> TYPE "  " MSG .D@ 4 - VX EQ = CR
+1000 .D+! 0 'VX VARIABLE
+.D@ 4 - <#> TYPE "  " MSG VX <#> TYPE "  " MSG .D@ 4 - VX EQ = CR
+DECIMAL

@@ -2,25 +2,25 @@
 %RMS-E-FNF, file not found
 'NOSUCH.STO LOAD
 LOAD
-LOAD		 D=68193, C=137361(24)
+LOAD		 D=68193, C=137691(24)
 No word found at 521748
-No word found at 135274
+No word found at 135309
  1
 
 %RMS-E-FNF, file not found
 'NOSUCH.STO 1 OPEN
 OPEN
-OPEN		 D=67513, C=137023(14)
+OPEN		 D=67513, C=137353(14)
 No word found at 521751
-No word found at 135274
+No word found at 135309
  2
 
 %RMS-E-FNF, file not found
 'NOSUCH.STO LOAD "NOT REACHED" MSG CR
 CR
-LOAD		 D=68193, C=137361(24)
+LOAD		 D=68193, C=137691(24)
 No word found at 521748
-No word found at 135274
+No word found at 135309
 IN F07.STO
  3
 

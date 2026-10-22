@@ -133,7 +133,7 @@ _tyi::
 	clrl	-(r10)				;clear longword to receive byte
 	$qiow_s	chan=ttchan(r11),-
 		func=#io$_readvblk!io$m_noecho!io$m_nofiltr,-
-		iosb=ttchan+2(r11),p1=(r10),p2=#1
+		iosb=tt_iosb(r11),p1=(r10),p2=#1
 	movl	r0,-(r10)			;condition code
 	rsb
 
@@ -151,11 +151,11 @@ rdt2:		.long -1	;terminate on control characters ...
 _type_getline::
 	$qiow_s	chan=ttchan(r11),-	;read with selected terminators
 		func=#<io$_readprompt!io$m_nofiltr!io$m_trmnoecho>,-
-		iosb=ttchan+2(r11),-
+		iosb=tt_iosb(r11),-
 		p1=@4(r10),p2=(r10),p4=#rdterm,-
 		p5=12(r10),p6=8(r10)
 	addl2	#^x10,r10		;pop buffer addresses, lengths
-	movzwl	ttchan+4(r11),-(r10)	;get transfer count
+	movzwl	tt_iosb+2(r11),-(r10)	;get transfer count
 	movl	r0,-(r10)		;push status
 	rsb
 
@@ -165,7 +165,7 @@ _type_tyi::
 	clrl	-(r10)		;clear longword to recieve byte
 	$qiow_s	chan=ttchan(r11),-
 		func=#<io$_readprompt!io$m_noecho!io$m_nofiltr!io$m_noformat>-^X100,-
-		iosb=ttchan+2(r11),p1=(r10),p2=#1,-
+		iosb=tt_iosb(r11),p1=(r10),p2=#1,-
 		p5=r1,p6=r0
 ; QIOW FUNCTIONS:  <io$_readprompt!io$m_noecho!io$m_nofiltr!io$m_noformat>-100,-
 	movl	r0,-(r10)	;save condition code on stack
@@ -174,7 +174,7 @@ _type_tyi::
 _tyo::
 	$qiow_s chan=ttchan(r11),-
 		func=#io$_writevblk!io$m_noformat-
-		iosb=ttchan+2(r11),p1=(r10)+,p2=#1
+		iosb=tt_iosb(r11),p1=(r10)+,p2=#1
 	movl	r0,-(r10)
 	jsb	syserr
 	rsb
@@ -182,13 +182,13 @@ _tyo::
 _type::
 	$qiow_s chan=ttchan(r11),-
 		func=#io$_writevblk!io$m_noformat-
-		iosb=ttchan+2(r11),p1=@(r10)+,p2=(r10)+
+		iosb=tt_iosb(r11),p1=@(r10)+,p2=(r10)+
 	movl	r0,-(r10)
 	jsb	syserr
 	rsb
 
 _io_ctrl_c::
-	cmpl	ttchan+2(r11),#^x651	; does the code indicate control-C?
+	cmpl	tt_iosb(r11),#^x651	; does the code indicate control-C?
 	beql	$20			; if yes, go push -1
 	clrl	-(r10)			; otherwise push 0
 	rsb
@@ -197,14 +197,14 @@ $20:	mnegl	#1,-(r10)
 
 _getmode::
 	$qiow_s chan=ttchan(r11),-
-		func=#io$_sensemode,iosb=ttchan+2(r11),p1=@(r10)+,-
+		func=#io$_sensemode,iosb=tt_iosb(r11),p1=@(r10)+,-
 		p2=#^x0c	;necessary for version 3 of VMS
 	movl	r0,-(r10)
 	rsb
 
 _setmode::
 	$qiow_s chan=ttchan(r11),-
-		func=#io$_setmode,iosb=ttchan+2(r11),-
+		func=#io$_setmode,iosb=tt_iosb(r11),-
 		p1=@(r10)+,p2=#^x0c
 	movl	r0,-(r10)
 	rsb
@@ -266,7 +266,7 @@ _REMSTART::
 
 10$:	$qio_s	chan=ttchan(r11),-		;write one char. to local
 		func=#io$_writevblk!io$m_noformat,-
-		iosb=ttchan+2(r11),p1=rmbuf(r11),p2=#1
+		iosb=tt_iosb(r11),p1=rmbuf(r11),p2=#1
 	blbs	r0,20$
 	calls	#1,g^lib$signal
 

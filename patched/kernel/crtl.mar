@@ -3,7 +3,7 @@
 
 .enabl	dbg,tbk
 
-.extrn	syserr
+.extrn	syserr,fatal,f_stack_0
 
 ;make a header for a stoic word
 ;stores link,name,lookup atribute
@@ -96,7 +96,12 @@ newpage <COMMON RUN-TIME LIBRARY DEFINITIONS>
 
 header FLOAT_TO_STRING,jump_to_me,crtl
 float_to_string::		;provide name for this word
-	pushl	#^x10		;16 fractional digits
+	cmpl	r7,f_stack_0(r11)	;is the f-stack empty?
+	blssu	10$		;(FOR$CVT_D_TG would hide the ACCVIO)
+	jsb	fatal
+	.word	18
+	.ascii	/Float stack empty./
+10$:	pushl	#^x10		;16 fractional digits
 	pushaq	(r10)+		;descriptor address on p-stack
 	pushaq	(r7)+		;address on floating point stack
 	calls	#3,g^for$cvt_d_tg	;call library function

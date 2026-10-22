@@ -1,0 +1,18 @@
+EMPTY .=   Float stack empty.
+"EMPTY .=   " MSG .= CR
+CR
+No word found at 0
+F->S		 D=81560, C=150182(30)
+.=		 D=81578, C=150212(14)
+No word found at 521753
+No word found at 135309
+NEXT        2.500000000000000    
+DROP ALONE 
+Float stack empty.
+"DROP ALONE " MSG .DROP CR
+CR
+No word found at 0
+NEXT        3.500000000000000    
+BALANCED    4.000000000000000    
+F_STACK    520192
+

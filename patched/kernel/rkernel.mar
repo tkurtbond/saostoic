@@ -43,6 +43,7 @@ ROGER=1
 	.mcall	$rab
 
 	.global	syserr			;make error checker available
+	.global	fatal			;and the fatal-error printer
 
 .extrn	dat_start
 
@@ -465,7 +466,10 @@ top_loop:
 	tstl check(r11)			;pending ; or then?
 	bneq 1$				;yes read more
 	jsb @execute(r11)		;execute the line
-	brb top_loop			;and go again
+	cmpl	r7,f_stack_0(r11)	;did the line underflow the f-stack?
+	blequ	top_loop		;if not, go again
+	jsb	fatal			;if so, say so (ABORT resets it)
+	string	</Float stack empty./>
 
 
 done:	ret
@@ -620,6 +624,9 @@ time_kernel:	string	</(Kernel)/>
 ;through its lookup attribute or calling
 ;the literal handler
 header I_COMPILE
+	subl3	comp_buf_0(r11),comp_buf_pntr(r11),r0	;bytes compiled
+	cmpl	r0,#comp_buf_length-line_buf_size-16	;room for one more word?
+	bgtru	comp_full		;if not, refuse
 	blbs end_of_line(r11),comp_pop	;check eol flag
 	bsbw word			;get a word from linbuf
 	blbc (r10)+,comp_pop		;no more words so return
@@ -648,6 +655,11 @@ comp_lit:
 	wterm				;macro to terminate header
 undef_msg:
 	string	/undefined/
+comp_full:
+	moval	full_msg,-(r10)		;the compile buffer is full
+	jsb	@compile_error(r11)
+full_msg:
+	string	</Compile buffer full/>
 
 	newpage <Literal Handlers>
 ;----digit:  DIGIT, success
@@ -657,7 +669,7 @@ undef_msg:
 header DIGIT
 	tstl	r0
 	bleq	not_digit
-	movb	(r1),r2			;2<current character
+	movzbl	(r1),r2			;2<current character
 	cmpb	r2,#<^a/./>		;have we got a decimal point?
 	beql	found_dp
 	subl2	#^a/0/,r2		;bias is "0"
@@ -687,8 +699,15 @@ nume:	addl2	#10,r2			;bias is "0" for numeral
 					;0 .le. n .le. 35
 	cmpl	r2,u_rad(r11)		;compare to radix
 	bgeq	not_digit
-	mull2	u_rad(r11),u_mag(r11)	;shift left one position
-	addl2	r2,u_mag(r11)		;add current digit
+	emul	u_rad(r11),u_mag(r11),r2,r2  ;shift left one position,
+					;add current digit (r3 is the high part)
+	tstl	u_mag(r11)		;emul is signed:
+	bgeq	10$			;if the magnitude was 2**31 or more,
+	addl2	u_rad(r11),r3		;add the radix to the high part
+10$:	tstl	r3			;over 32 bits?
+	beql	20$
+	movl	#1,u_ovf(r11)		;if so, flag it (a float may be fine)
+20$:	movl	r2,u_mag(r11)
 	decl	r0			;chop current character from word
 	incl	r1
 	movl	#1,-(r10)		;succeed
@@ -710,7 +729,10 @@ header CEQ
 header ICOMPILE
 	tstl	u_float(r11)		;is there a decimal point?
 	bneq	20$			;if so, do floating point
-	movl	u_cbp(r11),r2		;r2->nenext loc. in compile buf.
+	blbc	u_ovf(r11),10$		;if it overflowed 32 bits,
+	moval	big_int_msg,-(r10)	;report a compile error
+	jsb	@compile_error(r11)
+10$:	movl	u_cbp(r11),r2		;r2->nenext loc. in compile buf.
 	movw	#^x8fd0,(r2)+		;compile "MOVL #"
 	movl	(r10)+,(r2)+		;push number onto compile buffer
 	movb	#^x7a,(r2)+		;compile "-(r10)"
@@ -733,6 +755,8 @@ header ICOMPILE
 	rsbx
 bad_float_msg:
 	string	</invalid floating-point literal/>
+big_int_msg:
+	string	</Number too large/>
 
 ;----scompile:  SCOMPILE
 ;    compiles string literal
@@ -763,6 +787,7 @@ run_sliteral:
 ;    otherwise, stores +1 as current sign.
 header SIGN
 	clrl	u_mag(r11)		;clear magnitude
+	clrl	u_ovf(r11)		;and the overflow flag
 	movl	#^a/-/,-(r10)		;push ASCII -
 	bsbw	ceq			;character equal?
 	..if
@@ -910,6 +935,18 @@ header defer_semi,<(;)>,immediate
 ; create a new stoic word setting up the name and the
 ; link
 header I_ENTER
+	addl3	4(r10),code_pntr(r11),r1	;end of the new code
+	subl2	r8,r1			;as a displacement
+	cmpl	r1,#^x8000		;within the 16-bit window?
+	bgtr	code_full		;if not, refuse before linking
+	movl	8(r10),r1		;r1->name string
+	movzwl	(r1),r1			;name length
+	addl2	dict_pntr(r11),r1	;plus the dictionary pointer
+	addl2	#14,r1			;plus links, count, attribute,
+					;code length and displacement
+	subl3	#^x8000,r8,r2		;the kernel code follows the dictionary
+	cmpl	r1,r2			;would the header run into it?
+	bgtru	dict_full		;if so, refuse
 	movl	dict_pntr(r11),r0	;remember where we are in dictionary
 	movl	@current(r11),(r0)+	;store dictionary link
 	movl	@global(r11),(r0)+	;store global link
@@ -927,6 +964,12 @@ header I_ENTER
 	cvtlw	r1,(r0)+		;install it in the dictionary
 	movl	r0,dict_pntr(r11)	;fix pointer
 	rsbx
+code_full:
+	jsb	fatal
+	string	</Code space full./>
+dict_full:
+	jsb	fatal
+	string	</Dictionary full./>
 
 syntax_msg:
 	string	</Syntax Error/>
@@ -1048,8 +1091,14 @@ header I_JUMP_TO_ME
 	movb #word_disp,(r0)+		;adr mode of word displacement
 	subl r8,(r10)			;get offset from dictionary
 	cvtlw (r10)+,(r0)+		;push in word displacement
+	bvs	10$			;if it doesn't fit
 	movl r0,comp_buf_pntr(r11)	;restore pointer
-	rsbx
+	rsb
+10$:	moval	code_full_msg,-(r10)
+	jsb	@compile_error(r11)
+	wterm
+code_full_msg:
+	string	</Code out of range/>
 
 ;execute at compile time
 i_immediate:
@@ -1079,9 +1128,15 @@ header I_DISP_TO_R11
 	movb	#op_moval,(r0)+		;inst. is "moval w^foo(r11),-(r10)"
 	movb	#^xCB,(r0)+		;hex CB is word disp. w/r r11
 	cvtlw	@(r10)+,(r0)+		;push the value
+	bvs	10$			;if it doesn't fit
 	movb	#^x7a,(r0)+		;autodecrement r11
 	movl	r0,comp_buf_pntr(r11)	;restore the pointer
-	rsbx
+	rsb
+10$:	moval	data_full_msg,-(r10)
+	jsb	@compile_error(r11)
+	wterm
+data_full_msg:
+	string	</Data out of range/>
 
 ;----<INLINE>  (used in support of inline code facility)
 header	INT_INLINE,^/<INLINE>/
@@ -2090,6 +2145,10 @@ table_offset=table_offset+4		;this should be a quadword for fp
 	table_offset=table_offset+8	;3 longword entry
 	dlrte	RMBUF
 	dlrte	CONSOLE_ERRS		;console read errors in a row
+	dlrte	U_OVF			;iliteral: the magnitude overflowed
+	dlrte	TT_IOSB			;terminal I/O status block
+	.blkl	1			;(TTCHAN+2 overlapped NLEN)
+	table_offset=table_offset+4
 
 ;	Size calculations for data prototype
 
