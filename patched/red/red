@@ -25,9 +25,28 @@
   THEN
   ;
 
+0 'RED.OLD_ABORT VARIABLE  % ABORT outside RED
+
+ASSEMBLER<
+
+'RED_ABORT :  % (ABORT while RED runs: restore the terminal, then abort)
+  RESET_REGISTERS  % the fault may have left the stacks anywhere
+  RED.OLD_ABORT @ ABORT !  % a fault from here on aborts as before
+  18 1 STBM 1 18 CUP  % whole screen scrolls; cursor below the message
+  11 CLEAR_VT100_CHAR 0A SET_VT100_CHAR  % numeric keypad, wrap on
+  % (not RESTORE_VT100: its RESET_VT100 would erase the message)
+  BUFFER_OFF E.RESET_CHARS  % DCL's terminal characteristics
+  'I_CTRL_C_HNDLR COUNT I_LOOKUP IF
+    CODE_COUNT DROP CTRL_C_HANDLER ! THEN  % restore ABORT on control-C
+  ABORT @ JMP @(P)+  % and abort as before, from the fault's return stack
+  ;
+
+>
+
 '.RED :  % [file name descriptor, -1] or [0], RED
   RED<  % push the RED vocatulary at run-time
   E.SET_CHARS
+  ABORT @ RED.OLD_ABORT ! () RED_ABORT ABORT !  % restore the terminal on a fault
 BUFFER_ON  % reset origin mode, activate buffer
 INIT_VT100 ESC[ "?6l" MSG APPLICATION_KEYPAD WRAP_OFF SMOOTH_SCROLL
  FLUSH E.INIT
@@ -41,6 +60,7 @@ INIT_VT100 ESC[ "?6l" MSG APPLICATION_KEYPAD WRAP_OFF SMOOTH_SCROLL
       LOAD_ERROR  % show "new file" if file not found, else error
     REC_SEP CRET <- MAIN_SEP CRET <- THEN THEN
   DISP BUFFER_OFF LOAD_RESET KBD  % close files and go
+  RED.OLD_ABORT @ ABORT !  % back in STOIC: ABORT as before
   ;
 
 'REDCPU :

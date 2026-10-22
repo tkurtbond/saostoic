@@ -185,8 +185,8 @@ The Status column uses these terms:
 | `?` | works | the error flag: −1 after a failed search that `E` suppressed | r2 `e-?` |
 | `#x`, `nT#x` | works | number registers A–Z. The manual's example, 50 lines X … XXXXX, works | r2 `registers`, `manual-registers` |
 | `@C @L @T` | works | character number, line number (both from 0), and the code of the character at the cursor | r2 `@c`, `@l`, `@t` |
-| `@K` | works, but see defect 34 | prompts "Type a key:"; `A` gives 65, and BACKSPACE Y gives 25 (^Y) | r8 `at-k`, `at-k-bs`, `refresh` |
-| `@N` | works, but see defect 34 | prompts "Type a number:"; `-123` RETURN gives −123 | r8 `at-n`, `refresh` |
+| `@K` | works, but see defect 34 (fixed in the patched build) | prompts "Type a key:"; `A` gives 65, and BACKSPACE Y gives 25 (^Y) | r8 `at-k`, `at-k-bs`, `refresh` |
+| `@N` | works, but see defect 34 (fixed in the patched build) | prompts "Type a number:"; `-123` RETURN gives −123 | r8 `at-n`, `refresh` |
 | `@A` | works | a macro's argument: `21:6` with `@A*2` in X6 gives 42 | r3 `@a` |
 | `nTP`, `@P`, `@Q` | works | push; pop; top without popping: `10TP@P` gives 10 | r2 `tp`, `@q` |
 
@@ -324,6 +324,14 @@ not return** (r6 `dcl`, `dcl-2`):
 - A likely reason, untested: BUFFER_ON has already set O.FLAG, so every
   TYO goes on faulting.
 - Recovery: `SET TERMINAL/DEVICE=VT100` (or `/INQUIRE`).
+- The hang comes from 30, not from the fault. After a fault inside the
+  rebuilt RED (`1/0`, r10-fault), `;F` works, but the terminal is still
+  changed, and CR at the prompt is buffered until BUFFER_OFF (r10b-bufoff).
+- Fixed in the patched build: while RED runs, ABORT is RED_ABORT, which
+  restores the terminal (as on exit, but without the screen-clearing
+  reset) and then jumps to the old ABORT. After `1/0`, the message and
+  traceback print, STOIC lines echo, `;F` returns to DCL, and the terminal
+  is VT100 again (`tests/red/patched/r10-fault`).
 
 **32. `KBD` sends a malformed escape sequence:**
 - `6 RESET_MODE` (`kbd:500`) sends `ESC [ ? ^F l`. `vt100` defines
@@ -333,10 +341,14 @@ not return** (r6 `dcl`, `dcl-2`):
   `tools/red-screens` removes the sequence.
 - It is harmless on a real terminal. The intent was probably `ASCII 6`
   (`?6l`, origin mode off), which `.RED` already sends.
+- Fixed in the patched build (Phase 6, Batch G): `ASCII 6 RESET_MODE`.
 
 **33. The up arrow differs from the manual:**
 - From the middle of a line it goes to the start of the same line.
 - The manual says the previous line.
+- Fixed in the patched build: the up arrow goes to the start of the
+  previous line from anywhere in the line (`tests/red/patched/r4-keys`
+  `up-mid`, `up-bol`), and stays on line 1 at the top (`r11-uptop`).
 
 **34. After `@K` or `@N`, inserted text is drawn on the divider line** (r8):
 - C.@K and C.@N redraw the divider (DRAW_DIVIDER) and leave the terminal
@@ -345,6 +357,8 @@ not return** (r6 `dcl`, `dcl-2`):
 - The text window scrolls a blank line instead.
 - The buffer is right: ^R shows 65, 25 and −123 on their lines (r8
   `refresh`).
+- Fixed in the patched build: C.@K and C.@N put the cursor back with
+  S.CUP after redrawing the divider (`tests/red/patched/r8-input`).
 
 **35. `` `C `` replies differ from the manual:**
 - RETURN replaces, like ESC.

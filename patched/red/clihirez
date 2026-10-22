@@ -536,7 +536,8 @@ ASSEMBLER<
     DROP TYI 40 -  % adjust next character
   THEN
   CLI.LOAD_ARG  % fix the arguments
-  DRAW_DIVIDER TIME_FLAG @ IF S.CPU_TIME THEN FLUSH  % fix divider
+  DRAW_DIVIDER TIME_FLAG @ IF S.CPU_TIME THEN  % fix divider
+  S.CUP FLUSH  % and put the cursor back in the text
   -1  % always succeed
   ;
 
@@ -564,7 +565,8 @@ ASSEMBLER<
       DROP -1  % otherwise end
     THEN
   END C.SIGN @ * CLI.LOAD_ARG  % fix sign, set up the argument
-  DRAW_DIVIDER TIME_FLAG @ IF S.CPU_TIME THEN FLUSH  % fix divider
+  DRAW_DIVIDER TIME_FLAG @ IF S.CPU_TIME THEN  % fix divider
+  S.CUP FLUSH  % and put the cursor back in the text
   -1  % always succeed
   ;
 

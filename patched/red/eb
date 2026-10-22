@@ -62,13 +62,8 @@
   TOP_COUNT SRCR DUP E.M- D.M-
   ;
 
-'C.UP_ARROW :
-  TOP_COUNT GTZ_IF  % anything there?
-    UNDROP 1-   % yes move back at least one byte
-    SRCR  % move back one line
-    1+  % add byte to string passed over
-    DUP E.M- D.M- ELSE
-    2DROP THEN  % clean stack
+'C.UP_ARROW :  % n, C.UP_ARROW (to the start of the nth line back)
+  1+ C.L-  % n+1 CRs back, from anywhere in the line
   ;
 
 'C.D+ :

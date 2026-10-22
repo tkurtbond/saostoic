@@ -455,6 +455,22 @@ recover R11 as the ^C routine does, and make the descriptors consistent.
   that O.FLAG stays set, so every TYO faults again.
 - **Fix:** restore the terminal in ABORT's path while RED is active, and
   fix 30. Recovery: `SET TERMINAL/DEVICE=VT100`.
+- **The hang is 30's.** `tests/red/r10-fault` makes a fault inside RED
+  (`1/0` on the command line, a DIVL by zero, SS$_INTDIV). With the
+  rebuilt, unpatched RED, `;F` returns to DCL, but the terminal is still
+  left Unknown, No Wrap and No ANSI_CRT. O.FLAG stays set, so CR at the
+  `0>` prompt is buffered and not seen (`r10b-bufoff`: BUFFER_OFF cures
+  it). Only the shipped exe's stale O.BUFSTRT makes `;F` hang.
+- **Fixed in Phase 6 (Batch G).** `.RED` saves ABORT in RED.OLD_ABORT and
+  installs RED_ABORT (`patched/red/red`), and puts the old ABORT back when
+  RED exits. RED_ABORT resets the registers, puts the old ABORT back, and
+  undoes what RED set up: the scroll region (`18 1 STBM`), the cursor
+  (to the bottom row), the numeric keypad, wrap, BUFFER_OFF,
+  `E.RESET_CHARS` and the CTRL/C handler. It does not call RESTORE_VT100, whose `ESC c` would
+  erase the message. Then it jumps (`JMP @(P)+`) to the old ABORT, so the
+  traceback is the same as before. In `tests/red/patched/r10-fault` the
+  message and traceback print, `DECIMAL 1 2 + = CR` prints ` 3`, `;F`
+  returns to DCL, and SHOW TERMINAL gives VT100, Wrap and ANSI_CRT.
 
 ### 32. KBD sends `ESC [ ? ^F l`
 
@@ -466,6 +482,9 @@ recover R11 as the ^C routine does, and make the descriptors consistent.
 - **Impact:** none on a VT100, which acts on the ^F and ignores the rest.
   Emulators may print the `l` (`tools/red-screens` removes it).
 - **Fix:** `ASCII 6 RESET_MODE`.
+- **Fixed in Phase 6 (Batch G)** that way (`patched/red/kbd`). The raw
+  logs of the patched RED (`tests/red/patched/r4-keys.raw`, `r8-input.raw`)
+  have only `ESC [ ? 6 l`.
 
 ### 33. The up arrow differs from the manual
 
@@ -475,6 +494,10 @@ recover R11 as the ^C routine does, and make the descriptors consistent.
   searches back for a CR.
 - **Fix:** correct the manual, or step back to the previous line's start
   in all cases.
+- **Fixed in Phase 6 (Batch G)** the second way (decision 2): C.UP_ARROW
+  is `1+ C.L-`, n+1 CRs back from anywhere in the line. In
+  `tests/red/patched/r4-keys.scr`, from row 12 column 4, `up-mid` is at
+  11,1 and `up-bol` at 10,1 (the shipped RED: 12,1 and 11,1).
 
 ### 34. After `@K` or `@N`, the next insertion is drawn on the divider
 
@@ -484,6 +507,10 @@ recover R11 as the ^C routine does, and make the descriptors consistent.
   the terminal cursor there. RED's display code assumes the cursor is
   still in the text window.
 - **Fix:** put the cursor back (or force a redraw) after the prompt.
+- **Fixed in Phase 6 (Batch G).** After DRAW_DIVIDER, C.@K and C.@N do
+  `S.CUP FLUSH` (`SROW D@ CUP`, `window:55`) in `patched/red/cli` and
+  `clihirez`. In `tests/red/patched/r8-input.scr` the divider stays clean,
+  and 65, 25 and −123 are drawn on their own lines in the text window.
 
 ### 35. `` `C `` replies differ from the manual
 

@@ -19,7 +19,7 @@ Phase 1 passes. Phase 5 is written gradually as results come in.
 | 3 IMAGE | done (see "Phase 3 outcome"; `doc/image.md`, `tests/image/`) |
 | 4 RED | done (see "Phase 4 outcome"; `doc/red.md`, `tests/red/`) |
 | 5 Documentation | done (see "Phase 5 outcome"; `doc/README.md`, `tests/lang/`) |
-| 6 Fixes | in progress: Batches A–F done; decisions taken (all as recommended) |
+| 6 Fixes | in progress: Batches A–G done; decisions taken (all as recommended) |
 
 Update this table as work proceeds.
 
@@ -823,6 +823,24 @@ check (5), and no shipped-equivalent exe (6).
   patched `image`, rebuilt HEAD0) that is written.
 - The build makes all three exes; the suites, `tests/fix/` and image
   groups a-pat and e-pat differ only in addresses and sizes.
+
+### Batch G outcome (2026-10-21)
+
+- Fixed 31 in `patched/red/red`: while RED runs, ABORT is RED_ABORT. It
+  restores the terminal without RESTORE_VT100's screen-clearing `ESC c`,
+  turns buffering off, restores the CTRL/C handler, and jumps to the old
+  ABORT, so the traceback is unchanged. The `;F` hang was 30's (fixed in
+  Batch E): after a fault inside the rebuilt RED, `;F` works, but the
+  terminal stays Unknown and CR stays buffered.
+- Fixed 32 (`ASCII 6 RESET_MODE`, `kbd`), 33 (C.UP_ARROW is `1+ C.L-`,
+  `eb`) and 34 (`S.CUP FLUSH` after the divider in C.@K and C.@N, `cli`
+  and `clihirez`).
+- New red-drive scripts `tests/red/r10-fault`, `r10b-bufoff` and
+  `r11-uptop`; results with the patched RED are in `tests/red/patched/`.
+- Regression: r0–r5 and r7–r9 against the patched RED. r0, r1, r2, r7
+  and r9 match the shipped-run screens. r3 differs only in buffer
+  addresses (the data region is now near 400000), r5 in timestamps, r4
+  in the up-arrow rows (33) and r8 in the divider (34).
 
 ### Produces
 
