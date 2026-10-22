@@ -1861,8 +1861,13 @@ header V_PUSH
 
 ;---->:  pops the top off the V-stack
 header LEFT_ANGLE,^!>!
+	addl3	#8,vocab_sp(r11),r0	;would this pop the last branch?
+	cmpl	r0,v_stack_0(r11)
+	bgtru	vs_err			;if so, refuse
 	addl2	#4,vocab_sp(r11)
 	rsbx
+vs_err:	jsb	fatal
+	string	</Vocabulary stack empty./>
 
 ;----DEFINITIONS:  makes current the branch at top of V-stack
 header DEFINITIONS
